@@ -94,6 +94,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.proto_net.rf.parameters(),
             lr=context_lr,
         )
+        self.softplus = torch.nn.Softplus()
 
     def dense_to_sparse(self, rewards):
         rewards_np = rewards.data.numpy()
@@ -205,6 +206,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
         self.policy_optimizer.step()
+        self._do_information_bottleneck(idx)
 
         # save some statistics for eval
         if self.eval_statistics is None:

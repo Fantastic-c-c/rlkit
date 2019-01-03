@@ -107,7 +107,7 @@ def main(gpu, docker):
             context_lr=3e-4,
             reward_scale=100.,
             reparameterize=True,
-            use_information_bottleneck=False,  # only supports False for now
+            use_information_bottleneck=True,  # only supports False for now
 
             train_embedding_source='posterior_only',
             # embedding_source should be chosen from
