@@ -155,22 +155,24 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                       "/proto-sac-point-mass-fb-16z-train-task{}-{}.pkl".format(idx, epoch), 'wb+') as f:
                 pickle.dump(test_paths, f, pickle.HIGHEST_PROTOCOL)
 
+            """
             statistics.update(eval_util.get_generic_path_information(
                 test_paths, stat_prefix="Test_task{}".format(idx),
             ))
             statistics.update(eval_util.get_generic_path_information(
                 self._exploration_paths, stat_prefix="Exploration_task{}".format(idx),
             )) # something is wrong with these exploration paths i'm pretty sure...
+            """
             # if hasattr(self.env, "log_diagnostics"):
             #     self.env.log_diagnostics(test_paths)
 
             average_returns = rlkit.core.eval_util.get_average_returns(test_paths)
             # TODO: add flag for disabling individual task logging info, since it's a lot of clutter
-            statistics['AverageReturn_training_task{}'.format(idx)] = average_returns
-            statistics['GoalPosition_training_task{}'.format(idx)] = goal
+            # statistics['AverageReturn_training_task{}'.format(idx)] = average_returns
+            # statistics['GoalPosition_training_task{}'.format(idx)] = goal
             train_avg_returns += [average_returns]
-            print('GoalPosition_training_task')
-            print(goal)
+            # print('GoalPosition_training_task')
+            # print(goal)
 
 
 
@@ -222,15 +224,17 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                       "/proto-sac-point-mass-fb-16z-test-task{}-{}.pkl".format(idx, epoch), 'wb+') as f:
                 pickle.dump(test_paths, f, pickle.HIGHEST_PROTOCOL)
 
+            """
             statistics.update(eval_util.get_generic_path_information(
                 test_paths, stat_prefix="Test_task{}".format(idx),
             ))
-            if hasattr(self.env, "log_diagnostics"):
-                self.env.log_diagnostics(test_paths)
+            """
+            # if hasattr(self.env, "log_diagnostics"):
+            #     self.env.log_diagnostics(test_paths)
 
             average_returns = rlkit.core.eval_util.get_average_returns(test_paths)
-            statistics['AverageReturn_test_task{}'.format(idx)] = average_returns
-            statistics['GoalPosition_test_task{}'.format(idx)] = goal
+            # statistics['AverageReturn_test_task{}'.format(idx)] = average_returns
+            # statistics['GoalPosition_test_task{}'.format(idx)] = goal
             test_avg_returns += [average_returns]
 
             # TODO: flags for these, flesh out other embedding/evaluation schemes

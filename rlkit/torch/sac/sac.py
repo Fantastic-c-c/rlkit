@@ -28,6 +28,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             qf_lr=1e-3,
             vf_lr=1e-3,
             context_lr=1e-3,
+            kl_lambda=1.,
+            rf_loss_scale=1.,
             policy_mean_reg_weight=1e-3,
             policy_std_reg_weight=1e-3,
             policy_pre_activation_weight=0.,
@@ -64,6 +66,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.vib_criterion = nn.MSELoss()
         self.l2_reg_criterion = nn.MSELoss()
         self.eval_statistics = None
+        self.latent_dim = latent_dim
+        self.kl_lambda = kl_lambda
+        self.rf_loss_scale = rf_loss_scale
 
         self.reparameterize = reparameterize
         self.use_information_bottleneck = use_information_bottleneck
@@ -94,6 +99,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.proto_net.rf.parameters(),
             lr=context_lr,
         )
+
         self.softplus = torch.nn.Softplus()
 
     def dense_to_sparse(self, rewards):
@@ -206,7 +212,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
         self.policy_optimizer.step()
-        self._do_information_bottleneck(idx)
+        if self.use_information_bottleneck:
+            kl_div = self._do_information_bottleneck(idx)
 
         # save some statistics for eval
         if self.eval_statistics is None:
@@ -219,6 +226,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
+            if self.use_information_bottleneck:
+                self.eval_statistics['KL Divergence'] = ptu.get_numpy(kl_div)
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Q Predictions',
                 ptu.get_numpy(q1_pred),

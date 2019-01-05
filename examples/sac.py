@@ -107,12 +107,14 @@ def main(gpu, docker):
             context_lr=3e-4,
             reward_scale=100.,
             reparameterize=True,
+            kl_lambda=.1,
+            rf_loss_scale=1.,
             use_information_bottleneck=True,  # only supports False for now
 
-            train_embedding_source='posterior_only',
+            train_embedding_source='online_exploration_trajectories',
             # embedding_source should be chosen from
             # {'initial_pool', 'online_exploration_trajectories', 'online_on_policy_trajectories'}
-            eval_embedding_source='initial_pool',
+            eval_embedding_source='online_exploration_trajectories',
         ),
         net_size=300,
         use_gpu=True,
