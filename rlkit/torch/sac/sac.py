@@ -66,7 +66,6 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.vib_criterion = nn.MSELoss()
         self.l2_reg_criterion = nn.MSELoss()
         self.eval_statistics = None
-        self.latent_dim = latent_dim
         self.kl_lambda = kl_lambda
         self.rf_loss_scale = rf_loss_scale
 
