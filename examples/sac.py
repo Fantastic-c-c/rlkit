@@ -91,7 +91,7 @@ def main(gpu, docker):
             randomize_tasks=True,
         ),
         algo_params=dict(
-            meta_batch=1,
+            meta_batch=10,
             num_iterations=10000,
             num_tasks_sample=5,
             num_steps_per_task=10 * max_path_length,
@@ -121,7 +121,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'proto-sac-point-mass-16z-TEST'
+    exp_name = 'proto-sac-point-mass-16z-ib'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, base_log_dir=log_dir)

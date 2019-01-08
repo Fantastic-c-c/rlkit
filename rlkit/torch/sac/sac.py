@@ -152,12 +152,20 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         enc_data = self.prepare_encoder_data(obs_enc, rewards_enc)
 
         # run inference in networks
-        r_pred, q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.proto_net(obs, actions, next_obs, enc_data, obs_enc)
+        if self.use_information_bottleneck:
+            r_pred, q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z, kl_div = self.proto_net(obs, actions, next_obs, enc_data, obs_enc)
+        else:
+            r_pred, q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.proto_net(obs, actions, next_obs, enc_data, obs_enc)
+
+        if self.use_information_bottleneck:
+            kl_loss = self.kl_lambda * kl_div
+            kl_loss.backward(retain_graph=True)
+
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         # auxiliary reward prediction from encoder states
         rewards_enc_flat = rewards_enc.view(self.embedding_batch_size * num_tasks, -1)
-        rf_loss = 1. * self.rf_criterion(r_pred, rewards_enc_flat)
+        rf_loss = self.rf_loss_scale * self.rf_criterion(r_pred, rewards_enc_flat)
         self.rf_optimizer.zero_grad()
         self.context_optimizer.zero_grad()
         rf_loss.backward(retain_graph=True)
@@ -211,8 +219,6 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
         self.policy_optimizer.step()
-        if self.use_information_bottleneck:
-            kl_div = self._do_information_bottleneck(idx)
 
         # save some statistics for eval
         if self.eval_statistics is None:

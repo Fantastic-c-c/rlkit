@@ -7,6 +7,25 @@ import torch.nn.functional as F
 import rlkit.torch.pytorch_util as ptu
 
 
+def _product_of_gaussians(mus, sigmas):
+    '''
+    compute mu, sigma of product of gaussians
+    '''
+    sigmas_squared = sigmas ** 2
+    sigma_squared = 1. / torch.sum(torch.reciprocol(sigmas_squared), dim=0)
+    mu = sigma_squared * torch.sum(mus / sigmas_squared, dim=0)
+    return mu, torch.sqrt(sigma_squared)
+
+
+def _mean_of_gaussians(mus, sigmas):
+    '''
+    compute mu, sigma of mean of gaussians
+    '''
+    mu = torch.mean(mus, dim=0)
+    sigma = torch.sqrt(torch.mean(sigmas**2, dim=0))
+    return mu, sigma
+
+
 class ProtoNet(nn.Module):
 
     def __init__(self,
@@ -18,6 +37,7 @@ class ProtoNet(nn.Module):
                  tau=1e-2,
     ):
         super().__init__()
+        self.latent_dim = latent_dim
         self.task_enc, self.policy, self.qf1, self.qf2, self.vf, self.rf = nets
         self.target_vf = self.vf.copy()
         self.reparam = reparam
@@ -25,31 +45,19 @@ class ProtoNet(nn.Module):
         self.det_z = det_z
         self.tau = tau
 
-    def _product_of_gaussians(mus, sigmas):
-        '''
-        compute mu, sigma of product of gaussians
-        '''
-        sigmas_squared = sigmas ** 2
-        sigma_squared = 1. / torch.sum(torch.reciprocol(sigmas_squared), dim=0)
-        mu = sigma_squared * torch.sum(mus / sigmas_squared, dim=0)
-        return mu, torch.sqrt(sigma_squared)
-
-    def _mean_of_gaussians(mus, sigmas):
-        '''
-        compute mu, sigma of mean of gaussians
-        '''
-        mu = torch.mean(mus, dim=0)
-        sigma = torch.sqrt(torch.mean(sigmas**2, dim=0))
-        return mu, sigma
 
     def _update_target_network(self):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.tau)
 
     def forward(self, obs, actions, next_obs, enc_data, obs_enc):
-        task_z = self.embed(enc_data)
-        return self.infer(obs, actions, next_obs, obs_enc, task_z)
+        if self.use_ib:
+            task_z, kl_div = self.embed(enc_data, with_kl_div=True)
+            return list(self.infer(obs, actions, next_obs, obs_enc, task_z)) + [kl_div]
+        else:
+            task_z = self.embed(enc_data)
+            return self.infer(obs, actions, next_obs, obs_enc, task_z)
 
-    def embed(self, in_):
+    def embed(self, in_, with_kl_div=False):
         '''
         compute latent task embedding from data
 
@@ -65,19 +73,26 @@ class ProtoNet(nn.Module):
         embeddings = self.task_enc(in_).view(t, b, -1)
         embeddings = torch.unbind(embeddings, dim=0)
 
+
         # TODO info bottleneck (WIP) need KL loss
-        '''
         if self.use_ib:
             mus = [e[:, :self.latent_dim] for e in embeddings]
             sigmas = [F.softplus(e[:, self.latent_dim:]) for e in embeddings]
             z_params = [_mean_of_gaussians(m, s) for m, s in zip(mus, sigmas)]
             if not self.det_z:
-                z_dists = [torch.Distributions.Normal(m, s) for m, s in z_params]
-                task_z = [d.sample() for d in z_dists]
+                z_dists = [torch.distributions.Normal(m, s) for m, s in z_params]
+                task_z = [d.rsample() for d in z_dists]
+                if with_kl_div:
+                    prior = torch.distributions.Normal(ptu.zeros(self.latent_dim), ptu.ones(self.latent_dim))
+                    kl_divs = [torch.distributions.kl.kl_divergence(z_dist, prior) for z_dist in z_dists]
+                    kl_div_sum = torch.sum(torch.stack(kl_divs))
             else:
                 task_z = [p[0] for p in z_params]
-        '''
-        task_z = [torch.mean(e, dim=0) for e in embeddings]
+        else:
+            task_z = [torch.mean(e, dim=0) for e in embeddings]
+
+        if with_kl_div:
+            return task_z, kl_div_sum
 
         return task_z
 
