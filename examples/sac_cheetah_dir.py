@@ -97,6 +97,7 @@ def main(gpu, docker):
                 num_train_steps_per_itr=1000,
                 num_steps_per_eval=10 * max_path_length,
                 batch_size=256, # to compute training grads from
+                embedding_batch_size=256,
                 max_path_length=max_path_length,
                 discount=0.99,
                 soft_target_tau=0.005,
