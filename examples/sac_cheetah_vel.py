@@ -87,47 +87,48 @@ def main(gpu, docker):
     log_dir = '/mounts/output' if docker == 1 else 'output'
     max_path_length = 100
     # noinspection PyTypeChecker
-    variant = dict(
-        task_params=dict(
-            n_tasks=50,
-            randomize_tasks=True,
-        ),
-        algo_params=dict(
-            meta_batch=16,
-            num_iterations=500, # meta-train epochs
-            num_tasks_sample=5,
-            num_steps_per_task=5 * max_path_length,
-            num_train_steps_per_itr=1000,
-            num_steps_per_eval=10 * max_path_length,
-            batch_size=256, # to compute training grads from
-            max_path_length=max_path_length,
-            discount=0.99,
-            soft_target_tau=0.005,
-            policy_lr=3E-4,
-            qf_lr=3E-4,
-            vf_lr=3E-4,
-            context_lr=3e-4,
-            reward_scale=5.,
-            reparameterize=True,
-            use_information_bottleneck=False,
-            train_embedding_source='online_exploration_trajectories',
-            eval_embedding_source='online_exploration_trajectories',
-        ),
-        net_size=300,
-        use_gpu=True,
-        gpu_id=gpu,
-    )
-    exp_name = 'proto-sac-half-cheetah-vel-16z-batch16'
+    for i, kl_lambda in enumerate([0.01, 0.1, 1., 10., 100., 1000., 10000.]):
+        variant = dict(
+            task_params=dict(
+                n_tasks=50,
+                randomize_tasks=True,
+            ),
+            algo_params=dict(
+                meta_batch=16,
+                num_iterations=500, # meta-train epochs
+                num_tasks_sample=5,
+                num_steps_per_task=5 * max_path_length,
+                num_train_steps_per_itr=1000,
+                num_steps_per_eval=10 * max_path_length,
+                batch_size=256, # to compute training grads from
+                max_path_length=max_path_length,
+                discount=0.99,
+                soft_target_tau=0.005,
+                policy_lr=3E-4,
+                qf_lr=3E-4,
+                vf_lr=3E-4,
+                context_lr=3e-4,
+                reward_scale=5.,
+                reparameterize=True,
+                use_information_bottleneck=False,
+                train_embedding_source='online_exploration_trajectories',
+                eval_embedding_source='online_exploration_trajectories',
+            ),
+            net_size=300,
+            use_gpu=True,
+            gpu_id=gpu,
+        )
+        exp_name = 'proto-sac/half-cheetah-vel/kl-sweep/{}'.format(i)
 
-    log_dir = '/mounts/output' if docker == 1 else 'output'
-    experiment_log_dir = setup_logger(exp_name, variant=variant, base_log_dir=log_dir)
+        log_dir = '/mounts/output' if docker == 1 else 'output'
+        experiment_log_dir = setup_logger(exp_name, variant=variant, base_log_dir=log_dir)
 
-    # creates directories for pickle outputs of trajectories (point mass)
-    pickle_dir = experiment_log_dir + '/eval_trajectories'
-    pathlib.Path(pickle_dir).mkdir(parents=True, exist_ok=True)
-    variant['algo_params']['output_dir'] = pickle_dir
+        # creates directories for pickle outputs of trajectories (point mass)
+        pickle_dir = experiment_log_dir + '/eval_trajectories'
+        pathlib.Path(pickle_dir).mkdir(parents=True, exist_ok=True)
+        variant['algo_params']['output_dir'] = pickle_dir
 
-    experiment(variant)
+        experiment(variant)
 
 if __name__ == "__main__":
     main()
