@@ -110,7 +110,7 @@ def main(gpu, docker):
                 context_lr=3e-4,
                 reward_scale=5.,
                 reparameterize=True,
-                use_information_bottleneck=False,
+                use_information_bottleneck=True,
                 train_embedding_source='online_exploration_trajectories',
                 eval_embedding_source='online_exploration_trajectories',
             ),
