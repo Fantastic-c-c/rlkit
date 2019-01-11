@@ -3,6 +3,9 @@ from rlkit.envs.ant_multitask_base import MultitaskAntEnv
 
 class AntDirEnv(MultitaskAntEnv):
 
+    def __init__(self, task={}, n_tasks=2, forward_backward=False):
+        self.forward_backward = forward_backward
+        super(AntDirEnv, self).__init__(task, n_tasks)
 
 
     """
@@ -63,9 +66,10 @@ class AntDirEnv(MultitaskAntEnv):
         )
 
     def sample_tasks(self, num_tasks):
-        #  choose this threshold
-
-        # TODO: currently set to only one quadrant
-        velocities = np.random.uniform(0., 1.0 * np.pi, size=(num_tasks,))
+        if self.forward_backward:
+            assert num_tasks == 2
+            velocities = np.array([0., np.pi])
+        else:
+            velocities = np.random.uniform(0., 1.0 * np.pi, size=(num_tasks,))
         tasks = [{'goal': velocity} for velocity in velocities]
         return tasks

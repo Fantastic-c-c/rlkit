@@ -7,9 +7,7 @@ import click
 import datetime
 import pathlib
 
-from gym.envs.mujoco import HalfCheetahEnv
 from rlkit.envs.ant_dir import AntDirEnv
-from rlkit.envs.point_mass import PointEnv
 
 import rlkit.torch.pytorch_util as ptu
 from rlkit.envs.wrappers import NormalizedBoxEnv
@@ -24,7 +22,7 @@ def datetimestamp(divider=''):
 
 def experiment(variant):
     task_params = variant['task_params']
-    env = NormalizedBoxEnv(AntDirEnv(n_tasks=task_params['n_tasks']))
+    env = NormalizedBoxEnv(AntDirEnv(n_tasks=task_params['n_tasks'], forward_backward=True))
     ptu.set_gpu_mode(True)
 
     tasks = env.get_all_task_idx()
@@ -32,6 +30,7 @@ def experiment(variant):
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
     latent_dim = 5
+    task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
     reward_dim = 1
 
     net_size = variant['net_size']
@@ -39,7 +38,7 @@ def experiment(variant):
     task_enc = FlattenMlp(
         hidden_sizes=[200, 200, 200], # deeper net + higher dim space generalize better
         input_size=obs_dim + reward_dim,
-        output_size=latent_dim,
+        output_size=task_enc_output_dim,
     )
     qf1 = FlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
@@ -71,8 +70,8 @@ def experiment(variant):
 
     algorithm = ProtoSoftActorCritic(
         env=env,
-        train_tasks=list(tasks[:-10]), # list(tasks[:-10]), # list(tasks[:30]),
-        eval_tasks=list(tasks[-10:]),# list(tasks[-10:]), # list(tasks[30:]),
+        train_tasks=list(tasks),
+        eval_tasks=list(tasks),
         nets=[task_enc, policy, qf1, qf2, vf, rf],
         latent_dim=latent_dim,
         **variant['algo_params']
@@ -117,7 +116,7 @@ def main(docker):
         net_size=300,
         use_gpu=True,
     )
-    exp_name = 'proto-sac/ant-dir/info-bottleneck-debug'
+    exp_name = 'proto-sac/ant-dir/info-bottleneck-debug3'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, base_log_dir=log_dir)

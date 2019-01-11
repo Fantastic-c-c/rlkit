@@ -168,8 +168,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
             average_returns = rlkit.core.eval_util.get_average_returns(test_paths)
             # TODO: add flag for disabling individual task logging info, since it's a lot of clutter
-            # statistics['AverageReturn_training_task{}'.format(idx)] = average_returns
-            # statistics['GoalPosition_training_task{}'.format(idx)] = goal
+            statistics['AverageReturn_training_task{}'.format(idx)] = average_returns
+            statistics['GoalPosition_training_task{}'.format(idx)] = goal
             train_avg_returns += [average_returns]
             # print('GoalPosition_training_task')
             # print(goal)
@@ -233,8 +233,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             #     self.env.log_diagnostics(test_paths)
 
             average_returns = rlkit.core.eval_util.get_average_returns(test_paths)
-            # statistics['AverageReturn_test_task{}'.format(idx)] = average_returns
-            # statistics['GoalPosition_test_task{}'.format(idx)] = goal
+            statistics['AverageReturn_test_task{}'.format(idx)] = average_returns
+            statistics['GoalPosition_test_task{}'.format(idx)] = goal
             test_avg_returns += [average_returns]
 
             # TODO: flags for these, flesh out other embedding/evaluation schemes
