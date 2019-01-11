@@ -4,7 +4,7 @@ from rlkit.envs.mujoco_env import MujocoEnv
 
 
 class AntEnv(MujocoEnv):
-    def __init__(self, use_low_gear_ratio=False):
+    def __init__(self, use_low_gear_ratio=True):
         # self.init_serialization(locals())
         if use_low_gear_ratio:
             xml_path = 'low_gear_ratio_ant.xml'

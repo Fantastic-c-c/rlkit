@@ -88,11 +88,11 @@ def main(docker):
     # noinspection PyTypeChecker
     variant = dict(
         task_params=dict(
-            n_tasks=50, # 20 works pretty well
+            n_tasks=2, # 20 works pretty well
             randomize_tasks=True,
         ),
         algo_params=dict(
-            meta_batch=16,
+            meta_batch=2,
             num_iterations=10000,
             num_tasks_sample=5,
             num_steps_per_task=2 * max_path_length,
@@ -108,14 +108,16 @@ def main(docker):
             context_lr=3e-4,
             reward_scale=5.,
             reparameterize=True,
-            use_information_bottleneck=False,  # only supports False for now
+            kl_lambda=.1,
+            rf_loss_scale=1.,
+            use_information_bottleneck=True,  # only supports False for now
             eval_embedding_source='online_exploration_trajectories',
             train_embedding_source='online_exploration_trajectories',
         ),
         net_size=300,
         use_gpu=True,
     )
-    exp_name = 'proto-sac-ant-dir-16z-batch16'
+    exp_name = 'proto-sac/ant-dir/info-bottleneck-debug'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, base_log_dir=log_dir)
