@@ -106,7 +106,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         sparse_reward = (rewards_np < .2).astype(float)
         return Tensor(sparse_reward)
 
-    def sample_data(self, indices, encoder=False):
+    def sample_data(self, indices, encoder=False, new_goal=None):
         # sample from replay buffer for each task
         # TODO(KR) this is ugly af
         obs, actions, rewards, next_obs, terms = [], [], [], [], []
@@ -120,6 +120,11 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             r = batch['rewards'][None, ...]
             no = batch['next_observations'][None, ...]
             t = batch['terminals'][None, ...]
+            
+            if new_goal is not None:
+                r = ptu.FloatTensor(self.reward_scale*self.env.get_reward(np.transpose(o), new_goal)[..., None])
+                r = r.view([1, 256, 1])
+
             obs.append(o)
             actions.append(a)
             rewards.append(r)
@@ -144,11 +149,16 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
     def _do_training(self, indices):
 
+        # sometimes relabel samples with new reward function
+        new_goal=None
+        if bool(np.random.random() < 0.5):
+            new_goal = self.env.sample_goals(1)[0]
+
         num_tasks = len(indices)
 
         # data is (task, batch, feat)
-        obs, actions, rewards, next_obs, terms = self.sample_data(indices)
-        obs_enc, actions_enc, rewards_enc, next_obs_enc, terms_enc = self.sample_data(indices, encoder=True)
+        obs, actions, rewards, next_obs, terms = self.sample_data(indices, new_goal=new_goal)
+        obs_enc, actions_enc, rewards_enc, next_obs_enc, terms_enc = self.sample_data(indices, encoder=True, new_goal=new_goal)
         enc_data = self.prepare_encoder_data(obs_enc, rewards_enc)
 
         # run inference in networks

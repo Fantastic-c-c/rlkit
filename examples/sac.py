@@ -2,6 +2,8 @@
 Run Prototypical Soft Actor Critic on point mass.
 
 """
+import sys
+sys.path.append('/home/deirdrequillen/rlkit')
 import numpy as np
 import click
 import datetime
@@ -111,7 +113,7 @@ def main(gpu, docker):
                 reparameterize=True,
                 kl_lambda=.1,
                 rf_loss_scale=1.,
-                use_information_bottleneck=True,  # only supports False for now
+                use_information_bottleneck=False,  # only supports False for now
 
                 train_embedding_source='online_exploration_trajectories',
                 # embedding_source should be chosen from
@@ -123,7 +125,7 @@ def main(gpu, docker):
             gpu_id=gpu,
         )
 
-        exp_name = 'proto-sac/point-mass/kl_lambda_sweep/{}'.format(i)
+        exp_name = 'proto-sac/point-mass/relabel/{}'.format(i)
 
         log_dir = '/mounts/output' if docker == 1 else 'output'
         experiment_log_dir = setup_logger(exp_name, variant=variant, base_log_dir=log_dir)

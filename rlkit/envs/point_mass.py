@@ -14,7 +14,7 @@ class PointEnv(Env):
         directions = list(range(n_tasks))
 
         if randomize_tasks:
-            goals = [[np.random.uniform(-1., 1.), np.random.uniform(-1., 1.)] for _ in directions]
+            goals = self.sample_goals(len(directions))
 
             # goals = [1 * np.random.uniform(-1., 1., 2) for _ in directions]
         else:
@@ -77,12 +77,22 @@ class PointEnv(Env):
     def _get_obs(self):
         return np.copy(self._state)
 
+    def sample_goals(self, num):
+        return [1 * np.random.uniform(-1., 1., 2) for _ in range(num)]
+
+    def get_reward(self, pos, goal):
+        # NOTE this will work for vectors as long as pos is ob_dim x batch
+        x, y = pos
+        x -= goal[0]
+        y -= goal[1]
+        return - (x ** 2 + y ** 2) ** 0.5
+
     def step(self, action):
         self._state = self._state + action
         x, y = self._state
         x -= self._goal[0]
         y -= self._goal[1]
-        reward = - (x ** 2 + y ** 2) ** 0.5
+        reward = self.get_reward(self._state, self._goal)
         done = False # abs(x) < 0.01 and abs(y) < 0.01
         ob = self._get_obs()
         return ob, reward, done, dict()
