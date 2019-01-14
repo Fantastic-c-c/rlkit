@@ -97,7 +97,7 @@ def main(docker):
             num_steps_per_task=2 * max_path_length,
             num_train_steps_per_itr=2000,
             num_steps_per_eval=10 * max_path_length,  # num transitions to eval on
-            embedding_batch_size=256,
+            embedding_batch_size=64,
             batch_size=256, # to compute training grads from
             max_path_length=max_path_length,
             discount=0.99,
@@ -117,7 +117,7 @@ def main(docker):
         net_size=300,
         use_gpu=True,
     )
-    exp_name = 'proto-sac/ant-dir-2D-normalgear-360/info-bottleneck-higher-kl'
+    exp_name = 'proto-sac/ant-dir-2D-normalgear-360/info-bottleneck-product-smaller-enc'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, base_log_dir=log_dir)

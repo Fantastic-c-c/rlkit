@@ -7,11 +7,12 @@ import torch.nn.functional as F
 import rlkit.torch.pytorch_util as ptu
 
 
-def _product_of_gaussians(mus, sigmas):
+def _product_of_gaussians(mus, sigmas_squared):
     '''
     compute mu, sigma of product of gaussians
     '''
-    sigmas_squared = sigmas ** 2
+    # clamp here
+    # sigmas_squared = torch.clamp(sigmas_squared, min=0.0001)
     sigma_squared = 1. / torch.sum(torch.reciprocal(sigmas_squared), dim=0)
     mu = sigma_squared * torch.sum(mus / sigmas_squared, dim=0)
     return mu, torch.sqrt(sigma_squared)
@@ -77,8 +78,8 @@ class ProtoNet(nn.Module):
         # TODO info bottleneck (WIP) need KL loss
         if self.use_ib:
             mus = [e[:, :self.latent_dim] for e in embeddings]
-            sigmas = [F.softplus(e[:, self.latent_dim:]) for e in embeddings]
-            z_params = [_product_of_gaussians(m, s) for m, s in zip(mus, sigmas)]
+            sigmas_sq = [F.softplus(e[:, self.latent_dim:]) for e in embeddings]
+            z_params = [_product_of_gaussians(m, s_sq) for m, s_sq in zip(mus, sigmas_sq)]
             if not self.det_z:
                 z_dists = [torch.distributions.Normal(m, s) for m, s in z_params]
                 task_z = [d.rsample() for d in z_dists]
