@@ -41,6 +41,7 @@ class AntEnv(MujocoEnv):
         )
 
     def _get_obs(self):
+        # this is gym ant obs, should use rllab?
         return np.concatenate([
             self.sim.data.qpos.flat[2:],
             self.sim.data.qvel.flat,

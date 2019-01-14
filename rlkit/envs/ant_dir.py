@@ -70,6 +70,7 @@ class AntDirEnv(MultitaskAntEnv):
             assert num_tasks == 2
             velocities = np.array([0., np.pi])
         else:
-            velocities = np.random.uniform(0., 1.0 * np.pi, size=(num_tasks,))
+            # velocities = np.random.uniform(0., 1.0 * np.pi, size=(num_tasks,))
+            velocities = np.random.uniform(0., 2.0 * np.pi, size=(num_tasks,))
         tasks = [{'goal': velocity} for velocity in velocities]
         return tasks

@@ -1,7 +1,7 @@
 import numpy as np
 
-from rlkit.envs.ant import AntEnv
-# from gym.envs.mujoco.ant import AntEnv
+# from rlkit.envs.ant import AntEnv
+from gym.envs.mujoco.ant import AntEnv
 
 class MultitaskAntEnv(AntEnv):
     def __init__(self, task={}, n_tasks=2):
