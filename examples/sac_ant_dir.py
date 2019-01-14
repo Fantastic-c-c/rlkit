@@ -23,7 +23,7 @@ def datetimestamp(divider=''):
 def experiment(variant):
     task_params = variant['task_params']
     env = NormalizedBoxEnv(AntDirEnv(n_tasks=task_params['n_tasks'], forward_backward=False))
-    ptu.set_gpu_mode(True)
+    ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
     tasks = env.get_all_task_idx()
 
@@ -80,8 +80,9 @@ def experiment(variant):
     algorithm.train()
 
 @click.command()
-@click.argument('docker', default=0)
-def main(docker):
+@click.argument('gpu', default=0)
+@click.option('--docker', default=0)
+def main(gpu, docker):
     log_dir = '/mounts/output' if docker == 1 else 'output'
     max_path_length = 100
     # noinspection PyTypeChecker
@@ -116,6 +117,7 @@ def main(docker):
         ),
         net_size=300,
         use_gpu=True,
+        gpu_id=gpu
     )
     exp_name = 'proto-sac/ant-dir-2D-normalgear-360/info-bottleneck-product-smaller-enc'
 
