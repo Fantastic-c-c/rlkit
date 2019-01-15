@@ -12,6 +12,7 @@ from rlkit.torch.core import np_ify, torch_ify
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.torch.torch_rl_algorithm import MetaTorchRLAlgorithm
 from rlkit.torch.sac.proto import ProtoNet
+import pdb
 
 
 class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
@@ -37,7 +38,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             reparameterize=True,
             use_information_bottleneck=False,
             sparse_rewards=False,
-
+            relabel=False,
             soft_target_tau=1e-2,
             plotter=None,
             render_eval_paths=False,
@@ -72,6 +73,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.reparameterize = reparameterize
         self.use_information_bottleneck = use_information_bottleneck
         self.sparse_rewards = sparse_rewards
+        self.relabel = relabel
 
         # TODO consolidate optimizers!
         self.policy_optimizer = optimizer_class(
@@ -122,7 +124,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             t = batch['terminals'][None, ...]
             
             if new_goal is not None:
-                r = ptu.FloatTensor(self.reward_scale*self.env.get_reward(np.transpose(o), new_goal)[..., None])
+                r = ptu.FloatTensor(self.env.get_reward(np.transpose(o), new_goal)[..., None])
                 r = r.view([1, 256, 1])
 
             obs.append(o)
@@ -147,18 +149,53 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         task_data = torch.cat([obs, rewards], dim=2)
         return task_data
 
-    def _do_training(self, indices):
-
+    def _do_training(self, indices, log_relabel=False, iteration=None, train_step=None):
         # sometimes relabel samples with new reward function
-        new_goal=None
-        if bool(np.random.random() < 0.5):
-            new_goal = self.env.sample_goals(1)[0]
+        # new_goal=None
+        # if bool(np.random.random() < 0.5):
+        #     new_goal = self.env.sample_goals(1)[0]
 
         num_tasks = len(indices)
 
         # data is (task, batch, feat)
-        obs, actions, rewards, next_obs, terms = self.sample_data(indices, new_goal=new_goal)
-        obs_enc, actions_enc, rewards_enc, next_obs_enc, terms_enc = self.sample_data(indices, encoder=True, new_goal=new_goal)
+        obs, actions, rewards, next_obs, terms = self.sample_data(indices)
+        obs_enc, actions_enc, rewards_enc, next_obs_enc, terms_enc = self.sample_data(indices, encoder=True)
+
+        # (Pdb) p obs_enc.size()
+        # torch.Size([10, 256, 2])
+        relabel_z = None
+        if self.relabel and bool(np.random.random() < 0.1):
+            prior_z = ptu.FloatTensor(self.sample_z_from_prior())
+            relabel_z = [prior_z for idx in indices]
+            r_pred = self.proto_net.reward_predict(obs, relabel_z)
+            r_pred_enc = self.proto_net.reward_predict(obs_enc, relabel_z)
+
+            rewards = r_pred
+            rewards_enc = r_pred_enc
+            
+            if log_relabel:
+                task_data = dict()
+                task_data['z'] = ptu.get_numpy(prior_z)
+                task_data['obs'] = ptu.get_numpy(obs)
+                task_data['relabel_r'] = ptu.get_numpy(r_pred)
+                task_data['actual_r'] = ptu.get_numpy(rewards)
+
+                task_data_enc = dict()
+                task_data_enc['z'] = ptu.get_numpy(prior_z)
+                task_data_enc['obs'] = ptu.get_numpy(obs_enc)
+                task_data_enc['relabel_r'] = ptu.get_numpy(r_pred_enc)
+                task_data['actual_r'] = ptu.get_numpy(rewards_enc)
+
+                with open(self.output_dir +
+                          "/proto-sac-point-mass-fb-16z-relabel-{}-{}.pkl".format(iteration, train_step), 'wb+') as f:
+                    pickle.dump(task_data, f, pickle.HIGHEST_PROTOCOL)
+
+                with open(self.output_dir +
+                          "/proto-sac-point-mass-fb-16z-relabel-enc-{}-{}.pkl".format(iteration, train_step), 'wb+') as f:
+                    pickle.dump(task_data_enc, f, pickle.HIGHEST_PROTOCOL)
+        else:
+            obs, actions, rewards, next_obs, terms = self.sample_data(indices)
+
         enc_data = self.prepare_encoder_data(obs_enc, rewards_enc)
 
         # run inference in networks

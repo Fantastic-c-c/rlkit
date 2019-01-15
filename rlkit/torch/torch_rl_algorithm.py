@@ -10,6 +10,7 @@ from rlkit.core.rl_algorithm import MetaRLAlgorithm
 from rlkit.torch import pytorch_util as ptu
 from rlkit.torch.core import PyTorchModule, np_ify, torch_ify
 from rlkit.core import logger, eval_util
+import pdb
 
 
 class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
@@ -55,7 +56,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         self.set_policy_z(z)
         test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic)
-        return test_paths
+        return test_paths, z
 
     @property
     @abc.abstractmethod
@@ -89,13 +90,13 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         for i in range(n_exploration_episodes):
             initial_z = self.sample_z_from_prior()
 
-            init_paths = self.obtain_eval_paths(idx, z=initial_z, eval_task=True)
+            init_paths, _ = self.obtain_eval_paths(idx, z=initial_z, eval_task=True)
             all_init_paths += init_paths
             self.enc_replay_buffer.add_paths(idx, init_paths)
         print('enc_replay_buffer.task_buffers[idx]._size', self.enc_replay_buffer.task_buffers[idx]._size)
 
         for i in range(n_inference_episodes):
-            paths = self.obtain_eval_paths(idx, eval_task=True)
+            paths, z = self.obtain_eval_paths(idx, eval_task=True)
             all_inference_paths += paths
             self.enc_replay_buffer.add_paths(idx, init_paths)
 
@@ -134,6 +135,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         statistics.update(self.eval_statistics)
         self.eval_statistics = None
         print('evaluating on {} training tasks')
+        print('output_dir', self.output_dir)
         train_avg_returns = []
         for idx in self.train_tasks:
             self.task_idx = idx
@@ -145,8 +147,9 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             print('enc_replay_buffer.task_buffers[idx]._size', self.enc_replay_buffer.task_buffers[idx]._size)
 
             # collects final evaluation trajectories
-            test_paths = self.obtain_eval_paths(idx, eval_task=False, deterministic=True)
-            # TODO incorporate into proper logging
+            test_paths, _ = self.obtain_eval_paths(idx, eval_task=False, deterministic=True)
+
+            # TODO incorporate into proper logging  
             for path in test_paths:
                 path['goal'] = goal # goal
 
@@ -174,7 +177,39 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             # print('GoalPosition_training_task')
             # print(goal)
 
+        # print('logging created tasks')
+        # for idx in self.train_tasks[:5]:
+        #     self.task_idx = idx
+        #     print('Task:', idx)
+        #     # TODO how to handle eval over multiple tasks?
+        #     self.eval_sampler.env.reset_task(idx)
 
+        #     goal = self.eval_sampler.env._goal
+
+        #     # collects final evaluation trajectories
+        #     test_paths, z = self.obtain_eval_paths(idx, eval_task=False, deterministic=True)
+            
+        #     relabel_z = ptu.FloatTensor(self.sample_z_from_prior())
+        #     relabel_z = relabel_z.repeat([20, 1])
+
+        #     # Hallucinate rewards starting with the actual z
+        #     # relabel_z = ptu.FloatTensor(z)
+        #     # relabel_z = relabel_z.repeat([20, 1])
+
+        #     # relabel for visualization
+        #     for i in range(len(test_paths)):
+        #         path = test_paths[i]
+        #         path['goal'] = goal # goal
+
+        #         obs = ptu.FloatTensor(path['observations'][..., :2])
+
+        #         relabel_rewards = self.proto_net.rf(obs, relabel_z).detach()
+        #         test_paths[i]['relabel_rewards'] = ptu.get_numpy(relabel_rewards)
+        #         # pdb.set_trace()
+            
+        #     with open(self.output_dir +
+        #               "/proto-sac-point-mass-fb-16z-fake-task{}-{}.pkl".format(idx, epoch), 'wb+') as f:
+        #         pickle.dump(test_paths, f, pickle.HIGHEST_PROTOCOL)
 
         print('evaluating on {} evaluation tasks'.format(len(self.eval_tasks)))
 
@@ -184,6 +219,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         for idx in self.eval_tasks:
             self.task_idx = idx
             print('Task:', idx)
+            print('output_dir', self.output_dir)
+
             self.eval_sampler.env.reset_task(idx)
 
             # TODO: Add parameters for eval steps
@@ -214,7 +251,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 raise Exception("Invalid option for computing eval embedding")
 
             goal = self.eval_sampler.env._goal
-            test_paths = self.obtain_eval_paths(idx, eval_task=True, deterministic=self.eval_deterministic)
+            test_paths, _ = self.obtain_eval_paths(idx, eval_task=True, deterministic=self.eval_deterministic)
             # TODO incorporate into proper logging
             for path in test_paths:
                 path['goal'] = goal
