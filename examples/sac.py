@@ -108,7 +108,7 @@ def main(gpu, docker):
             context_lr=3e-4,
             reward_scale=100.,
             reparameterize=True,
-            kl_lambda=10000.,
+            kl_lambda=1.,
             rf_loss_scale=1.,
             use_information_bottleneck=True,  # only supports False for now
 
@@ -122,7 +122,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'proto-sac/point-mass/product-smallencbatch-test-again'
+    exp_name = 'proto-sac/point-mass/product-64encbatch-policy-gradient'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, base_log_dir=log_dir)

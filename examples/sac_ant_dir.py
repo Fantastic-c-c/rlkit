@@ -70,8 +70,8 @@ def experiment(variant):
 
     algorithm = ProtoSoftActorCritic(
         env=env,
-        train_tasks=list(tasks[:40]),
-        eval_tasks=list(tasks[40:]),
+        train_tasks=list(tasks[:-20]),
+        eval_tasks=list(tasks[-20:]),
         nets=[task_enc, policy, qf1, qf2, vf, rf],
         latent_dim=latent_dim,
         **variant['algo_params']
@@ -88,7 +88,7 @@ def main(gpu, docker):
     # noinspection PyTypeChecker
     variant = dict(
         task_params=dict(
-            n_tasks=60, # 20 works pretty well
+            n_tasks=120, # 20 works pretty well
             randomize_tasks=True,
         ),
         algo_params=dict(
@@ -107,7 +107,7 @@ def main(gpu, docker):
             qf_lr=3E-4,
             vf_lr=3E-4,
             context_lr=3e-4,
-            reward_scale=5.,
+            reward_scale=10.,
             reparameterize=True,
             kl_lambda=10000.,
             rf_loss_scale=1.,
@@ -119,7 +119,7 @@ def main(gpu, docker):
         use_gpu=True,
         gpu_id=gpu
     )
-    exp_name = 'proto-sac/ant-dir-2D-normalgear-360/info-bottleneck-product-smaller-enc'
+    exp_name = 'proto-sac/ant-dir-2D-normalgear-360/info-bottleneck-product-smaller-enc-moretasks-clipped'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, base_log_dir=log_dir)

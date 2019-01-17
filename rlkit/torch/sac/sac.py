@@ -157,6 +157,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         else:
             r_pred, q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.proto_net(obs, actions, next_obs, enc_data, obs_enc)
 
+        self.context_optimizer.zero_grad()
         if self.use_information_bottleneck:
             kl_loss = self.kl_lambda * kl_div
             kl_loss.backward(retain_graph=True)
@@ -167,7 +168,6 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         rewards_enc_flat = rewards_enc.view(self.embedding_batch_size * num_tasks, -1)
         rf_loss = self.rf_loss_scale * self.rf_criterion(r_pred, rewards_enc_flat)
         self.rf_optimizer.zero_grad()
-        self.context_optimizer.zero_grad()
         rf_loss.backward(retain_graph=True)
         self.rf_optimizer.step()
 
@@ -181,7 +181,6 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         qf_loss.backward()
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
-        self.context_optimizer.step()
 
         # compute min Q on the new actions
         min_q_new_actions = self.proto_net.min_q(obs, new_actions, task_z)
@@ -219,6 +218,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
         self.policy_optimizer.step()
+        self.context_optimizer.step()
 
         # save some statistics for eval
         if self.eval_statistics is None:
