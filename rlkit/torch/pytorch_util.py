@@ -4,7 +4,7 @@ import os
 
 
 def sparsify_rewards(r):
-    thresh = -0.01
+    thresh = -0.2
     if torch.is_tensor(r):
         r = (r > thresh).float()
     else:
