@@ -13,9 +13,14 @@ class PointEnv(Env):
         directions = list(range(n_tasks))
 
         if randomize_tasks:
-            goals = [[np.random.uniform(-1., 1.), np.random.uniform(-1., 1.)] for _ in directions]
-
-            # goals = [1 * np.random.uniform(-1., 1., 2) for _ in directions]
+            # sample len(directions) goals evenly spaced on unit semicircle
+            radius = 1.0
+            angles = np.linspace(0, np.pi, num=len(directions))
+            xs = radius * np.cos(angles)
+            ys = radius * np.sin(angles)
+            goals = np.stack([xs, ys], axis=1)
+            np.random.shuffle(goals)
+            goals = goals.tolist()
         else:
             # add more goals in n_tasks > 7
             goals = [np.array([10, -10]),
@@ -67,7 +72,7 @@ class PointEnv(Env):
         return range(len(self.tasks))
 
     def reset_model(self):
-        self._state = np.random.uniform(-1., 1., size=(2,))
+        self._state = np.array([0, 0])
         return self._get_obs()
 
     def reset(self):
@@ -82,7 +87,7 @@ class PointEnv(Env):
         x -= self._goal[0]
         y -= self._goal[1]
         reward = - (x ** 2 + y ** 2) ** 0.5
-        done = False # abs(x) < 0.01 and abs(y) < 0.01
+        done = False
         ob = self._get_obs()
         return ob, reward, done, dict()
 
