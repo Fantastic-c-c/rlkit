@@ -163,25 +163,26 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
         # (Pdb) p obs_enc.size()
         # torch.Size([10, 256, 2])
+        
         relabel_z = None
-        if self.relabel and bool(np.random.random() < 0.1):
-            prior_z = ptu.FloatTensor(self.sample_z_from_prior())
-            relabel_z = [prior_z for idx in indices]
-            r_pred = self.proto_net.reward_predict(obs, relabel_z)
-            r_pred_enc = self.proto_net.reward_predict(obs_enc, relabel_z)
+        # Relabeling where the relabeled data is thrown out after being computed.
+        if self.relabel and bool(np.random.random() < .1):
+            relabel_z = [ ptu.FloatTensor(self.sample_z_from_prior()) for idx in indices]
+            r_pred = self.proto_net.reward_predict(obs, relabel_z, len(indices))
+            r_pred_enc = self.proto_net.reward_predict(obs_enc, relabel_z, len(indices))
 
             rewards = r_pred
             rewards_enc = r_pred_enc
             
             if log_relabel:
                 task_data = dict()
-                task_data['z'] = ptu.get_numpy(prior_z)
+                # task_data['z'] = ptu.get_numpy(prior_z)
                 task_data['obs'] = ptu.get_numpy(obs)
                 task_data['relabel_r'] = ptu.get_numpy(r_pred)
                 task_data['actual_r'] = ptu.get_numpy(rewards)
 
                 task_data_enc = dict()
-                task_data_enc['z'] = ptu.get_numpy(prior_z)
+                # task_data_enc['z'] = ptu.get_numpy(prior_z)
                 task_data_enc['obs'] = ptu.get_numpy(obs_enc)
                 task_data_enc['relabel_r'] = ptu.get_numpy(r_pred_enc)
                 task_data['actual_r'] = ptu.get_numpy(rewards_enc)
@@ -193,8 +194,6 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 with open(self.output_dir +
                           "/proto-sac-point-mass-fb-16z-relabel-enc-{}-{}.pkl".format(iteration, train_step), 'wb+') as f:
                     pickle.dump(task_data_enc, f, pickle.HIGHEST_PROTOCOL)
-        else:
-            obs, actions, rewards, next_obs, terms = self.sample_data(indices)
 
         enc_data = self.prepare_encoder_data(obs_enc, rewards_enc)
 
@@ -204,6 +203,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         else:
             r_pred, q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.proto_net(obs, actions, next_obs, enc_data, obs_enc)
 
+        self.context_optimizer.zero_grad()
         if self.use_information_bottleneck:
             kl_loss = self.kl_lambda * kl_div
             kl_loss.backward(retain_graph=True)
@@ -214,7 +214,6 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         rewards_enc_flat = rewards_enc.view(self.embedding_batch_size * num_tasks, -1)
         rf_loss = self.rf_loss_scale * self.rf_criterion(r_pred, rewards_enc_flat)
         self.rf_optimizer.zero_grad()
-        self.context_optimizer.zero_grad()
         rf_loss.backward(retain_graph=True)
         self.rf_optimizer.step()
 

@@ -72,8 +72,8 @@ def experiment(variant):
 
     algorithm = ProtoSoftActorCritic(
         env=env,
-        train_tasks=list(tasks[:-5]),
-        eval_tasks=list(tasks[-5:]),
+        train_tasks=list(tasks[:-10]),
+        eval_tasks=list(tasks[-10:]),
         nets=[task_enc, policy, qf1, qf2, vf, rf],
         latent_dim=latent_dim,
         **variant['algo_params']
@@ -91,14 +91,14 @@ def main(gpu, docker):
     # noinspection PyTypeChecker
     variant = dict(
         task_params=dict(
-            n_tasks=50,
+            n_tasks=100,
             randomize_tasks=True,
         ),
         algo_params=dict(
             meta_batch=10,
             num_iterations=1000,
-            num_tasks_sample=5,
-            num_steps_per_task=10 * max_path_length,
+            num_tasks_sample=1,
+            num_steps_per_task=1 * max_path_length,
             num_train_steps_per_itr=1000,
             num_steps_per_eval=10 * max_path_length,  # num transitions to eval on
             embedding_batch_size=256,
@@ -112,10 +112,10 @@ def main(gpu, docker):
             context_lr=3e-4,
             reward_scale=100.,
             reparameterize=True,
-            kl_lambda=10.,
-            rf_loss_scale=1.,
+            kl_lambda=1.,
+            rf_loss_scale=10.,
             use_information_bottleneck=True,  # only supports False for now
-            relabel=False,
+            relabel=True,
             train_embedding_source='online_exploration_trajectories',
             # embedding_source should be chosen from
             # {'initial_pool', 'online_exploration_trajectories', 'online_on_policy_trajectories'}
@@ -126,7 +126,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'proto-sac/point-mass/control-45tasks'
+    exp_name = 'proto-sac/point-mass/relabel-45tasks-lessreal'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, base_log_dir=log_dir)

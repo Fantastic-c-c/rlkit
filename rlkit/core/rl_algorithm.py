@@ -10,7 +10,9 @@ from rlkit.data_management.env_replay_buffer import MultiTaskReplayBuffer
 from rlkit.data_management.path_builder import PathBuilder
 from rlkit.policies.base import ExplorationPolicy
 from rlkit.samplers.in_place import InPlacePathSampler
-
+import rlkit.torch.pytorch_util as ptu
+import pdb
+import pickle
 
 class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def __init__(
@@ -215,6 +217,13 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 else:
                     raise Exception("Invalid option for computing train embedding {}".format(self.train_embedding_source))
 
+            # This is the version of relabeling where the relabeled data is added to the replay buffer.
+            # if self.relabel and it_ != 0:
+            #     for step in range(10):
+            #         # for half cheetah each collect relabeled data collections 2 trajectories
+            #         self.collect_relabeled_data(iteration=it_, step=step, sample_from_prior=False)
+            #         self.collect_relabeled_data(iteration=it_, step=step, sample_from_prior=True)
+
             # Sample train tasks and compute gradient updates on parameters.
             for train_step in range(self.num_train_steps_per_itr):
                 indices = np.random.choice(self.train_tasks, self.meta_batch)
@@ -263,6 +272,62 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         :return: None
         """
         self.policy.set_z(z)
+
+    def collect_relabeled_data(self, iteration, step, sample_from_prior, log_relabel=True):
+        orig_idx = self.sample_task()
+        relabel_idx = self.sample_task()
+        
+        obs, actions, rewards, next_obs, terms = self.sample_data([orig_idx])
+        # obs_enc, actions_enc, rewards_enc, next_obs_enc, terms_enc = self.sample_data([orig_idx], encoder=True)
+
+        if sample_from_prior:
+            relabel_z = [ptu.FloatTensor(self.sample_z_from_prior())]
+
+        else:
+            relabel_z = [ptu.FloatTensor(self.sample_z_from_posterior(relabel_idx, eval_task=False))]
+
+        r_pred = self.proto_net.reward_predict(obs, relabel_z, 1)
+        # r_pred_enc = self.proto_net.reward_predict(obs_enc, relabel_z, 1)
+
+        # Do we actually use agent info and env info?
+        self.replay_buffer.add_samples(
+            task=relabel_idx,
+            observations=ptu.get_numpy(obs)[0],
+            actions=ptu.get_numpy(actions)[0],
+            rewards=ptu.get_numpy(r_pred)[0],
+            terminals=ptu.get_numpy(terms)[0],
+            next_observations=ptu.get_numpy(next_obs)[0],
+        )
+        # self.enc_replay_buffer.add_samples(
+        #     task=relabel_idx,
+        #     observations=ptu.get_numpy(obs_enc)[0],
+        #     actions=ptu.get_numpy(actions_enc)[0],
+        #     rewards=ptu.get_numpy(r_pred_enc)[0],
+        #     terminals=ptu.get_numpy(terms_enc)[0],
+        #     next_observations=ptu.get_numpy(next_obs_enc)[0],
+        # )
+
+        if log_relabel:
+            task_data = dict()
+            task_data['z'] = ptu.get_numpy(relabel_z[0])
+            task_data['obs'] = ptu.get_numpy(obs)
+            task_data['relabel_r'] = ptu.get_numpy(r_pred)
+            task_data['actual_r'] = ptu.get_numpy(rewards)
+
+            # task_data_enc = dict()
+            # task_data_enc['z'] = ptu.get_numpy(relabel_z[0])
+            # task_data_enc['obs'] = ptu.get_numpy(obs_enc)
+            # task_data_enc['relabel_r'] = ptu.get_numpy(r_pred_enc)
+            # task_data['actual_r'] = ptu.get_numpy(rewards_enc)
+
+            with open(self.output_dir +
+                      "/proto-sac-point-mass-fb-16z-relabel-{}-{}.pkl".format(iteration, step), 'wb+') as f:
+                pickle.dump(task_data, f, pickle.HIGHEST_PROTOCOL)
+
+            # with open(self.output_dir +
+            #           "/proto-sac-point-mass-fb-16z-relabel-enc-{}-{}.pkl".format(iteration, step), 'wb+') as f:
+            #     pickle.dump(task_data_enc, f, pickle.HIGHEST_PROTOCOL)
+
 
     # TODO: maybe find a better name for resample_z_every_n?
     def collect_data_sampling_from_prior(self, num_samples=1, resample_z_every_n=None, eval_task=False,

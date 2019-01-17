@@ -2,6 +2,7 @@ import numpy as np
 
 from rlkit.data_management.simple_replay_buffer import SimpleReplayBuffer
 from gym.spaces import Box, Discrete, Tuple
+import pdb
 
 
 class MultiTaskReplayBuffer(object):
@@ -34,6 +35,16 @@ class MultiTaskReplayBuffer(object):
         self.task_buffers[task].add_sample(
                 observation, action, reward, terminal,
                 next_observation, **kwargs)
+
+    def add_samples(self, task, observations, actions, rewards, terminals,
+        next_observations, **kwargs):
+        # pdb.set_trace()
+        for i in range(observations.shape[0]):
+            if isinstance(self._action_space, Discrete):
+                action[i] = np.eye(self._action_space.n)[action[i]]
+            self.task_buffers[task].add_sample(
+                    observations[i], actions[i], rewards[i], terminals[i],
+                    next_observations[i], **kwargs)
 
     def terminate_episode(self, task):
         self.task_buffers[task].terminate_episode()

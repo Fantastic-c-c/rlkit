@@ -144,6 +144,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             self.eval_sampler.env.reset_task(idx)
 
             goal = self.eval_sampler.env._goal
+            print('replay_buffer.task_buffers[idx]._size', self.replay_buffer.task_buffers[idx]._size)
+
             print('enc_replay_buffer.task_buffers[idx]._size', self.enc_replay_buffer.task_buffers[idx]._size)
 
             # collects final evaluation trajectories

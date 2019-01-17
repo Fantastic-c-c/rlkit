@@ -96,13 +96,16 @@ class ProtoNet(nn.Module):
 
         return task_z
 
-    def reward_predict(self, obs_enc, task_z):
+
+    def reward_predict(self, obs_enc, task_z, num_tasks):
         # obs_enc is 10*256*2 ? or 2560 * 2
+        
         rf_z = [z.repeat(obs_enc.size(1), 1) for z in task_z]
         rf_z = torch.cat(rf_z, dim=0)
         # torch.Size([2560, 5])
-        r_pred = self.rf(obs_enc.view(obs_enc.size(0) * obs_enc.size(1), -1), rf_z)
-        r_pred = r_pred.view([10, 256, 1])
+        obs_enc_in = obs_enc.view(obs_enc.size(0) * obs_enc.size(1), -1)
+        r_pred = self.rf(obs_enc_in, rf_z)
+        r_pred = r_pred.view([num_tasks, 256, 1])
         return r_pred.detach()
 
 
