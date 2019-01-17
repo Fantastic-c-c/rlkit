@@ -63,7 +63,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         return np_to_pytorch_batch(batch)
 
     ##### Eval stuff #####
-    def obtain_eval_paths(self, idx, eval_task=False, deterministic=False):
+    def obtain_eval_paths(self, idx, eval_task=False, deterministic=False, prior=False):
         '''
         collect paths with current policy
         if online, task encoding will be updated after each transition
@@ -73,9 +73,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         self.policy.clear_z()
 
         if not is_online:
-            self.sample_z_from_posterior(idx, eval_task=eval_task)
-
-        dprint('task encoding ', self.policy.z)
+            if prior:
+                self.sample_z_from_prior()
+            else:
+                self.sample_z_from_posterior(idx, eval_task=eval_task)
 
         test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic, is_online=is_online)
         if self.sparse_rewards:
@@ -91,7 +92,6 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             num_evals = self.num_evals
         else:
             num_evals = 1
-
         paths = []
         for _ in range(num_evals):
             paths += self.obtain_eval_paths(idx, eval_task=eval_task, deterministic=True)
@@ -124,6 +124,13 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         statistics = OrderedDict()
         statistics.update(self.eval_statistics)
         self.eval_statistics = statistics
+
+        ### sample trajectories from prior for vis
+        prior_paths = []
+        for _ in range(100):
+            prior_paths += self.obtain_eval_paths(None, eval_task=False, deterministic=True, prior=True)
+        if self.dump_eval_paths:
+            logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
 
         ### train tasks
         dprint('evaluating on {} train tasks'.format(len(self.train_tasks)))
