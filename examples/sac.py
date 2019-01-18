@@ -111,6 +111,7 @@ def main(gpu, docker):
             batch_size=256,  # to compute training grads from
             embedding_batch_size=64,
             embedding_mini_batch_size=64,
+            enc_pool_size=600,
             max_path_length=max_path_length,
             discount=0.99,
             soft_target_tau=0.005,

@@ -29,6 +29,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             batch_size=1024,
             embedding_batch_size=1024,
             embedding_mini_batch_size=1024,
+            enc_pool_size=1000000,
             max_path_length=1000,
             discount=0.99,
             replay_buffer_size=1000000,
@@ -81,6 +82,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.batch_size = batch_size
         self.embedding_batch_size = embedding_batch_size
         self.embedding_mini_batch_size = embedding_mini_batch_size
+        self.enc_pool_size = enc_pool_size
         self.max_path_length = max_path_length
         self.discount = discount
         self.replay_buffer_size = replay_buffer_size
@@ -111,7 +113,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             )
 
         self.enc_replay_buffer = MultiTaskReplayBuffer(
-                self.replay_buffer_size,
+                self.enc_pool_size,
                 env,
                 self.train_tasks,
         )
@@ -202,7 +204,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 elif self.train_embedding_source == 'online_exploration_trajectories':
                     # embeddings are computed using only data collected using the prior
                     # sample data from posterior to train RL algorithm
-                    self.enc_replay_buffer.task_buffers[idx].clear()
+
+                    # self.enc_replay_buffer.task_buffers[idx].clear()
                     # resamples using current policy, conditioned on prior
                     self.collect_data_sampling_from_prior(num_samples=self.num_steps_per_task,
                                                           resample_z_every_n=self.max_path_length,
