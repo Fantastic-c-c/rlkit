@@ -40,6 +40,8 @@ class InPlacePathSampler(object):
         while n_steps_total + self.max_path_length < max_samp:
             path = rollout(
                 self.env, policy, max_path_length=self.max_path_length, is_online=is_online)
+            # save the latent context that generated this trajectory
+            path['context'] = policy.z.detach().cpu().numpy()
             paths.append(path)
             n_steps_total += len(path['observations'])
         return paths
