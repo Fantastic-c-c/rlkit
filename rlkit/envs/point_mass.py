@@ -9,14 +9,12 @@ class PointEnv(Env):
     two tasks: move to (-1, -1) or move to (1,1)
     """
 
-    def __init__(self, task={'direction': 1}, randomize_tasks=False, n_tasks=2):
-        # directions = [-1, 0, 1, 2, 3, 4, 5, 6]
+    def __init__(self, task={'direction': 0}, randomize_tasks=False, n_tasks=2):
         directions = list(range(n_tasks))
 
         if randomize_tasks:
+            np.random.seed(1337)
             goals = [[np.random.uniform(-1., 1.), np.random.uniform(-1., 1.)] for _ in directions]
-
-            # goals = [1 * np.random.uniform(-1., 1., 2) for _ in directions]
         else:
             # add more goals in n_tasks > 7
             goals = [np.array([10, -10]),
