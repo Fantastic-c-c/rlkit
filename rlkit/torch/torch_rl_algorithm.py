@@ -103,6 +103,13 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         if self.dump_eval_paths:
             split = 'test' if eval_task else 'train'
             logger.save_extra_data(paths, path='eval_trajectories/{}-task{}-epoch{}'.format(split, idx, epoch))
+            # save encoder replay buffer for vis
+            if split == 'train':
+                enc_data = self.enc_replay_buffer.all_data()
+            else:
+                enc_data = self.eval_enc_replay_buffer.all_data()
+            logger.save_extra_data(enc_data, path='eval_trajectories/replay-buffer-{}-epoch{}'.format(split, epoch))
+
         return paths
 
     def log_statistics(self, paths, split=''):
@@ -181,7 +188,6 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             # TODO(KR) what does this do
             if hasattr(self.env, "log_diagnostics"):
                 self.env.log_diagnostics(test_paths)
-
 
         avg_train_return = np.mean(train_avg_returns)
         avg_test_return = np.mean(test_avg_returns)
