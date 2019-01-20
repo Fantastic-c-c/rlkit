@@ -157,9 +157,8 @@ class ProtoAgent(nn.Module):
                 up_mu = new_z[..., :self.latent_dim]
                 up_ss = F.softplus(new_z[..., self.latent_dim:])
                 new_natural = torch.cat(_canonical_to_natural(up_mu, up_ss), dim=1) # batch x feat
-                for i in range(num_updates):
-                    num_z += 1
-                    natural_z += (new_natural[i] - natural_z) / num_z
+                new_natural = torch.sum(new_natural, dim=0)
+                natural_z += new_natural
                 m, s  = _natural_to_canonical(natural_z[:self.latent_dim], natural_z[self.latent_dim:]) # feat
                 self.z_params = torch.cat([m, s])[None, ...]
                 z_dist = torch.distributions.Normal(m, torch.sqrt(s))
