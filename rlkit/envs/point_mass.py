@@ -87,6 +87,8 @@ class PointEnv(Env):
         x -= self._goal[0]
         y -= self._goal[1]
         reward = - (x ** 2 + y ** 2) ** 0.5
+        if reward > -0.2:
+            reward += 1
         done = False
         ob = self._get_obs()
         return ob, reward, done, dict()
