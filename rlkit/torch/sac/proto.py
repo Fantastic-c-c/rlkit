@@ -16,16 +16,30 @@ def _product_of_gaussians(mus, sigmas_squared):
     sigmas_squared = torch.clamp(sigmas_squared, min=1e-7)
     sigma_squared = 1. / torch.sum(torch.reciprocal(sigmas_squared), dim=0)
     mu = sigma_squared * torch.sum(mus / sigmas_squared, dim=0)
-    return mu, torch.sqrt(sigma_squared)
+    return mu, sigma_squared
 
 
-def _mean_of_gaussians(mus, sigmas):
+def _mean_of_gaussians(mus, sigmas_squared):
     '''
     compute mu, sigma of mean of gaussians
     '''
     mu = torch.mean(mus, dim=0)
-    sigma = torch.sqrt(torch.mean(sigmas**2, dim=0))
-    return mu, sigma
+    sigma_squared = torch.mean(sigmas_squared, dim=0)
+    return mu, sigma_squared
+
+
+def _natural_to_canonical(n1, n2):
+    ''' convert from natural to canonical gaussian parameters '''
+    mu = -0.5 * n1 / n2
+    sigma_squared = -0.5 * 1 / n2
+    return mu, sigma_squared
+
+
+def _canonical_to_natural(mu, sigma_squared):
+    ''' convert from canonical to natural gaussian parameters '''
+    n1 = mu / sigma_squared
+    n2 = -0.5 * 1 / sigma_squared
+    return n1, n2
 
 
 class ProtoAgent(nn.Module):
@@ -55,7 +69,9 @@ class ProtoAgent(nn.Module):
 
         # initialize posterior to the prior
         if self.use_ib:
-            self.z_dists = [torch.distributions.Normal(ptu.zeros(self.latent_dim), ptu.ones(self.latent_dim))]
+            mu = torch.zeros(1, latent_dim)
+            sigma_squared = torch.ones(1, latent_dim)
+            self.register_buffer('z_params', torch.cat([mu, sigma_squared], dim=1))
 
     def clear_z(self, num_tasks=1):
         if self.use_ib:
@@ -78,10 +94,8 @@ class ProtoAgent(nn.Module):
         if self.sparse_rewards:
             r = ptu.sparsify_rewards(r)
         o = ptu.from_numpy(o[None, None, ...])
-        a = ptu.from_numpy(o[None, None, ...])
+        a = ptu.from_numpy(a[None, None, ...])
         r = ptu.from_numpy(np.array([r])[None, None, ...])
-        # TODO: we can make this a bit more efficient by simply storing the natural params of the current posterior and add the new sample to update
-        # then in the info bottleneck, we compute the the normal after computing the mean/variance from the natural params stored
         data = torch.cat([o, a, r], dim=2)
         self.update_z(data)
 
@@ -91,9 +105,9 @@ class ProtoAgent(nn.Module):
         sigma_squared = F.softplus(z[..., self.latent_dim:])
         z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
         if not self.det_z:
-            z_dists = [torch.distributions.Normal(m, s) for m, s in z_params]
-            self.z_dists = z_dists
-            z = [d.rsample() for d in z_dists]
+            posteriors = [torch.distributions.Normal(m, torch.sqrt(s)) for m, s in z_params]
+            self.z_params = torch.stack([torch.cat([m, s]) for m, s, in z_params])
+            z = [d.rsample() for d in posteriors]
         else:
             z = [p[0] for p in z_params]
         z = torch.stack(z)
@@ -101,7 +115,8 @@ class ProtoAgent(nn.Module):
 
     def compute_kl_div(self):
         prior = torch.distributions.Normal(ptu.zeros(self.latent_dim), ptu.ones(self.latent_dim))
-        kl_divs = [torch.distributions.kl.kl_divergence(z_dist, prior) for z_dist in self.z_dists]
+        posteriors = [torch.distributions.Normal(z[:self.latent_dim], torch.sqrt(z[self.latent_dim:])) for z in torch.unbind(self.z_params, dim=0)]
+        kl_divs = [torch.distributions.kl.kl_divergence(post, prior) for post in posteriors]
         kl_div_sum = torch.sum(torch.stack(kl_divs))
         return kl_div_sum
 
@@ -121,23 +136,38 @@ class ProtoAgent(nn.Module):
          - by running mean for prototypical encoder
          - by updating hidden state for recurrent encoder
         '''
+        # z is task x feat
         z = self.z
         num_z = self.num_z
 
         # TODO this only works for single task (t == 1)
-        new_z = self.task_enc(in_)
+        new_z = self.task_enc(in_) # task x batch x feat
         if new_z.size(0) != 1:
             raise Exception('incremental update for more than 1 task not supported')
         if self.recurrent:
             z = new_z
         else:
+            num_updates = new_z.size(1)
+            # only have one task here
             new_z = new_z[0] # batch x feat
-            num_updates = new_z.size(0)
-            for i in range(num_updates):
-                num_z += 1
-                z += (new_z[i][None] - z) / num_z
-        if self.use_ib:
-            z = self.information_bottleneck(z)
+            cur_mu, cur_ss = self.z_params[0][:self.latent_dim], self.z_params[0][self.latent_dim:]
+            if self.use_ib:
+                natural_z = torch.cat(_canonical_to_natural(cur_mu, cur_ss)) #feat
+                up_mu = new_z[..., :self.latent_dim]
+                up_ss = F.softplus(new_z[..., self.latent_dim:])
+                new_natural = torch.cat(_canonical_to_natural(up_mu, up_ss), dim=1) # batch x feat
+                new_natural = torch.sum(new_natural, dim=0)
+                natural_z += new_natural
+                m, s  = _natural_to_canonical(natural_z[:self.latent_dim], natural_z[self.latent_dim:]) # feat
+                self.z_params = torch.cat([m, s])[None, ...]
+                z_dist = torch.distributions.Normal(m, torch.sqrt(s))
+                z = z_dist.rsample()
+
+            else:
+                for i in range(num_updates):
+                    num_z += 1
+                    z += (new_z[i] - z) / num_z
+            z = z[None, ...]
 
     def get_action(self, obs, deterministic=False):
         ''' sample action from the policy, conditioned on the task embedding '''
