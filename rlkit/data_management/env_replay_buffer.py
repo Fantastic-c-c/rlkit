@@ -45,6 +45,9 @@ class MultiTaskReplayBuffer(object):
             batch = self.task_buffers[task].random_batch(batch_size)
         return batch
 
+    def all_data(self):
+        return [self.task_buffers[i].all_data() for i in range(len(self.task_buffers))]
+
     def num_steps_can_sample(self, task):
         return self.task_buffers[task].num_steps_can_sample()
 
