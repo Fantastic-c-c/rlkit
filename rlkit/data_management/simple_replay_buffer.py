@@ -81,5 +81,10 @@ class SimpleReplayBuffer(ReplayBuffer):
         indices = indices[:batch_size]
         return self.sample_data(indices)
 
+    def all_data(self):
+        data = self.sample_data(list(range(0, self._size)))
+        data['starts'] = self._episode_starts
+        return data
+
     def num_steps_can_sample(self):
         return self._size
