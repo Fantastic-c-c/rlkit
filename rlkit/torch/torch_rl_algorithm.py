@@ -47,16 +47,20 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         batch = self.replay_buffer.random_batch(idx, self.batch_size)
         return np_to_pytorch_batch(batch)
 
-    def get_encoding_batch(self, idx=None, eval_task=False):
+    def get_encoding_batch(self, idx=None, eval_task=False, is_eval=False):
         ''' get a batch from the separate encoding replay buffer '''
         # n.b. if eval is online, training should sample trajectories rather than unordered batches to better match statistics
         is_online = (self.eval_embedding_source == 'online')
         if idx is None:
             idx = self.task_idx
         if eval_task:
-            batch = self.eval_enc_replay_buffer.random_batch(idx, self.embedding_batch_size, trajs=is_online)
+            full_size = self.eval_enc_replay_buffer.task_buffers[idx].size()
+            nsamp = full_size if is_eval else self.embedding_batch_size
+            batch = self.eval_enc_replay_buffer.random_batch(idx, nsamp, trajs=is_online)
         else:
-            batch = self.enc_replay_buffer.random_batch(idx, self.embedding_batch_size, trajs=is_online)
+            full_size = self.enc_replay_buffer.task_buffers[idx].size()
+            nsamp = full_size if is_eval else self.embedding_batch_size
+            batch = self.enc_replay_buffer.random_batch(idx, nsamp, trajs=is_online)
         return np_to_pytorch_batch(batch)
 
     ##### Eval stuff #####
@@ -121,7 +125,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         average_inference_returns = [eval_util.get_average_returns(paths) for paths in all_inference_paths]
         self.eval_statistics['AverageInferenceReturns_test_task{}'.format(idx)] = average_inference_returns
 
-    def collect_paths(self, idx, epoch, eval_task=False):
+    def collect_paths(self, idx, epoch, eval_task=False, is_eval=False):
         self.task_idx = idx
         dprint('Task:', idx)
         self.env.reset_task(idx)
@@ -131,6 +135,12 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             num_evals = 1
         paths = []
         for _ in range(num_evals):
+            if is_eval:
+                # add posterior data to RB
+                self.collect_data_from_task_posterior(idx, num_samples=10 * self.max_path_length,
+                                                      resample_z_every_n=self.max_path_length,
+                                                      eval_task=True)
+                dprint('task {} encoder RB size'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx]._size)
             paths += self.obtain_eval_paths(idx, eval_task=eval_task, deterministic=True)
         goal = self.env._goal
         for path in paths:
@@ -204,6 +214,9 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                                                       eval_task=True)
             elif self.eval_embedding_source == 'online_on_policy_trajectories':
                 self.eval_enc_replay_buffer.task_buffers[idx].clear()
+                self.collect_data_sampling_from_prior(num_samples=10 * self.max_path_length,
+                                                      resample_z_every_n=self.max_path_length,
+                                                      eval_task=True)
                 # half the data from z sampled from prior, the other half from z sampled from posterior
                 self.collect_data_online(idx=idx,
                                          num_samples=self.num_steps_per_task,
@@ -211,8 +224,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             else:
                 raise Exception("Invalid option for computing eval embedding")
 
-            dprint('task {} encoder RB size'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx]._size)
-            test_paths = self.collect_paths(idx, epoch, eval_task=True)
+            test_paths = self.collect_paths(idx, epoch, eval_task=True, is_eval=True)
 
             test_avg_returns.append(eval_util.get_average_returns(test_paths))
 
