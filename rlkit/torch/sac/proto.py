@@ -116,7 +116,7 @@ class ProtoAgent(nn.Module):
 
     def compute_kl_div(self):
         prior = torch.distributions.Normal(ptu.zeros(self.latent_dim), ptu.ones(self.latent_dim))
-        posteriors = [torch.distributions.Normal(z[:self.latent_dim], z[self.latent_dim:]) for z in torch.unbind(self.z_params, dim=0)]
+        posteriors = [torch.distributions.Normal(z[:self.latent_dim], torch.sqrt(z[self.latent_dim:])) for z in torch.unbind(self.z_params, dim=0)]
         kl_divs = [torch.distributions.kl.kl_divergence(post, prior) for post in posteriors]
         kl_div_sum = torch.sum(torch.stack(kl_divs))
         return kl_div_sum
