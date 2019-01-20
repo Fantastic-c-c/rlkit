@@ -297,15 +297,17 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
     # split number of prior and posterior samples
     def collect_data_online(self, idx, num_samples, eval_task=False, add_to_enc_buffer=True):
-        self.collect_data_sampling_from_prior(num_samples=num_samples,
-                                              resample_z_every_n=self.max_path_length,
-                                              eval_task=eval_task,
-                                              add_to_enc_buffer=True)
-        self.collect_data_from_task_posterior(idx=idx,
-                                              num_samples=num_samples,
-                                              resample_z_every_n=self.max_path_length,
-                                              eval_task=eval_task,
-                                              add_to_enc_buffer=add_to_enc_buffer)
+        nlayers = num_samples // self.max_path_length
+        for _ in range(nlayers):
+            self.collect_data_sampling_from_prior(num_samples=self.max_path_length * 10,
+                                                  resample_z_every_n=self.max_path_length,
+                                                  eval_task=eval_task,
+                                                  add_to_enc_buffer=True)
+            self.collect_data_from_task_posterior(idx=idx,
+                                                  num_samples=self.max_path_length*10,
+                                                  resample_z_every_n=self.max_path_length,
+                                                  eval_task=eval_task,
+                                                  add_to_enc_buffer=add_to_enc_buffer)
 
 
     # TODO: since switching tasks now resets the environment, we are not correctly handling episodes terminating
