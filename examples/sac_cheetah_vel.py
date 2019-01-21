@@ -133,7 +133,7 @@ def main(gpu, docker):
         use_gpu=True,
         gpu_id=gpu,
     )
-    exp_name = 'no-rf-ablation/cheetah-vel'
+    exp_name = 'rf-only-ablation/cheetah-vel'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='half-cheetah-vel', base_log_dir=log_dir)

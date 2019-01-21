@@ -111,7 +111,7 @@ def main(gpu, docker):
             num_iterations=10000,
             num_tasks_sample=5,
             num_steps_per_task=2 * max_path_length,
-            num_train_steps_per_itr=2000,
+            num_train_steps_per_itr=4000,
             num_evals=4, 
             num_steps_per_eval=2 * max_path_length,  # num transitions to eval on
             batch_size=256, # to compute training grads from
@@ -137,7 +137,7 @@ def main(gpu, docker):
         use_gpu=True,
         gpu_id=gpu,
     )
-    exp_name = 'no-rf-ablation/ant-fb'
+    exp_name = 'rf-only-ablation/ant-fb'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='ant-forward-backward', base_log_dir=log_dir)
