@@ -81,4 +81,5 @@ def get_dim(space):
     elif hasattr(space, 'flat_dim'):
         return space.flat_dim
     else:
-        raise TypeError("Unknown space: {}".format(space))
+        # raise TypeError("Unknown space: {}".format(space))
+        return space.low.size

@@ -124,14 +124,14 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         terms = torch.cat(terms, dim=0)
         return [obs, actions, rewards, next_obs, terms]
 
-    def prepare_encoder_data(self, obs, act, rewards):
+    def prepare_encoder_data(self, obs, act, rewards, next_obs):
         ''' prepare task data for encoding '''
         # for now we embed only observations and rewards
         # assume obs and rewards are (task, batch, feat)
         if self.sparse_rewards:
             rewards = ptu.sparsify_rewards(rewards)
         rewards = rewards / self.reward_scale
-        task_data = torch.cat([obs, act, rewards], dim=2)
+        task_data = torch.cat([obs, act, rewards, next_obs], dim=2)
         return task_data
 
     def _do_training(self, indices):
@@ -146,19 +146,19 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         for i in range(num_updates):
             # TODO(KR) argh so ugly
             mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
-            obs_enc, act_enc, rewards_enc, _, _ = mini_batch
-            self._take_step(indices, obs_enc, act_enc, rewards_enc)
+            obs_enc, act_enc, rewards_enc, next_obs_enc, _ = mini_batch
+            self._take_step(indices, obs_enc, act_enc, rewards_enc, next_obs_enc)
 
             # stop backprop
             self.policy.detach_z()
 
-    def _take_step(self, indices, obs_enc, act_enc, rewards_enc):
+    def _take_step(self, indices, obs_enc, act_enc, rewards_enc, next_obs_enc):
 
         num_tasks = len(indices)
 
         # data is (task, batch, feat)
         obs, actions, rewards, next_obs, terms = self.sample_data(indices)
-        enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
+        enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc, next_obs_enc)
 
         # run inference in networks
         r_pred, q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.policy(obs, actions, next_obs, enc_data, obs_enc, act_enc)
@@ -281,7 +281,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         obs = batch['observations'][None, ...]
         act = batch['actions'][None, ...]
         rewards = batch['rewards'][None, ...]
-        in_ = self.prepare_encoder_data(obs, act, rewards)
+        next_obs = batch['next_observations'][None, ...]
+        in_ = self.prepare_encoder_data(obs, act, rewards, next_obs)
         self.policy.set_z(in_)
 
     @property

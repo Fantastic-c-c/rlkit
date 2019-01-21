@@ -208,8 +208,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 self.eval_statistics['Z variance eval'] = z_sig
 
             # TODO(KR) what does this do
+            """
             if hasattr(self.env, "log_diagnostics"):
                 self.env.log_diagnostics(test_paths)
+            """
 
 
         avg_train_return = np.mean(train_avg_returns)
