@@ -1,4 +1,5 @@
 import numpy as np
+from collections import OrderedDict
 
 from rlkit.data_management.simple_replay_buffer import SimpleReplayBuffer
 from gym.spaces import Box, Discrete, Tuple
@@ -19,7 +20,7 @@ class MultiTaskReplayBuffer(object):
         self.env = env
         self._ob_space = env.observation_space
         self._action_space = env.action_space
-        self.task_buffers = dict([(idx, SimpleReplayBuffer(
+        self.task_buffers = OrderedDict([(idx, SimpleReplayBuffer(
             max_replay_buffer_size=max_replay_buffer_size,
             observation_dim=get_dim(self._ob_space),
             action_dim=get_dim(self._action_space),
@@ -46,7 +47,7 @@ class MultiTaskReplayBuffer(object):
         return batch
 
     def all_data(self):
-        return [self.task_buffers[i].all_data() for i in range(len(self.task_buffers))]
+        return [buff.all_data() for buff in self.task_buffers.values()]
 
     def num_steps_can_sample(self, task):
         return self.task_buffers[task].num_steps_can_sample()
