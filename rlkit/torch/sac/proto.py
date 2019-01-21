@@ -182,12 +182,12 @@ class ProtoAgent(nn.Module):
 
         # Q and V networks
         # encoder will only get gradients from Q nets
-        q1 = self.qf1(obs, actions, task_z)
-        q2 = self.qf2(obs, actions, task_z)
+        q1 = self.qf1(obs, actions, task_z.detach())
+        q2 = self.qf2(obs, actions, task_z.detach())
         v = self.vf(obs, task_z.detach())
 
         # run policy, get log probs and new actions
-        in_ = torch.cat([obs, task_z.detach()], dim=1)
+        in_ = torch.cat([obs, task_z], dim=1)
         policy_outputs = self.policy(in_, reparameterize=self.reparam, return_log_prob=True)
 
         # get targets for use in V and Q updates

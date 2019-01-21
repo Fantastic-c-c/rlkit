@@ -188,10 +188,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         qf_loss.backward()
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
-        self.context_optimizer.step()
 
         # compute min Q on the new actions
-        min_q_new_actions = self.policy.min_q(obs, new_actions, task_z)
+        min_q_new_actions = self.policy.min_q(obs, new_actions, task_z.detach())
 
         # vf update
         v_target = min_q_new_actions - log_pi
@@ -226,6 +225,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
         self.policy_optimizer.step()
+        self.context_optimizer.step()
 
         # save some statistics for eval
         if self.eval_statistics is None:
