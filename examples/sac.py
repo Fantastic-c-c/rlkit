@@ -112,7 +112,7 @@ def main(gpu, docker):
             embedding_batch_size=1024,
             embedding_mini_batch_size=1024,
             max_path_length=max_path_length,
-            discount=0.99,
+            discount=0.90,
             soft_target_tau=0.005,
             policy_lr=3E-4,
             qf_lr=3E-4,
@@ -121,7 +121,7 @@ def main(gpu, docker):
             reward_scale=100.,
             sparse_rewards=True,
             reparameterize=True,
-            kl_lambda=1,
+            kl_lambda=1.,
             rf_loss_scale=1.,
             use_information_bottleneck=True,
             train_embedding_source='online_on_policy_trajectories',
@@ -136,7 +136,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'proto-sac-avg-sparse-10task-halfcircle-start0-onpolicy-withactions'
+    exp_name = 'proto-sac-avg-sparse-10task-halfcircle-start0-onpolicy-withactions-rbonus-grid10x10-gamma90-accum'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='point-mass', base_log_dir=log_dir)
