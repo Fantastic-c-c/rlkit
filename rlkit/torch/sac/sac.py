@@ -101,7 +101,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
     def sample_data(self, indices, encoder=False):
         # sample from replay buffer for each task
         # TODO(KR) this is ugly af
-        obs, actions, rewards, next_obs, terms = [], [], [], [], []
+        obs, actions, rewards, next_obs, terms, errors = [], [], [], [], [], []
         for idx in indices:
             if encoder:
                 batch = self.get_encoding_batch(idx=idx)
@@ -112,30 +112,39 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             r = batch['rewards'][None, ...]
             no = batch['next_observations'][None, ...]
             t = batch['terminals'][None, ...]
+            e = batch['errors'][None, ...]
             obs.append(o)
             actions.append(a)
             rewards.append(r)
             next_obs.append(no)
             terms.append(t)
+            errors.append(e)
         obs = torch.cat(obs, dim=0)
         actions = torch.cat(actions, dim=0)
         rewards = torch.cat(rewards, dim=0)
         next_obs = torch.cat(next_obs, dim=0)
         terms = torch.cat(terms, dim=0)
-        return [obs, actions, rewards, next_obs, terms]
+        errors = torch.cat(errors, dim=0)
+        return [obs, actions, rewards, next_obs, terms, errors]
 
-    def prepare_encoder_data(self, obs, act, rewards):
+    def prepare_encoder_data(self, obs, act, rewards, errors):
         ''' prepare task data for encoding '''
         # for now we embed only observations and rewards
         # assume obs and rewards are (task, batch, feat)
         if self.sparse_rewards:
-            rewards = ptu.sparsify_rewards(rewards)
+            t, b, f = rewards.size()
+            rewards = rewards.view(-1, f)
+            errors = errors.view(-1, errors.size(-1))
+            rewards = self.env.sparsify_rewards(ptu.get_numpy(rewards), ptu.get_numpy(errors))
+            rewards = ptu.from_numpy(rewards).view(t, b, f)
         rewards = rewards / self.reward_scale
         task_data = torch.cat([obs, act, rewards], dim=2)
         return task_data
 
     def _do_training(self, indices):
         mb_size = self.embedding_mini_batch_size
+        if self.embedding_batch_size < mb_size:
+            raise Exception('mini-batch cannot be larger than batch size')
         num_updates = self.embedding_batch_size // mb_size
 
         batch = self.sample_data(indices, encoder=True)
@@ -146,19 +155,19 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         for i in range(num_updates):
             # TODO(KR) argh so ugly
             mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
-            obs_enc, act_enc, rewards_enc, _, _ = mini_batch
-            self._take_step(indices, obs_enc, act_enc, rewards_enc)
+            obs_enc, act_enc, rewards_enc, _, _, errors_enc = mini_batch
+            self._take_step(indices, obs_enc, act_enc, rewards_enc, errors_enc)
 
             # stop backprop
             self.policy.detach_z()
 
-    def _take_step(self, indices, obs_enc, act_enc, rewards_enc):
+    def _take_step(self, indices, obs_enc, act_enc, rewards_enc, errors_enc):
 
         num_tasks = len(indices)
 
         # data is (task, batch, feat)
-        obs, actions, rewards, next_obs, terms = self.sample_data(indices)
-        enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
+        obs, actions, rewards, next_obs, terms, _ = self.sample_data(indices)
+        enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc, errors_enc)
 
         # run inference in networks
         r_pred, q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.policy(obs, actions, next_obs, enc_data, obs_enc, act_enc)
@@ -281,7 +290,10 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         obs = batch['observations'][None, ...]
         act = batch['actions'][None, ...]
         rewards = batch['rewards'][None, ...]
-        in_ = self.prepare_encoder_data(obs, act, rewards)
+        errors = None
+        if self.sparse_rewards:
+            errors = batch['errors'][None, ...]
+        in_ = self.prepare_encoder_data(obs, act, rewards, errors)
         self.policy.set_z(in_)
 
     @property

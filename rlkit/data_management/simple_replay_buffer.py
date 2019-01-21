@@ -19,6 +19,7 @@ class SimpleReplayBuffer(ReplayBuffer):
         # Make everything a 2D np array to make it easier for other code to
         # reason about the shape of the data
         self._rewards = np.zeros((max_replay_buffer_size, 1))
+        self._errors = np.zeros((max_replay_buffer_size, 2)) #TODO hard coded for 2-D position agents!
         # self._terminals[i] = a terminal was received at time i
         self._terminals = np.zeros((max_replay_buffer_size, 1), dtype='uint8')
         self.clear()
@@ -30,6 +31,9 @@ class SimpleReplayBuffer(ReplayBuffer):
         self._rewards[self._top] = reward
         self._terminals[self._top] = terminal
         self._next_obs[self._top] = next_observation
+        error = kwargs['env_info'].get('error', None)
+        if error is not None:
+            self._errors[self._top] = error
         self._advance()
 
     def terminate_episode(self):
@@ -59,6 +63,7 @@ class SimpleReplayBuffer(ReplayBuffer):
             rewards=self._rewards[indices],
             terminals=self._terminals[indices],
             next_observations=self._next_obs[indices],
+            errors=self._errors[indices],
         )
 
     def random_batch(self, batch_size):
