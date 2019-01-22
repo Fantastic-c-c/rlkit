@@ -56,6 +56,7 @@ class AntEnvRandGoalRing(MultitaskAntEnv):
         )
 
     def sample_tasks(self, num_tasks):
+        np.random.seed(1337)
         angle = np.random.uniform(0, np.pi, size=(num_tasks,))
         xpos = self.circle_radius*np.cos(angle)
         ypos = self.circle_radius*np.sin(angle)
