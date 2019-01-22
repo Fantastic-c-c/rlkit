@@ -13,6 +13,7 @@ class PointEnv(Env):
         directions = list(range(n_tasks))
 
         if randomize_tasks:
+            np.random.seed(1337)
             # sample len(directions) goals evenly spaced on unit semicircle
             radius = 1.0
             angles = np.linspace(0, np.pi, num=len(directions))
