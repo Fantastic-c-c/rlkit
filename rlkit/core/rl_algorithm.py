@@ -298,16 +298,19 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     # split number of prior and posterior samples
     def collect_data_online(self, idx, num_samples, eval_task=False, add_to_enc_buffer=True):
         nlayers = num_samples // self.max_path_length
-        for _ in range(nlayers):
-            self.collect_data_sampling_from_prior(num_samples=self.max_path_length * 10,
-                                                  resample_z_every_n=self.max_path_length,
-                                                  eval_task=eval_task,
-                                                  add_to_enc_buffer=True)
-            self.collect_data_from_task_posterior(idx=idx,
-                                                  num_samples=self.max_path_length*10,
-                                                  resample_z_every_n=self.max_path_length,
-                                                  eval_task=eval_task,
-                                                  add_to_enc_buffer=add_to_enc_buffer)
+        num_traj = 5
+        for i in range(nlayers):
+            if i == 0:
+                self.collect_data_sampling_from_prior(num_samples=self.max_path_length * num_traj,
+                                                      resample_z_every_n=self.max_path_length,
+                                                      eval_task=eval_task,
+                                                      add_to_enc_buffer=True)
+            else:
+                self.collect_data_from_task_posterior(idx=idx,
+                                                      num_samples=self.max_path_length * num_traj,
+                                                      resample_z_every_n=self.max_path_length,
+                                                      eval_task=eval_task,
+                                                      add_to_enc_buffer=add_to_enc_buffer)
 
 
     # TODO: since switching tasks now resets the environment, we are not correctly handling episodes terminating
@@ -413,6 +416,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         )
 
     def _can_train(self):
+        print('can train', all([self.replay_buffer.num_steps_can_sample(idx) >= self.batch_size for idx in self.train_tasks]))
         return all([self.replay_buffer.num_steps_can_sample(idx) >= self.batch_size for idx in self.train_tasks])
 
     def _get_action_and_info(self, agent, observation):
