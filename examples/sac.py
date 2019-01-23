@@ -104,7 +104,7 @@ def main(gpu, docker):
             meta_batch=16,
             num_iterations=10000,
             num_tasks_sample=10,
-            num_steps_per_task=5 * max_path_length,
+            num_steps_per_task=10 * max_path_length,
             num_train_steps_per_itr=1000,
             num_evals=5, # number of evals with separate task encodings
             num_steps_per_eval=1 * max_path_length + 1,  # num transitions to eval on
@@ -136,7 +136,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'proto-sac-avg-sparse-100task-halfcircle-start0-onpolicy-withactions-rbonus-grid10x10-gamma90-accum-50traj'
+    exp_name = 'proto-sac-avg-sparse-100task'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='point-mass', base_log_dir=log_dir)
