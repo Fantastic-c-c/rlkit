@@ -162,7 +162,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         enc_data = self.prepare_encoder_data(obs, actions, rewards)
 
         # run inference in networks
-        r_pred, q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.policy(obs, actions, next_obs, enc_data, obs_enc, act_enc)
+        r_pred, q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.policy(obs, actions, next_obs, enc_data, obs, actions)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         # KL constraint on z if probabilistic
@@ -173,7 +173,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             kl_loss.backward(retain_graph=True)
 
         # auxiliary reward prediction from encoder states
-        rewards_enc_flat = rewards_enc.contiguous().view(self.embedding_mini_batch_size * num_tasks, -1)
+        rewards_enc_flat = rewards.contiguous().view(self.embedding_mini_batch_size * num_tasks, -1)
         rf_loss = self.rf_loss_scale * self.rf_criterion(r_pred, rewards_enc_flat)
         # self.rf_optimizer.zero_grad()
         # rf_loss.backward(retain_graph=True)

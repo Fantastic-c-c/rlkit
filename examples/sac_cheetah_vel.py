@@ -109,8 +109,8 @@ def main(gpu, docker):
             num_evals=2, # number of evals with separate task encodings
             num_steps_per_eval=2 * max_path_length,
             batch_size=256, # to compute training grads from
-            embedding_batch_size=100,
-            embedding_mini_batch_size=100,
+            embedding_batch_size=256,
+            embedding_mini_batch_size=256,
             max_path_length=max_path_length,
             discount=0.99,
             soft_target_tau=0.005,

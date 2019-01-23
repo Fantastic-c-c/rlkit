@@ -174,9 +174,9 @@ class ProtoAgent(nn.Module):
                 rf_z)
 
         t, b, _ = obs.size()
-        obs = obs.view(t * b, -1)
-        actions = actions.view(t * b, -1)
-        next_obs = next_obs.view(t * b, -1)
+        obs = obs.contiguous().view(t * b, -1)
+        actions = actions.contiguous().view(t * b, -1)
+        next_obs = next_obs.contiguous().view(t * b, -1)
         task_z = [z.repeat(b, 1) for z in task_z]
         task_z = torch.cat(task_z, dim=0)
 
