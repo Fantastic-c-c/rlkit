@@ -204,7 +204,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 elif self.train_embedding_source == 'online_exploration_trajectories':
                     # embeddings are computed using only data collected using the prior
                     # sample data from posterior to train RL algorithm
-                    self.enc_replay_buffer.task_buffers[idx].clear()
+                    # self.enc_replay_buffer.task_buffers[idx].clear()
                     # resamples using current policy, conditioned on prior
                     self.collect_data_sampling_from_prior(num_samples=self.num_steps_per_task,
                                                           resample_z_every_n=self.max_path_length,
@@ -216,7 +216,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 elif self.train_embedding_source == 'online_on_policy_trajectories':
                     # sample from prior, then sample more from the posterior
                     # embeddings computed from both prior and posterior data
-                    self.enc_replay_buffer.task_buffers[idx].clear()
+                    # self.enc_replay_buffer.task_buffers[idx].clear()
                     self.collect_data_online(idx=idx,
                                              num_samples=self.num_steps_per_task,
                                              add_to_enc_buffer=True)
