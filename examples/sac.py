@@ -99,6 +99,7 @@ def main(gpu, docker):
         task_params=dict(
             n_tasks=100,
             randomize_tasks=True,
+            goal_radius=0.2,
         ),
         algo_params=dict(
             meta_batch=16,
