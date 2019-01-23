@@ -159,7 +159,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
         # data is (task, batch, feat)
         obs, actions, rewards, next_obs, terms = mini_batch
-        enc_data = self.prepare_encoder_data(obs, act, rewards)
+        enc_data = self.prepare_encoder_data(obs, actions, rewards)
 
         # run inference in networks
         r_pred, q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.policy(obs, actions, next_obs, enc_data, obs_enc, act_enc)
