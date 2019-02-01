@@ -13,6 +13,8 @@ from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.torch.torch_rl_algorithm import MetaTorchRLAlgorithm
 from rlkit.torch.sac.proto import ProtoAgent
 
+import pdb
+
 
 class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
     def __init__(
@@ -158,6 +160,40 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
         # data is (task, batch, feat)
         obs, actions, rewards, next_obs, terms = self.sample_data(indices)
+        # enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
+        # print('rewards', rewards.size())
+        # print('rewards_env', rewards_enc.size())
+        relabel_z = None
+        # Relabeling where the relabeled data is thrown out after being computed.
+        if self.relabel and bool(np.random.random() < .1):
+            relabel_z = [ ptu.FloatTensor(np.random.normal(size=self.latent_dim)) for idx in indices]
+            r_pred = self.policy.reward_predict(obs, actions, relabel_z, len(indices), self.batch_size)
+            r_pred_enc = self.policy.reward_predict(obs_enc, act_enc, relabel_z, len(indices), self.embedding_mini_batch_size)
+
+            rewards = r_pred
+            rewards_enc = r_pred_enc
+            
+            if True:
+                task_data = dict()
+                # task_data['z'] = ptu.get_numpy(prior_z)
+                task_data['obs'] = ptu.get_numpy(obs)
+                task_data['relabel_r'] = ptu.get_numpy(r_pred)
+                task_data['actual_r'] = ptu.get_numpy(rewards)
+
+                task_data_enc = dict()
+                # task_data_enc['z'] = ptu.get_numpy(prior_z)
+                task_data_enc['obs'] = ptu.get_numpy(obs_enc)
+                task_data_enc['relabel_r'] = ptu.get_numpy(r_pred_enc)
+                task_data['actual_r'] = ptu.get_numpy(rewards_enc)
+
+                with open(self.output_dir +
+                          '/proto-sac-point-mass-fb-16z-relabel.pkl', 'wb+') as f:
+                    pickle.dump(task_data, f, pickle.HIGHEST_PROTOCOL)
+
+                with open(self.output_dir +
+                          '/proto-sac-point-mass-fb-16z-relabel-enc.pkl', 'wb+') as f:
+                    pickle.dump(task_data_enc, f, pickle.HIGHEST_PROTOCOL)
+
         enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
 
         # run inference in networks

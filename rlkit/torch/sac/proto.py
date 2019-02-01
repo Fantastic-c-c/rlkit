@@ -157,6 +157,23 @@ class ProtoAgent(nn.Module):
         self.set_z(enc_data)
         return self.infer(obs, actions, next_obs, obs_enc, act_enc)
 
+    def reward_predict(self, obs_enc, act_enc, task_z, num_tasks, batch_size):
+        # obs_enc is 10*256*2 ? or 2560 * 2
+        
+        rf_z = [z.repeat(obs_enc.size(1), 1) for z in task_z]
+        rf_z = torch.cat(rf_z, dim=0)
+        # torch.Size([2560, 5])
+
+        obs_enc_in = obs_enc.contiguous().view(obs_enc.size(0) * obs_enc.size(1), -1)
+        act_enc_in = act_enc.contiguous().view(act_enc.size(0) * act_enc.size(1), -1)
+        # print('act_enc in', act_enc_in.size())
+        # print('obs_enc in', obs_enc_in.size())
+
+        # print('rf_z', rf_z.size())
+        r_pred = self.rf(obs_enc_in, act_enc_in, rf_z)
+        r_pred = r_pred.view([num_tasks, batch_size, 1])
+        return r_pred.detach()
+
     def infer(self, obs, actions, next_obs, obs_enc, act_enc):
         '''
         compute predictions of SAC networks for update
@@ -169,6 +186,14 @@ class ProtoAgent(nn.Module):
         # auxiliary reward regression
         rf_z = [z.repeat(obs_enc.size(1), 1) for z in task_z]
         rf_z = torch.cat(rf_z, dim=0)
+        # print('obs_enc.contiguous().view(obs_enc.size(0) * obs_enc.size(1), -1)',
+        #     obs_enc.contiguous().view(obs_enc.size(0) * obs_enc.size(1), -1).size())
+        # print('act_enc.contiguous().view(act_enc.size(0) * act_enc.size(1), -1)',
+        #     act_enc.contiguous().view(act_enc.size(0) * act_enc.size(1), -1).size())
+        # print('rf_z', rf_z.size())
+
+        # rf_z torch.Size([16384, 5])
+        # obs_enc, act_enc torch.Size([16384, 2])
         r = self.rf(obs_enc.contiguous().view(obs_enc.size(0) * obs_enc.size(1), -1),
                 act_enc.contiguous().view(act_enc.size(0) * act_enc.size(1), -1),
                 rf_z)

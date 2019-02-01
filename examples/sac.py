@@ -131,13 +131,14 @@ def main(gpu, docker):
             eval_embedding_source='online_on_policy_trajectories',
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=True,
+            relabel=True,
         ),
         net_size=300,
         use_gpu=True,
         gpu_id=gpu,
     )
 
-    exp_name = 'proto-sac-avg-sparse-100task'
+    exp_name = 'proto-sac-avg-sparse-100task-relabel-act'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='point-mass', base_log_dir=log_dir)

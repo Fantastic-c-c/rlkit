@@ -14,7 +14,8 @@ from rlkit.core import logger, eval_util
 
 
 class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
-    def __init__(self, *args, render_eval_paths=False, plotter=None, dump_eval_paths=False, output_dir=None, recurrent=False, **kwargs):
+    def __init__(self, *args, render_eval_paths=False, plotter=None, dump_eval_paths=False, output_dir=None,
+        recurrent=False, relabel=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.eval_statistics = None
         self.render_eval_paths = render_eval_paths
@@ -22,6 +23,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         self.dump_eval_paths = dump_eval_paths
         self.output_dir = output_dir
         self.recurrent = recurrent
+        self.relabel = relabel
 
     ###### Torch stuff #####
     @property
