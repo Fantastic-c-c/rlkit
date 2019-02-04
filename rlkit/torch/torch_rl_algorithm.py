@@ -50,9 +50,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
     def get_encoding_batch(self, idx=None, eval_task=False):
         ''' get a batch from the separate encoding replay buffer '''
         # n.b. if eval is online, training should match the distribution of context lengths
+        # and should sample trajectories instead of unordered transitions
         is_online = (self.eval_embedding_source == 'online')
         # n.b. if using sequence model for encoder, samples should be ordered
-        is_seq = (self.recurrent)
+        is_seq = self.recurrent or is_online
         if idx is None:
             idx = self.task_idx
         if eval_task:
@@ -82,53 +83,13 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 p['rewards'] = ptu.sparsify_rewards(p['rewards'])
         return test_paths
 
-
-    # TODO: might be useful to use the logging info in this method for visualization and seeing how episodes progress as
-    # stuff gets inferred, especially as we debug online evaluations
-    def collect_data_for_embedding_online_with_logging(self, idx, epoch):
-        self.task_idx = idx
-        dprint('Task:', idx)
-        self.env.reset_task(idx)
-
-        n_exploration_episodes = 10
-        n_inference_episodes = 10
-        all_init_paths = []
-        all_inference_paths =[]
-
-        self.enc_replay_buffer.clear_buffer(idx)
-
-        for i in range(n_exploration_episodes):
-            initial_z = self.sample_z_from_prior()
-
-            init_paths = self.obtain_eval_paths(idx, z=initial_z, eval_task=True)
-            all_init_paths += init_paths
-            self.enc_replay_buffer.add_paths(idx, init_paths)
-        dprint('enc_replay_buffer.task_buffers[idx]._size', self.enc_replay_buffer.task_buffers[idx]._size)
-
-        for i in range(n_inference_episodes):
-            paths = self.obtain_eval_paths(idx, eval_task=True)
-            all_inference_paths += paths
-            self.enc_replay_buffer.add_paths(idx, init_paths)
-
-        # save evaluation rollouts for vis
-        # all paths
-        with open(self.output_dir +
-                  "/proto-sac-point-mass-fb-16z-init-task{}-{}.pkl".format(idx, epoch), 'wb+') as f:
-            pickle.dump(all_init_paths, f, pickle.HIGHEST_PROTOCOL)
-        with open(self.output_dir +
-                  "/proto-sac-point-mass-fb-16z-inference-task{}-{}.pkl".format(idx, epoch), 'wb+') as f:
-            pickle.dump(all_inference_paths, f, pickle.HIGHEST_PROTOCOL)
-
-        average_inference_returns = [eval_util.get_average_returns(paths) for paths in all_inference_paths]
-        self.eval_statistics['AverageInferenceReturns_test_task{}'.format(idx)] = average_inference_returns
-
     def collect_paths(self, idx, epoch, eval_task=False):
         self.task_idx = idx
         dprint('Task:', idx)
         self.env.reset_task(idx)
         if eval_task:
             num_evals = self.num_evals
-        else: 
+        else:
             num_evals = 1
 
         paths = []
