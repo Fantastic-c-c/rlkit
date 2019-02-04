@@ -66,15 +66,14 @@ class SimpleReplayBuffer(ReplayBuffer):
         indices = np.random.randint(0, self._size, batch_size)
         return self.sample_data(indices)
 
-    def random_trajs(self, batch_size):
-        ''' batch of trajectories '''
+    def random_sequence(self, batch_size):
+        ''' batch of transitions in order '''
         # take random trajectories until we have enough
-        # TODO hack to not deal with wrapping episodes, just don't take the last one
-        shuffled_starts = np.random.permutation(self._episode_starts[:-1])
         i = 0
         indices = []
         while len(indices) < batch_size:
-            start = shuffled_starts[i]
+            # TODO hack to not deal with wrapping episodes, just don't take the last one
+            start = np.random.choice(self._episode_starts[:-1])
             pos_idx = self._episode_starts.index(start)
             indices += list(range(start, self._episode_starts[pos_idx + 1]))
             i += 1
