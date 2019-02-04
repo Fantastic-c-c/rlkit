@@ -68,27 +68,37 @@ class ProtoAgent(nn.Module):
         self.register_buffer('num_z', torch.zeros(1))
 
         # initialize posterior to the prior
+        mu = torch.zeros(1, latent_dim)
         if self.use_ib:
-            mu = torch.zeros(1, latent_dim)
             sigma_squared = torch.ones(1, latent_dim)
-            self.register_buffer('z_params', torch.cat([mu, sigma_squared], dim=1))
+        else:
+            sigma_squared = torch.zeros(1, latent_dim)
+        self.register_buffer('z_means', mu)
+        self.register_buffer('z_vars', sigma_squared)
 
     def clear_z(self, num_tasks=1):
+        '''
+        reset q(z|c) to the prior
+        sample a new z from the prior
+        '''
+        mu = ptu.zeros(num_tasks, self.latent_dim)
         if self.use_ib:
-            self.z_dists = [torch.distributions.Normal(ptu.zeros(self.latent_dim), ptu.ones(self.latent_dim)) for _ in range(num_tasks)]
-            z = [d.rsample() for d in self.z_dists]
-            self.z = torch.stack(z)
+            var = ptu.ones(num_tasks, self.latent_dim)
         else:
-            self.z = self.z.new_full((num_tasks, self.latent_dim), 0)
+            var = ptu.zeros(num_tasks, self.latent_dim)
+        self.z_means = mu
+        self.z_vars = var
+        self.sample_z()
         self.task_enc.reset(num_tasks) # clear hidden state in recurrent case
 
     def detach_z(self):
+        ''' disable backprop through z '''
         self.z = self.z.detach()
         if self.recurrent:
             self.task_enc.hidden = self.task_enc.hidden.detach()
 
     def update_context(self, inputs):
-        ''' update task embedding with a single transition '''
+        ''' update q(z|c) with a single transition '''
         # TODO there should be one generic method for preparing data for the encoder!!!
         o, a, r, no, d = inputs
         if self.sparse_rewards:
@@ -97,77 +107,77 @@ class ProtoAgent(nn.Module):
         a = ptu.from_numpy(a[None, None, ...])
         r = ptu.from_numpy(np.array([r])[None, None, ...])
         data = torch.cat([o, a, r], dim=2)
-        self.update_z(data)
-
-    def information_bottleneck(self, z):
-        # assume input and output to be task x batch x feat
-        mu = z[..., :self.latent_dim]
-        sigma_squared = F.softplus(z[..., self.latent_dim:])
-        z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
-        if not self.det_z:
-            posteriors = [torch.distributions.Normal(m, torch.sqrt(s)) for m, s in z_params]
-            self.z_params = torch.stack([torch.cat([m, s]) for m, s, in z_params])
-            z = [d.rsample() for d in posteriors]
-        else:
-            z = [p[0] for p in z_params]
-        z = torch.stack(z)
-        return z
+        self.update_context(data)
 
     def compute_kl_div(self):
+        ''' compute KL( q(z|c) || r(z) ) '''
         prior = torch.distributions.Normal(ptu.zeros(self.latent_dim), ptu.ones(self.latent_dim))
-        posteriors = [torch.distributions.Normal(z[:self.latent_dim], torch.sqrt(z[self.latent_dim:])) for z in torch.unbind(self.z_params, dim=0)]
+        posteriors = [torch.distributions.Normal(mu, torch.sqrt(var)) for mu, var in zip(torch.unbind(self.z_means), torch.unbind(self.z_vars))]
         kl_divs = [torch.distributions.kl.kl_divergence(post, prior) for post in posteriors]
         kl_div_sum = torch.sum(torch.stack(kl_divs))
         return kl_div_sum
 
-    def set_z(self, in_):
-        ''' compute latent task embedding only from this input data '''
-        new_z = self.task_enc(in_)
-        new_z = new_z.view(in_.size(0), -1, self.task_enc.output_size)
+    def infer_posterior(self, in_):
+        ''' compute q(z|c) as a function of input context '''
+        params = self.task_enc(in_)
+        params = params.view(in_.size(0), -1, self.task_enc.output_size)
+        # with probabilistic z, predict mean and variance of q(z | c)
         if self.use_ib:
-            new_z = self.information_bottleneck(new_z)
+            mu = params[..., :self.latent_dim]
+            sigma_squared = F.softplus(params[..., self.latent_dim:])
+            z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
+            self.z_means = torch.stack([p[0] for p in z_params])
+            self.z_vars = torch.stack([p[1] for p in z_params])
+        # sum rather than product of gaussians structure
         else:
-            new_z = torch.mean(new_z, dim=1)
-        self.z = new_z
+            self.z_means = torch.mean(params, dim=1)
 
-    def update_z(self, in_):
+    def sample_z(self):
+        if self.use_ib:
+            posteriors = [torch.distributions.Normal(m, torch.sqrt(s)) for m, s in zip(torch.unbind(self.z_means), torch.unbind(self.z_vars))]
+            z = [d.rsample() for d in posteriors]
+            self.z = torch.stack(z)
+        else:
+            self.z = self.z_means
+
+    def update_posterior(self, in_):
         '''
-        update current task embedding
-         - by running mean for prototypical encoder
+        update current q(z|c) with new data
+         - by adding to sum of natural parameters for prototypical encoder
          - by updating hidden state for recurrent encoder
         '''
-        # z is task x feat
-        z = self.z
         num_z = self.num_z
 
         # TODO this only works for single task (t == 1)
-        new_z = self.task_enc(in_) # task x batch x feat
-        if new_z.size(0) != 1:
+        up_params = self.task_enc(in_) # task x batch x feat
+        if up_params.size(0) != 1:
             raise Exception('incremental update for more than 1 task not supported')
         if self.recurrent:
-            z = new_z
+            up_mu = up_params[..., :self.latent_dim]
+            up_ss = F.softplus(up_params[..., self.latent_dim:])
+            self.z_means = up_mu[None]
+            self.z_vars = up_ss[None]
         else:
-            num_updates = new_z.size(1)
+            num_updates = up_params.size(1)
             # only have one task here
-            new_z = new_z[0] # batch x feat
-            cur_mu, cur_ss = self.z_params[0][:self.latent_dim], self.z_params[0][self.latent_dim:]
+            up_params = up_params[0] # batch x feat
+            curr_mu = self.z_means[0]
+            curr_ss = self.z_vars[0]
             if self.use_ib:
                 natural_z = torch.cat(_canonical_to_natural(cur_mu, cur_ss)) #feat
-                up_mu = new_z[..., :self.latent_dim]
-                up_ss = F.softplus(new_z[..., self.latent_dim:])
+                up_mu = up_params[..., :self.latent_dim]
+                up_ss = F.softplus(up_params[..., self.latent_dim:])
                 new_natural = torch.cat(_canonical_to_natural(up_mu, up_ss), dim=1) # batch x feat
                 new_natural = torch.sum(new_natural, dim=0)
                 natural_z += new_natural
                 m, s  = _natural_to_canonical(natural_z[:self.latent_dim], natural_z[self.latent_dim:]) # feat
-                self.z_params = torch.cat([m, s])[None, ...]
-                z_dist = torch.distributions.Normal(m, torch.sqrt(s))
-                z = z_dist.rsample()
-
+                self.z_means = m[None]
+                self.z_vars = s[None]
             else:
                 for i in range(num_updates):
                     num_z += 1
-                    z += (new_z[i] - z) / num_z
-            z = z[None, ...]
+                    curr_mu += (up_params[i] - curr_mu) / num_z
+                self.z_means = curr_mu[None]
 
     def get_action(self, obs, deterministic=False):
         ''' sample action from the policy, conditioned on the task embedding '''
@@ -183,10 +193,11 @@ class ProtoAgent(nn.Module):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.tau)
 
     def forward(self, obs, actions, next_obs, enc_data, obs_enc, act_enc):
-        self.set_z(enc_data)
-        return self.infer(obs, actions, next_obs, obs_enc, act_enc)
+        self.infer_posterior(enc_data)
+        self.sample_z()
+        return self.infer_ac(obs, actions, next_obs, obs_enc, act_enc)
 
-    def infer(self, obs, actions, next_obs, obs_enc, act_enc):
+    def infer_ac(self, obs, actions, next_obs, obs_enc, act_enc):
         '''
         compute predictions of SAC networks for update
 
