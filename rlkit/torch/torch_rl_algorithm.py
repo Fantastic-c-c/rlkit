@@ -66,7 +66,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         otherwise, sample a task encoding once and keep it fixed
         '''
         is_online = (self.eval_embedding_source == 'online')
-        self.policy.clear_z()
+        self.reset_posterior()
 
         if not is_online:
             self.sample_z_from_posterior(idx, eval_task=eval_task)
@@ -185,12 +185,11 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             # collect data fo computing embedding if needed
             if self.eval_embedding_source in ['online', 'initial_pool']:
                 pass
+            # task embedding sampled from prior and held fixed
             elif self.eval_embedding_source == 'online_exploration_trajectories':
                 self.eval_enc_replay_buffer.task_buffers[idx].clear()
-                # task embedding sampled from prior and held fixed
-                self.collect_data_sampling_from_prior(num_samples=self.num_steps_per_task,
-                                                      resample_z_every_n=self.max_path_length,
-                                                      eval_task=True)
+                self.collect_data(self.num_steps_per_task, self.max_path_length, self.num_steps_per_task, self.embedding_batch_size, eval_task=True)
+            # sample data while updating posterior
             elif self.eval_embedding_source == 'online_on_policy_trajectories':
                 self.eval_enc_replay_buffer.task_buffers[idx].clear()
                 # half the data from z sampled from prior, the other half from z sampled from posterior
@@ -201,13 +200,14 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 raise Exception("Invalid option for computing eval embedding")
 
             dprint('task {} encoder RB size'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx]._size)
+
             test_paths = self.collect_paths(idx, epoch, eval_task=True)
 
             test_avg_returns.append(eval_util.get_average_returns(test_paths))
 
             if self.use_information_bottleneck:
-                z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_dists[0].mean)))
-                z_sig = np.mean(ptu.get_numpy(self.policy.z_dists[0].variance))
+                z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_means[0])))
+                z_sig = np.mean(ptu.get_numpy(self.policy.z_vars[0]))
                 self.eval_statistics['Z mean eval'] = z_mean
                 self.eval_statistics['Z variance eval'] = z_sig
 

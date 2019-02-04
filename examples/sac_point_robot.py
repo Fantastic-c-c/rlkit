@@ -25,7 +25,6 @@ def main(gpu, docker, debug):
     algo_params['reward_scale'] = 100.
     algo_params['kl_lambda'] = .1
     algo_params['train_embedding_source'] ='online_exploration_trajectories'
-    algo_params['eval_embedding_source'] ='online_exploration_trajectories'
 
     util_params = variant['util_params']
     util_params['gpu_id'] = gpu
