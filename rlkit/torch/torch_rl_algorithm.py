@@ -47,10 +47,12 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         batch = self.replay_buffer.random_batch(idx, self.batch_size)
         return np_to_pytorch_batch(batch)
 
-    def get_encoding_batch(self, idx=None, eval_task=False, is_eval=False):
+    def get_encoding_batch(self, idx=None, batch_size=None, eval_task=False, is_eval=False):
         ''' get a batch from the separate encoding replay buffer '''
         # n.b. if eval is online, training should match the distribution of context lengths
         # and should sample trajectories instead of unordered transitions
+        if batch_size is None:
+            batch_size = self.embedding_batch_size
         is_online = (self.eval_embedding_source == 'online')
         # n.b. if using sequence model for encoder, samples should be ordered
         is_seq = self.recurrent or is_online
@@ -58,11 +60,11 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             idx = self.task_idx
         if eval_task:
             full_size = self.eval_enc_replay_buffer.task_buffers[idx].size()
-            nsamp = full_size if is_eval else self.embedding_batch_size
+            nsamp = full_size if is_eval else batch_size
             batch = self.eval_enc_replay_buffer.random_batch(idx, nsamp, sequence=is_seq, padded=is_online)
         else:
             full_size = self.enc_replay_buffer.task_buffers[idx].size()
-            nsamp = full_size if is_eval else self.embedding_batch_size
+            nsamp = full_size if is_eval else batch_size
             batch = self.enc_replay_buffer.random_batch(idx, nsamp, sequence=is_seq, padded=is_online)
         return np_to_pytorch_batch(batch)
 
@@ -74,13 +76,11 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         otherwise, sample a task encoding once and keep it fixed
         '''
         is_online = (self.eval_embedding_source == 'online')
-        self.policy.clear_z()
+        self.reset_posterior()
 
         if not is_online:
-            if prior:
-                self.sample_z_from_prior()
-            else:
-                self.sample_z_from_posterior(idx, eval_task=eval_task)
+            if not prior:
+                self.infer_posterior(idx, eval_task=eval_task)
 
         test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic, is_online=is_online)
         if self.sparse_rewards:
@@ -88,7 +88,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 p['rewards'] = ptu.sparsify_rewards(p['rewards'])
         return test_paths
 
-    def collect_paths(self, idx, epoch, eval_task=False, is_eval=False):
+    def collect_paths(self, idx, epoch, eval_task=False):
         self.task_idx = idx
         dprint('Task:', idx)
         self.env.reset_task(idx)
@@ -98,12 +98,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             num_evals = 1
         paths = []
         for _ in range(num_evals):
-            if is_eval:
-                # add posterior data to RB
-                self.collect_data_from_task_posterior(idx, num_samples=10 * self.max_path_length,
-                                                      resample_z_every_n=self.max_path_length,
-                                                      eval_task=True)
-                dprint('task {} encoder RB size'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx]._size)
+            self.collect_data(self.max_path_length, self.max_path_length, self.max_path_length, self.embedding_batch_size, eval_task=eval_task)
+            dprint('task {} encoder RB size'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx]._size)
             paths += self.obtain_eval_paths(idx, eval_task=eval_task, deterministic=True)
         goal = self.env._goal
         for path in paths:
@@ -169,31 +165,24 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             # collect data fo computing embedding if needed
             if self.eval_embedding_source in ['online', 'initial_pool']:
                 pass
+            # task embedding sampled from prior and held fixed
             elif self.eval_embedding_source == 'online_exploration_trajectories':
                 self.eval_enc_replay_buffer.task_buffers[idx].clear()
-                # task embedding sampled from prior and held fixed
-                self.collect_data_sampling_from_prior(num_samples=self.num_steps_per_task,
-                                                      resample_z_every_n=self.max_path_length,
-                                                      eval_task=True)
+                self.collect_data(self.num_steps_per_task, self.max_path_length, self.num_steps_per_task, self.embedding_batch_size, eval_task=True)
+            # sample data while updating posterior
             elif self.eval_embedding_source == 'online_on_policy_trajectories':
                 self.eval_enc_replay_buffer.task_buffers[idx].clear()
-                self.collect_data_sampling_from_prior(num_samples=10 * self.max_path_length,
-                                                      resample_z_every_n=self.max_path_length,
-                                                      eval_task=True)
-                # half the data from z sampled from prior, the other half from z sampled from posterior
-                self.collect_data_online(idx=idx,
-                                         num_samples=self.num_steps_per_task,
-                                         eval_task=True)
+                self.collect_data(self.num_steps_per_task, self.max_path_length, self.max_path_length, self.embedding_batch_size, eval_task=True)
             else:
                 raise Exception("Invalid option for computing eval embedding")
 
-            test_paths = self.collect_paths(idx, epoch, eval_task=True, is_eval=True)
+            test_paths = self.collect_paths(idx, epoch, eval_task=True)
 
             test_avg_returns.append(eval_util.get_average_returns(test_paths))
 
             if self.use_information_bottleneck:
-                z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_dists[0].mean)))
-                z_sig = np.mean(ptu.get_numpy(self.policy.z_dists[0].variance))
+                z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_means[0])))
+                z_sig = np.mean(ptu.get_numpy(self.policy.z_vars[0]))
                 self.eval_statistics['Z mean eval'] = z_mean
                 self.eval_statistics['Z variance eval'] = z_sig
 

@@ -133,7 +133,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         batch = self.sample_data(indices, encoder=True)
 
         # zero out context and hidden encoder state
-        self.policy.clear_z(num_tasks=len(indices))
+        self.reset_posterior(num_tasks=len(indices))
 
         for i in range(num_updates):
             # TODO(KR) argh so ugly
@@ -222,8 +222,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             # across all the train steps?
             self.eval_statistics = OrderedDict()
             if self.use_information_bottleneck:
-                z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_dists[0].mean)))
-                z_sig = np.mean(ptu.get_numpy(self.policy.z_dists[0].variance))
+                # TODO should average across tasks rather than tasking the first
+                z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_means[0])))
+                z_sig = np.mean(ptu.get_numpy(self.policy.z_vars[0]))
                 self.eval_statistics['Z mean train'] = z_mean
                 self.eval_statistics['Z variance train'] = z_sig
                 self.eval_statistics['KL Divergence'] = ptu.get_numpy(kl_div)
@@ -255,16 +256,25 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 ptu.get_numpy(policy_log_std),
             ))
 
-    def sample_z_from_prior(self):
-        self.policy.clear_z()
+    def reset_posterior(self, num_tasks=1):
+        # reset to prior and sample z
+        self.policy.clear_z(num_tasks=num_tasks)
 
-    def sample_z_from_posterior(self, idx, eval_task=False):
-        batch = self.get_encoding_batch(idx=idx, eval_task=eval_task)
+    def sample_z(self):
+        # sample z from existing posterior
+        self.policy.sample_z()
+
+    def infer_posterior(self, idx, batch_size=None, eval_task=False):
+        # infer q(z | c) given context
+        if batch_size == None:
+            batch_size = self.embedding_batch_size
+        batch = self.get_encoding_batch(idx=idx, batch_size=batch_size, eval_task=eval_task)
         obs = batch['observations'][None, ...]
         act = batch['actions'][None, ...]
         rewards = batch['rewards'][None, ...]
         in_ = self.prepare_encoder_data(obs, act, rewards)
-        self.policy.set_z(in_)
+        self.policy.infer_posterior(in_)
+        self.sample_z()
 
     @property
     def networks(self):
