@@ -56,7 +56,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         if idx is None:
             idx = self.task_idx
         if eval_task:
-            batch = self.eval_enc_replay_buffer.random_batch(idx, self.embedding_batch_size, sequence=is_seq, padded=is_online)
+            # hardcoded hack 
+            batch = self.eval_enc_replay_buffer.random_batch(idx, 4*self.embedding_batch_size, sequence=is_seq, padded=is_online)
         else:
             batch = self.enc_replay_buffer.random_batch(idx, self.embedding_batch_size, sequence=is_seq, padded=is_online)
         return np_to_pytorch_batch(batch)
@@ -139,7 +140,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             path['goal'] = goal # goal
 
         # save the paths for visualization, only useful for point mass
-        if self.dump_eval_paths:
+        if self.dump_eval_paths and epoch % 10 == 0:
             split = 'test' if eval_task else 'train'
             logger.save_extra_data(paths, path='eval_trajectories/{}-task{}-epoch{}'.format(split, idx, epoch))
         return paths
@@ -167,7 +168,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         ### train tasks
         dprint('evaluating on {} train tasks'.format(len(self.train_tasks)))
         train_avg_returns = []
-        for idx in self.train_tasks:
+        for idx in self.train_tasks[:30]:
             dprint('task {} encoder RB size'.format(idx), self.enc_replay_buffer.task_buffers[idx]._size)
             paths = self.collect_paths(idx, epoch, eval_task=False)
             train_avg_returns.append(eval_util.get_average_returns(paths))

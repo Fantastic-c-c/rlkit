@@ -31,7 +31,7 @@ def experiment(variant):
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
-    latent_dim = 5
+    latent_dim = 10
     task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
     reward_dim = 1
 
@@ -99,7 +99,7 @@ def main(gpu, docker):
     # noinspection PyTypeChecker
     variant = dict(
         task_params=dict(
-            n_tasks=180, # 20 works pretty well
+            n_tasks=130, # 20 works pretty well
             randomize_tasks=True,
             low_gear=False,
         ),
@@ -107,12 +107,12 @@ def main(gpu, docker):
             meta_batch=10,
             num_iterations=10000,
             num_tasks_sample=5,
-            num_steps_per_task=2 * max_path_length,
-            num_train_steps_per_itr=4000,
+            num_steps_per_task=5 * max_path_length,
+            num_train_steps_per_itr=1000,
             num_evals=2,
             num_steps_per_eval=2 * max_path_length,  # num transitions to eval on
-            embedding_batch_size=256,
-            embedding_mini_batch_size=256,
+            embedding_batch_size=32,
+            embedding_mini_batch_size=32,
             batch_size=256, # to compute training grads from
             max_path_length=max_path_length,
             discount=0.99,
@@ -124,7 +124,7 @@ def main(gpu, docker):
             reward_scale=5.,
             sparse_rewards=False,
             reparameterize=True,
-            kl_lambda=1.,
+            kl_lambda=5.,
             rf_loss_scale=1.,
             use_information_bottleneck=True,  # only supports False for now
             eval_embedding_source='online_exploration_trajectories',
@@ -136,7 +136,8 @@ def main(gpu, docker):
         use_gpu=True,
         gpu_id=gpu,
     )
-    exp_name = 'no-rf-test/ant-goal/{}'.format(gpu)
+    exp_name = 'log-eval-paths/ant-goal-fewertrain-100goal-smallbatch-higherlatent/1'
+    # exp_name = 'log-eval-paths/ant-goal-fewertrain-100goal-smallbatch-higherlatent/{}'.format(gpu)
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='ant-goal', base_log_dir=log_dir)
