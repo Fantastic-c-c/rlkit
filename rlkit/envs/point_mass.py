@@ -93,6 +93,16 @@ class PointEnv(Env):
     def _get_obs(self):
         return np.copy(self._state)
 
+    def sample_goals(self, num):
+        return [1 * np.random.uniform(-1., 1., 2) for _ in range(num)]
+
+    def get_reward(self, pos, goal):
+        # NOTE this will work for vectors as long as pos is ob_dim x batch
+        x, y = pos
+        x -= goal[0]
+        y -= goal[1]
+        return - (x ** 2 + y ** 2) ** 0.5
+
     def step(self, action):
         self._state = self._state + action
         x, y = self._state

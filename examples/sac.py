@@ -105,7 +105,7 @@ def main(gpu, docker):
             meta_batch=16,
             num_iterations=10000,
             num_tasks_sample=10,
-            num_steps_per_task=10 * max_path_length,
+            num_steps_per_task=1 * max_path_length,
             num_train_steps_per_itr=1000,
             num_evals=5, # number of evals with separate task encodings
             num_steps_per_eval=1 * max_path_length + 1,  # num transitions to eval on
@@ -120,7 +120,7 @@ def main(gpu, docker):
             vf_lr=3E-4,
             context_lr=3e-4,
             reward_scale=100.,
-            sparse_rewards=True,
+            sparse_rewards=False,
             reparameterize=True,
             kl_lambda=1.,
             rf_loss_scale=1.,
@@ -131,14 +131,15 @@ def main(gpu, docker):
             eval_embedding_source='online_on_policy_trajectories',
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=True,
-            relabel=True,
+            relabel=False,
+            relabel_groundtruth=True,
         ),
         net_size=300,
         use_gpu=True,
         gpu_id=gpu,
     )
 
-    exp_name = 'proto-sac-avg-sparse-100task-relabel-act'
+    exp_name = 'proto-sac-avg-test'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='point-mass', base_log_dir=log_dir)

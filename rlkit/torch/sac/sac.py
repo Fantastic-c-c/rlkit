@@ -100,7 +100,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             lr=context_lr,
         )
 
-    def sample_data(self, indices, encoder=False):
+    def sample_data(self, indices, encoder=False, new_goal=None):
         # sample from replay buffer for each task
         # TODO(KR) this is ugly af
         obs, actions, rewards, next_obs, terms = [], [], [], [], []
@@ -114,6 +114,18 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             r = batch['rewards'][None, ...]
             no = batch['next_observations'][None, ...]
             t = batch['terminals'][None, ...]
+            
+            if new_goal is not None:
+                new_goal = self.env.sample_goals(1)[0]
+                relabel_reward = ptu.FloatTensor(self.reward_scale*self.env.get_reward(np.transpose(o), new_goal)[..., None])
+                # pdb.set_trace()
+                if encoder:
+                    batch_size = self.embedding_mini_batch_size
+                else:
+                    batch_size = self.batch_size
+                # pdb.set_trace()
+                r = relabel_reward.view([1, batch_size, 1])
+
             obs.append(o)
             actions.append(a)
             rewards.append(r)
@@ -140,7 +152,13 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         mb_size = self.embedding_mini_batch_size
         num_updates = self.embedding_batch_size // mb_size
 
-        batch = self.sample_data(indices, encoder=True)
+        new_goal = None
+        if self.relabel_groundtruth and bool(np.random.random() < .1):
+            new_goal = self.env.sample_goals(1)[0]
+            batch = self.sample_data(indices, encoder=True, new_goal=new_goal)
+        else:
+            batch = self.sample_data(indices, encoder=True)
+
 
         # zero out context and hidden encoder state
         self.policy.clear_z(num_tasks=len(indices))
@@ -149,17 +167,19 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             # TODO(KR) argh so ugly
             mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
             obs_enc, act_enc, rewards_enc, _, _ = mini_batch
-            self._take_step(indices, obs_enc, act_enc, rewards_enc)
+            self._take_step(indices, obs_enc, act_enc, rewards_enc, new_goal=new_goal)
 
             # stop backprop
             self.policy.detach_z()
 
-    def _take_step(self, indices, obs_enc, act_enc, rewards_enc):
+    def _take_step(self, indices, obs_enc, act_enc, rewards_enc, new_goal):
 
         num_tasks = len(indices)
 
         # data is (task, batch, feat)
-        obs, actions, rewards, next_obs, terms = self.sample_data(indices)
+
+        obs, actions, rewards, next_obs, terms = self.sample_data(indices, new_goal=new_goal)
+
         # enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
         # print('rewards', rewards.size())
         # print('rewards_env', rewards_enc.size())
@@ -168,6 +188,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         if self.relabel and bool(np.random.random() < .1):
             relabel_z = [ ptu.FloatTensor(np.random.normal(size=self.latent_dim)) for idx in indices]
             r_pred = self.policy.reward_predict(obs, actions, relabel_z, len(indices), self.batch_size)
+            
+
             r_pred_enc = self.policy.reward_predict(obs_enc, act_enc, relabel_z, len(indices), self.embedding_mini_batch_size)
 
             rewards = r_pred
