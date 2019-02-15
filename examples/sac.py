@@ -128,6 +128,9 @@ def main(gpu, docker):
             # embedding_source should be chosen from
             # {'initial_pool', 'online_exploration_trajectories', 'online_on_policy_trajectories'}
             resample_z='trajectory', # how often to resample z during eval {never, trajectory, transition}
+            resample_z_train=max_path_length, # how often to resample z when collecting train data
+            # (relevant only for online_on_policy_trajectories)
+            update_post_train=max_path_length, # how often to update posterior when collecting train data
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
         ),
