@@ -35,6 +35,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             reward_scale=1,
             train_embedding_source='posterior_only',
             resample_z='never',
+            resample_z_train=10,
+            update_post_train=10,
             eval_deterministic=True,
             render=False,
             save_replay_buffer=False,
@@ -87,6 +89,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.reward_scale = reward_scale
         self.train_embedding_source = train_embedding_source
         self.resample_z = resample_z
+        self.resample_z_train = resample_z_train
+        self.update_post_train = update_post_train
         self.eval_deterministic = eval_deterministic
         self.render = render
         self.save_replay_buffer = save_replay_buffer
@@ -183,18 +187,18 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 if self.train_embedding_source == 'initial_pool':
                     # embeddings are computed using only the initial pool of data
                     # sample data from posterior to train RL algorithm
-                    self.collect_data(self.num_steps_per_task, self.max_path_length, self.max_path_length, self.embedding_batch_size, eval_task=False, add_to_enc_buffer=False)
+                    self.collect_data(self.num_steps_per_task, self.resample_z_train, self.update_post_train, self.embedding_batch_size, eval_task=False, add_to_enc_buffer=False)
                 elif self.train_embedding_source == 'online_exploration_trajectories':
                     # embeddings are computed using only data collected using the prior
                     # sample data from posterior to train RL algorithm
                     self.enc_replay_buffer.task_buffers[idx].clear()
-                    self.collect_data(self.num_steps_per_task, self.max_path_length, self.num_steps_per_task, self.embedding_batch_size, eval_task=False)
-                    self.collect_data(self.num_steps_per_task, self.max_path_length, self.max_path_length, self.embedding_batch_size, eval_task=False, add_to_enc_buffer=False)
+                    self.collect_data(self.num_steps_per_task, self.resample_z_train, self.num_steps_per_task, self.embedding_batch_size, eval_task=False)
+                    self.collect_data(self.num_steps_per_task, self.resample_z_train, self.update_post_train, self.embedding_batch_size, eval_task=False, add_to_enc_buffer=False)
                 elif self.train_embedding_source == 'online_on_policy_trajectories':
                     # sample from prior, then sample more from the posterior
                     # embeddings computed from both prior and posterior data
                     self.enc_replay_buffer.task_buffers[idx].clear()
-                    self.collect_data(self.num_steps_per_task, self.max_path_length, self.max_path_length, self.embedding_batch_size, eval_task=False)
+                    self.collect_data(self.num_steps_per_task, self.resample_z_train, self.update_post_train, self.embedding_batch_size, eval_task=False)
                 else:
                     raise Exception("Invalid option for computing train embedding {}".format(self.train_embedding_source))
 
