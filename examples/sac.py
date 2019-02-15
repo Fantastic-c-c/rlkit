@@ -119,7 +119,7 @@ def main(gpu, docker):
             train_embedding_source='online_exploration_trajectories',
             # embedding_source should be chosen from
             # {'initial_pool', 'online_exploration_trajectories', 'online_on_policy_trajectories'}
-            eval_embedding_source='online_exploration_trajectories',
+            resample_z='trajectory', # how often to resample z during eval {never, trajectory, transition}
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
         ),
