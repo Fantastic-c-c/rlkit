@@ -136,7 +136,7 @@ def main(gpu, docker):
         use_gpu=True,
         gpu_id=gpu,
     )
-    exp_name = 'log-eval-paths/ant-goal-fewertrain-100goal-smallbatch-higherlatent/3'
+    exp_name = 'log-eval-paths/ant-goal-fewertrain-100goal-smallbatch-higherlatent/5'
     # exp_name = 'log-eval-paths/ant-goal-fewertrain-100goal-smallbatch-higherlatent/{}'.format(gpu)
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
