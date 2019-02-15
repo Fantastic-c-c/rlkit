@@ -264,11 +264,11 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # sample z from existing posterior
         self.policy.sample_z()
 
-    def infer_posterior(self, idx, batch_size=None, eval_task=False):
+    def infer_posterior(self, idx, batch_size=None):
         # infer q(z | c) given context
         if batch_size == None:
             batch_size = self.embedding_batch_size
-        batch = self.get_encoding_batch(idx=idx, batch_size=batch_size, eval_task=eval_task)
+        batch = self.get_encoding_batch(idx=idx, batch_size=batch_size)
         obs = batch['observations'][None, ...]
         act = batch['actions'][None, ...]
         rewards = batch['rewards'][None, ...]
