@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def rollout(env, agent, max_path_length=np.inf, animated=False, is_online=False):
+def rollout(env, agent, max_path_length=np.inf, animated=False, resample='never'):
     """
     The following value for the following keys will be a 2D array, with the
     first dimension corresponding to the time dimension.
@@ -37,8 +37,9 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, is_online=False)
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
-        if is_online:
-            agent.update_context([o, a, r, next_o, d])
+        agent.update_context([o, a, r, next_o, d])
+        if resample == 'transition':
+            agent.sample_z()
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
@@ -51,6 +52,8 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, is_online=False)
         o = next_o
         if animated:
             env.render()
+    if resample == 'trajectory':
+        agent.sample_z()
 
     actions = np.array(actions)
     if len(actions.shape) == 1:

@@ -34,7 +34,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             replay_buffer_size=1000000,
             reward_scale=1,
             train_embedding_source='posterior_only',
-            eval_embedding_source='initial_pool',
+            resample_z='never',
             eval_deterministic=True,
             render=False,
             save_replay_buffer=False,
@@ -86,7 +86,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.replay_buffer_size = replay_buffer_size
         self.reward_scale = reward_scale
         self.train_embedding_source = train_embedding_source
-        self.eval_embedding_source = eval_embedding_source # TODO: add options for computing embeddings on train tasks too
+        self.resample_z = resample_z
         self.eval_deterministic = eval_deterministic
         self.render = render
         self.save_replay_buffer = save_replay_buffer
@@ -118,7 +118,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.eval_enc_replay_buffer = MultiTaskReplayBuffer(
             self.replay_buffer_size,
             env,
-            self.eval_tasks
+            self.train_tasks + self.eval_tasks
         )
 
         self._n_env_steps_total = 0

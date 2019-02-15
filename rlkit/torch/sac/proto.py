@@ -108,7 +108,7 @@ class ProtoAgent(nn.Module):
         a = ptu.from_numpy(a[None, None, ...])
         r = ptu.from_numpy(np.array([r])[None, None, ...])
         data = torch.cat([o, a, r], dim=2)
-        self.update_context(data)
+        self.update_posterior(data)
 
     def compute_kl_div(self):
         ''' compute KL( q(z|c) || r(z) ) '''
@@ -165,7 +165,7 @@ class ProtoAgent(nn.Module):
             curr_mu = self.z_means[0]
             curr_ss = self.z_vars[0]
             if self.use_ib:
-                natural_z = torch.cat(_canonical_to_natural(cur_mu, cur_ss)) #feat
+                natural_z = torch.cat(_canonical_to_natural(curr_mu, curr_ss)) #feat
                 up_mu = up_params[..., :self.latent_dim]
                 up_ss = F.softplus(up_params[..., self.latent_dim:])
                 new_natural = torch.cat(_canonical_to_natural(up_mu, up_ss), dim=1) # batch x feat
