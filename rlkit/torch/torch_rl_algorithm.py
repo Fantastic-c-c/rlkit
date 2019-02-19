@@ -84,7 +84,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         self.task_idx = idx
         dprint('Task:', idx)
         self.env.reset_task(idx)
-        paths = append(self.obtain_eval_paths(idx, deterministic=True))
+        paths = self.obtain_eval_paths(idx, deterministic=True)
         goal = self.env._goal
         for path in paths:
             path['goal'] = goal # goal
@@ -94,6 +94,20 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             logger.save_extra_data(paths, path='eval_trajectories/task{}-epoch{}-run{}'.format(idx, epoch, run))
 
         return paths
+
+    def _do_eval(self, indices, epoch):
+        final_returns = []
+        online_returns = []
+        for idx in indices:
+            runs, all_rets = [], []
+            for r in range(self.num_evals):
+                paths = self.collect_paths(idx, epoch, r)
+                all_rets.append([eval_util.get_average_returns([p]) for p in paths])
+                runs.append(paths)
+            all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
+            final_returns.append(all_rets[-1])
+            online_returns.append(all_rets)
+        return final_returns, online_returns
 
     def evaluate(self, epoch):
         statistics = OrderedDict()
@@ -111,42 +125,35 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         # eval on a subset of train tasks for speed
         indices = np.random.choice(self.train_tasks, len(self.eval_tasks))
         dprint('evaluating on {} train tasks'.format(len(indices)))
-        train_avg_returns = []
-        for idx in indices:
-            runs, rets = [], []
-            for r in range(self.num_evals):
-                paths = self.collect_paths(idx, epoch, r)
-                rets.append(eval_util.get_average_returns(paths[-1:]))
-                runs.append(paths)
-            train_avg_returns.append(np.mean(rets))
+        train_final_returns, train_online_returns = self._do_eval(indices, epoch)
+        print('train online returns')
+        print(train_online_returns)
 
         ### test tasks
         dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
-        test_avg_returns = []
-        for idx in self.eval_tasks:
-            self.eval_enc_replay_buffer.task_buffers[idx].clear()
-            runs, rets = [], []
-            for r in range(self.num_evals):
-                paths = self.collect_paths(idx, epoch, r)
-                rets.append(eval_util.get_average_returns(paths[-1:]))
-                runs.append(paths)
-            test_avg_returns.append(np.mean(rets))
+        test_final_returns, test_online_returns = self._do_eval(self.eval_tasks, epoch)
+        print('test online returns')
+        print(test_online_returns)
 
-            # save the final posterior
-            if self.use_information_bottleneck:
-                z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_means[0])))
-                z_sig = np.mean(ptu.get_numpy(self.policy.z_vars[0]))
-                self.eval_statistics['Z mean eval'] = z_mean
-                self.eval_statistics['Z variance eval'] = z_sig
+        # save the final posterior
+        if self.use_information_bottleneck:
+            z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_means[0])))
+            z_sig = np.mean(ptu.get_numpy(self.policy.z_vars[0]))
+            self.eval_statistics['Z mean eval'] = z_mean
+            self.eval_statistics['Z variance eval'] = z_sig
 
-            # TODO(KR) what does this do
-            if hasattr(self.env, "log_diagnostics"):
-                self.env.log_diagnostics(paths)
+        # TODO(KR) what does this do
+        #if hasattr(self.env, "log_diagnostics"):
+            #self.env.log_diagnostics(paths)
 
-        avg_train_return = np.mean(train_avg_returns)
-        avg_test_return = np.mean(test_avg_returns)
+        avg_train_return = np.mean(train_final_returns)
+        avg_test_return = np.mean(test_final_returns)
+        avg_train_online_return = np.mean(np.stack(train_online_returns), axis=0)
+        avg_test_online_return = np.mean(np.stack(test_online_returns), axis=0)
         self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
         self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
+        logger.save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
+        logger.save_extra_data(avg_test_online_return, path='online-test-epoch{}'.format(epoch))
 
         for key, value in self.eval_statistics.items():
             logger.record_tabular(key, value)
