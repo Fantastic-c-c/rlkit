@@ -80,21 +80,18 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 p['rewards'] = ptu.sparsify_rewards(p['rewards'])
         return test_paths
 
-    def collect_paths(self, idx, epoch):
+    def collect_paths(self, idx, epoch, run):
         self.task_idx = idx
         dprint('Task:', idx)
         self.env.reset_task(idx)
-        num_evals = self.num_evals
-        paths = []
-        for _ in range(num_evals):
-            paths += self.obtain_eval_paths(idx, deterministic=True)
+        paths = append(self.obtain_eval_paths(idx, deterministic=True))
         goal = self.env._goal
         for path in paths:
             path['goal'] = goal # goal
 
         # save the paths for visualization, only useful for point mass
         if self.dump_eval_paths:
-            logger.save_extra_data(paths, path='eval_trajectories/task{}-epoch{}'.format(idx, epoch))
+            logger.save_extra_data(paths, path='eval_trajectories/task{}-epoch{}-run{}'.format(idx, epoch, run))
 
         return paths
 
@@ -111,22 +108,29 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
 
         ### train tasks
-        train_avg_returns = []
         # eval on a subset of train tasks for speed
         indices = np.random.choice(self.train_tasks, len(self.eval_tasks))
         dprint('evaluating on {} train tasks'.format(len(indices)))
+        train_avg_returns = []
         for idx in indices:
-            self.eval_enc_replay_buffer.task_buffers[idx].clear()
-            paths = self.collect_paths(idx, epoch)
-            train_avg_returns.append(eval_util.get_average_returns(paths))
+            runs, rets = [], []
+            for r in range(self.num_evals):
+                paths = self.collect_paths(idx, epoch, r)
+                rets.append(eval_util.get_average_returns(paths[-1:]))
+                runs.append(paths)
+            train_avg_returns.append(np.mean(rets))
 
         ### test tasks
         dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
         test_avg_returns = []
         for idx in self.eval_tasks:
             self.eval_enc_replay_buffer.task_buffers[idx].clear()
-            paths = self.collect_paths(idx, epoch)
-            test_avg_returns.append(eval_util.get_average_returns(paths))
+            runs, rets = [], []
+            for r in range(self.num_evals):
+                paths = self.collect_paths(idx, epoch, r)
+                rets.append(eval_util.get_average_returns(paths[-1:]))
+                runs.append(paths)
+            test_avg_returns.append(np.mean(rets))
 
             # save the final posterior
             if self.use_information_bottleneck:
