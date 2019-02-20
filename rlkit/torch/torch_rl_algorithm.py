@@ -77,7 +77,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic, resample=resample)
         if self.sparse_rewards:
             for p in test_paths:
-                p['rewards'] = ptu.sparsify_rewards(p['rewards'])
+                p['rewards'] = self.env.sparsify_rewards(p['rewards'])
         return test_paths
 
     def collect_paths(self, idx, epoch, run):

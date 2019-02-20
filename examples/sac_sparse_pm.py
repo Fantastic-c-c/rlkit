@@ -8,7 +8,7 @@ import click
 import datetime
 import pathlib
 
-from rlkit.envs.point_mass import PointEnv
+from rlkit.envs.point_mass_sparse import PointEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
 from rlkit.torch.sac.policies import TanhGaussianPolicy
@@ -71,6 +71,7 @@ def experiment(variant):
     )
 
     agent = ProtoAgent(
+        env,
         latent_dim,
         [task_enc, policy, qf1, qf2, vf, rf],
         **variant['algo_params']
@@ -97,34 +98,35 @@ def main(gpu, docker):
     # noinspection PyTypeChecker
     variant = dict(
         task_params=dict(
-            n_tasks=120,
+            n_tasks=100,
             randomize_tasks=True,
+            goal_radius=0.2,
         ),
         algo_params=dict(
             meta_batch=16,
             num_iterations=10000,
-            num_tasks_sample=5,
+            num_tasks_sample=10,
             num_steps_per_task=10 * max_path_length,
             num_train_steps_per_itr=1000,
-            num_evals=5, # number of evals with separate task encodings
-            num_steps_per_eval=3 * max_path_length,  # num transitions to eval on
+            num_evals=3, # number of evals with separate task encodings
+            num_steps_per_eval=10 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
-            embedding_batch_size=64,
-            embedding_mini_batch_size=64,
+            embedding_batch_size=1024,
+            embedding_mini_batch_size=1024,
             max_path_length=max_path_length,
-            discount=0.99,
+            discount=0.90,
             soft_target_tau=0.005,
             policy_lr=3E-4,
             qf_lr=3E-4,
             vf_lr=3E-4,
             context_lr=3e-4,
             reward_scale=100.,
-            sparse_rewards=False,
+            sparse_rewards=True,
             reparameterize=True,
-            kl_lambda=.1,
+            kl_lambda=1.,
             rf_loss_scale=1.,
             use_information_bottleneck=True,
-            train_embedding_source='online_exploration_trajectories',
+            train_embedding_source='online_on_policy_trajectories',
             # embedding_source should be chosen from
             # {'initial_pool', 'online_exploration_trajectories', 'online_on_policy_trajectories'}
             resample_z='trajectory', # how often to resample z during eval {never, trajectory, transition}
@@ -132,14 +134,14 @@ def main(gpu, docker):
             # (relevant only for online_on_policy_trajectories)
             update_post_train=max_path_length, # how often to update posterior when collecting train data
             recurrent=False, # recurrent or averaging encoder
-            dump_eval_paths=False,
+            dump_eval_paths=True,
         ),
         net_size=300,
         use_gpu=True,
         gpu_id=gpu,
     )
 
-    exp_name = 'proto-sac-ib-avg'
+    exp_name = 'proto-sac-ib-avg-sparse-online-eval-traj'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='point-mass', base_log_dir=log_dir)
