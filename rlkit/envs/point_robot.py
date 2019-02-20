@@ -8,8 +8,11 @@ from . import register_env
 @register_env('point-robot')
 class PointEnv(Env):
     """
-    point robot on a 2-D plane
-    tasks (equivalent to goals here) sampled from the unit square
+    point robot on a 2-D plane with position control
+    tasks (aka goals) are positions on the plane
+
+     - tasks sampled from unit square
+     - reward is L2 distance
     """
 
     def __init__(self, randomize_tasks=False, n_tasks=2):
@@ -61,7 +64,7 @@ class PointEnv(Env):
         x -= self._goal[0]
         y -= self._goal[1]
         reward = - (x ** 2 + y ** 2) ** 0.5
-        done = False # abs(x) < 0.01 and abs(y) < 0.01
+        done = False
         ob = self._get_obs()
         return ob, reward, done, dict()
 
