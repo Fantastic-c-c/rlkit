@@ -31,11 +31,13 @@ def _mean_of_gaussians(mus, sigmas):
 class ProtoAgent(nn.Module):
 
     def __init__(self,
+                 env,
                  latent_dim,
                  nets,
                  **kwargs
     ):
         super().__init__()
+        self.env = env
         self.latent_dim = latent_dim
         self.task_enc, self.policy, self.qf1, self.qf2, self.vf, self.rf = nets
         self.target_vf = self.vf.copy()
@@ -76,7 +78,7 @@ class ProtoAgent(nn.Module):
         # TODO there should be one generic method for preparing data for the encoder!!!
         o, a, r, no, d = inputs
         if self.sparse_rewards:
-            r = ptu.sparsify_rewards(r)
+            r = self.env.sparsify_rewards(r)
         r = r / self.reward_scale
         o = ptu.from_numpy(o[None, None, ...])
         a = ptu.from_numpy(o[None, None, ...])
