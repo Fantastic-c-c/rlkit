@@ -78,23 +78,39 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         the context used to condition the policy can be resampled at different intervals
         (to enable trajectory-level or transition-level adaptation, for example)
         '''
-        print(idx)
         test_paths = []
         self.reset_posterior()
         if prior:
             return self.eval_sampler.obtain_samples(num_samples = 1 * self.max_path_length + 1, deterministic=deterministic, resample='trajectory')
-        paths = self.eval_sampler.obtain_samples(num_samples = 1 * self.max_path_length + 1, deterministic=deterministic, resample='never')
 
-        self.eval_enc_replay_buffer.task_buffers[idx].add_path(paths[0])
-        test_paths += paths
+        # warm start buffer with some trajectories from the prior
+        for _ in range(10):
+            self.sample_z()
+            paths = self.eval_sampler.obtain_samples(num_samples = 1 * self.max_path_length + 1, deterministic=deterministic, resample='never')
+            self.eval_enc_replay_buffer.task_buffers[idx].add_path(paths[0])
+            test_paths += paths
+
         eval_task = (idx in self.eval_tasks)
 
+        print('z mean', np.mean(np.abs(ptu.get_numpy(self.policy.z_means)), axis=0))
+        print('z sig', np.mean(ptu.get_numpy(self.policy.z_vars), axis=0))
+
         for _ in range(10):
-            print('encoder buffer size task: {}'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx].size())
+            dprint('encoder buffer size task: {}'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx].size())
             self.infer_posterior(idx, batch_size=-1, eval_task=True)
+            print('z', self.policy.z.detach().cpu().numpy())
             paths = self.eval_sampler.obtain_samples(deterministic=deterministic, resample='never')
             self.eval_enc_replay_buffer.task_buffers[idx].add_path(paths[0])
             test_paths += paths
+
+        print('z mean', np.mean(np.abs(ptu.get_numpy(self.policy.z_means)), axis=0))
+        print('z sig', np.mean(ptu.get_numpy(self.policy.z_vars), axis=0))
+
+        # collect multiple trajectories from final posterior to lower variance of result
+        self.sample_z()
+        paths = self.eval_sampler.obtain_samples(num_samples= 5 * self.max_path_length + 1, deterministic=deterministic, resample='never')
+        test_paths += paths
+
         if self.sparse_rewards:
             for p in test_paths:
                 p['rewards'] = self.env.sparsify_rewards(p['rewards'])
@@ -126,7 +142,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 all_rets.append([eval_util.get_average_returns([p]) for p in paths])
                 runs.append(paths)
             all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
-            final_returns.append(all_rets[-1])
+            final_returns.append(np.mean(all_rets[-5:])) # score last 5 rollouts
             online_returns.append(all_rets)
         return final_returns, online_returns
 
@@ -138,6 +154,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         ### sample trajectories from prior for vis
         prior_paths = []
         for _ in range(10):
+            self.sample_z()
             prior_paths += self.obtain_eval_paths(None, deterministic=True, prior=True)
         if self.dump_eval_paths:
             logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
