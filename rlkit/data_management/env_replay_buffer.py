@@ -58,8 +58,11 @@ class MultiTaskReplayBuffer(object):
             batch[k][:num_replace] = 0
         return batch
 
-    def all_data(self):
-        return [buff.all_data() for buff in self.task_buffers.values()]
+    def all_data(self, idx=None, starts=True):
+        if idx is not None:
+            return self.task_buffers[idx].all_data(starts=starts)
+        else:
+            return [buff.all_data() for buff in self.task_buffers.values()]
 
     def num_steps_can_sample(self, task):
         return self.task_buffers[task].num_steps_can_sample()
