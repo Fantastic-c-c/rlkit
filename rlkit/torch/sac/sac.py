@@ -276,8 +276,10 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
     def sample_z_from_prior(self):
         self.policy.clear_z()
 
-    def sample_z_from_posterior(self, idx, eval_task=False):
-        batch = self.get_encoding_batch(idx=idx, eval_task=eval_task)
+    def sample_z_from_posterior(self, idx, batch_size=None, eval_task=False):
+        if batch_size is None:
+            batch_size = self.embedding_batch_size
+        batch = self.get_encoding_batch(idx=idx, batch_size=batch_size, eval_task=eval_task)
         obs = batch['observations'][None, ...]
         act = batch['actions'][None, ...]
         rewards = batch['rewards'][None, ...]

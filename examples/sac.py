@@ -97,7 +97,7 @@ def main(gpu, docker):
     # noinspection PyTypeChecker
     variant = dict(
         task_params=dict(
-            n_tasks=120,
+            n_tasks=100,
             randomize_tasks=True,
         ),
         algo_params=dict(
@@ -106,8 +106,8 @@ def main(gpu, docker):
             num_tasks_sample=5,
             num_steps_per_task=10 * max_path_length,
             num_train_steps_per_itr=1000,
-            num_evals=5, # number of evals with separate task encodings
-            num_steps_per_eval=3 * max_path_length,  # num transitions to eval on
+            num_evals=3, # number of independent evals
+            num_steps_per_eval=1 * max_path_length + 1,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
             embedding_batch_size=64,
             embedding_mini_batch_size=64,
@@ -127,7 +127,7 @@ def main(gpu, docker):
             train_embedding_source='online_exploration_trajectories',
             # embedding_source should be chosen from
             # {'initial_pool', 'online_exploration_trajectories', 'online_on_policy_trajectories'}
-            eval_embedding_source='online_exploration_trajectories',
+            eval_embedding_source='online',
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
         ),
@@ -136,7 +136,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'proto-sac-ib-avg'
+    exp_name = 'proto-sac-ib-avg-online-sanity'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='point-mass', base_log_dir=log_dir)

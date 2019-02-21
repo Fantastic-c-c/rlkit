@@ -47,130 +47,112 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         batch = self.replay_buffer.random_batch(idx, self.batch_size)
         return np_to_pytorch_batch(batch)
 
-    def get_encoding_batch(self, idx=None, eval_task=False):
+    def get_encoding_batch(self, idx=None, batch_size=None, eval_task=False):
         ''' get a batch from the separate encoding replay buffer '''
         # n.b. if eval is online, training should match the distribution of context lengths
+        if batch_size is None:
+            batch_size = self.embedding_batch_size
         is_online = (self.eval_embedding_source == 'online')
+        padded = False
         # n.b. if using sequence model for encoder, samples should be ordered
         is_seq = (self.recurrent)
         if idx is None:
             idx = self.task_idx
         if eval_task:
-            batch = self.eval_enc_replay_buffer.random_batch(idx, self.embedding_batch_size, sequence=is_seq, padded=is_online)
+            if batch_size == -1:
+                batch = self.eval_enc_replay_buffer.all_data(idx, starts=False)
+            else:
+                batch = self.eval_enc_replay_buffer.random_batch(idx, batch_size=batch_size, sequence=is_seq, padded=padded)
         else:
-            batch = self.enc_replay_buffer.random_batch(idx, self.embedding_batch_size, sequence=is_seq, padded=is_online)
+            if batch_size == -1:
+                batch = self.enc_replay_buffer.all_data(idx, starts=False)
+            else:
+                batch = self.enc_replay_buffer.random_batch(idx, batch_size=batch_size, sequence=is_seq, padded=padded)
         return np_to_pytorch_batch(batch)
 
     ##### Eval stuff #####
-    def obtain_eval_paths(self, idx, eval_task=False, deterministic=False):
+    def obtain_eval_paths(self, idx, deterministic=False, prior=False):
         '''
         collect paths with current policy
         if online, task encoding will be updated after each transition
         otherwise, sample a task encoding once and keep it fixed
         '''
-        is_online = (self.eval_embedding_source == 'online')
-        self.policy.clear_z()
+        test_paths = []
+        self.sample_z_from_prior()
+        if prior:
+            return self.eval_sampler.obtain_samples(num_samples = 1 * self.max_path_length + 1, deterministic=deterministic)
 
-        if not is_online:
-            self.sample_z_from_posterior(idx, eval_task=eval_task)
+        # warm start buffer with some trajectories from the prior
+        for _ in range(10):
+            self.sample_z_from_prior()
+            paths = self.eval_sampler.obtain_samples(num_samples = 1 * self.max_path_length + 1, deterministic=deterministic)
+            self.eval_enc_replay_buffer.task_buffers[idx].add_path(paths[0])
+            test_paths += paths
 
-        dprint('task encoding ', self.policy.z)
+        for _ in range(10):
+            dprint('encoder buffer size task: {}'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx].size())
+            self.sample_z_from_posterior(idx, batch_size=-1, eval_task=True)
+            paths = self.eval_sampler.obtain_samples(deterministic=deterministic)
+            self.eval_enc_replay_buffer.task_buffers[idx].add_path(paths[0])
+            test_paths += paths
 
-        test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic, is_online=is_online)
+        # collect multiple trajectories from final posterior to lower variance of result
+        self.sample_z_from_posterior(idx, batch_size=-1, eval_task=True)
+        paths = self.eval_sampler.obtain_samples(num_samples= 5 * self.max_path_length + 1, deterministic=deterministic)
+        test_paths += paths
+
         if self.sparse_rewards:
             for p in test_paths:
                 p['rewards'] = ptu.sparsify_rewards(p['rewards'])
         return test_paths
 
-
-    # TODO: might be useful to use the logging info in this method for visualization and seeing how episodes progress as
-    # stuff gets inferred, especially as we debug online evaluations
-    def collect_data_for_embedding_online_with_logging(self, idx, epoch):
+    def collect_paths(self, idx, epoch, run):
+        self.eval_enc_replay_buffer.task_buffers[idx].clear()
         self.task_idx = idx
         dprint('Task:', idx)
         self.env.reset_task(idx)
 
-        n_exploration_episodes = 10
-        n_inference_episodes = 10
-        all_init_paths = []
-        all_inference_paths =[]
-
-        self.enc_replay_buffer.clear_buffer(idx)
-
-        for i in range(n_exploration_episodes):
-            initial_z = self.sample_z_from_prior()
-
-            init_paths = self.obtain_eval_paths(idx, z=initial_z, eval_task=True)
-            all_init_paths += init_paths
-            self.enc_replay_buffer.add_paths(idx, init_paths)
-        dprint('enc_replay_buffer.task_buffers[idx]._size', self.enc_replay_buffer.task_buffers[idx]._size)
-
-        for i in range(n_inference_episodes):
-            paths = self.obtain_eval_paths(idx, eval_task=True)
-            all_inference_paths += paths
-            self.enc_replay_buffer.add_paths(idx, init_paths)
-
-        # save evaluation rollouts for vis
-        # all paths
-        with open(self.output_dir +
-                  "/proto-sac-point-mass-fb-16z-init-task{}-{}.pkl".format(idx, epoch), 'wb+') as f:
-            pickle.dump(all_init_paths, f, pickle.HIGHEST_PROTOCOL)
-        with open(self.output_dir +
-                  "/proto-sac-point-mass-fb-16z-inference-task{}-{}.pkl".format(idx, epoch), 'wb+') as f:
-            pickle.dump(all_inference_paths, f, pickle.HIGHEST_PROTOCOL)
-
-        average_inference_returns = [eval_util.get_average_returns(paths) for paths in all_inference_paths]
-        self.eval_statistics['AverageInferenceReturns_test_task{}'.format(idx)] = average_inference_returns
-
-    def collect_paths(self, idx, epoch, eval_task=False):
-        self.task_idx = idx
-        dprint('Task:', idx)
-        self.env.reset_task(idx)
-        if eval_task:
-            num_evals = self.num_evals
-        else: 
-            num_evals = 1
-
-        paths = []
-        for _ in range(num_evals):
-            paths += self.obtain_eval_paths(idx, eval_task=eval_task, deterministic=True)
+        paths = self.obtain_eval_paths(idx, deterministic=True)
         goal = self.env._goal
         for path in paths:
             path['goal'] = goal # goal
 
         # save the paths for visualization, only useful for point mass
         if self.dump_eval_paths:
-            split = 'test' if eval_task else 'train'
-            logger.save_extra_data(paths, path='eval_trajectories/{}-task{}-epoch{}'.format(split, idx, epoch))
+            logger.save_extra_data(paths, path='eval_trajectories/task{}-epoch{}'.format(idx, epoch))
         return paths
 
-    def log_statistics(self, paths, split=''):
-        self.eval_statistics.update(eval_util.get_generic_path_information(
-            paths, stat_prefix="{}_task{}".format(split, self.task_idx),
-        ))
-        # TODO(KR) what are these?
-        self.eval_statistics.update(eval_util.get_generic_path_information(
-            self._exploration_paths, stat_prefix="Exploration_task{}".format(self.task_idx),
-        )) # something is wrong with these exploration paths i'm pretty sure...
-        average_returns = eval_util.get_average_returns(paths)
-        self.eval_statistics['AverageReturn_{}_task{}'.format(split, self.task_idx)] = average_returns
-        goal = self.env._goal
-        dprint('GoalPosition_{}_task'.format(split))
-        dprint(goal)
-        self.eval_statistics['GoalPosition_{}_task{}'.format(split, self.task_idx)] = goal
+    def _do_eval(self, indices, epoch):
+        final_returns = []
+        online_returns = []
+        for idx in indices:
+            runs, all_rets = [], []
+            for r in range(self.num_evals):
+                paths = self.collect_paths(idx, epoch, r)
+                all_rets.append([eval_util.get_average_returns([p]) for p in paths])
+                runs.append(paths)
+            all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
+            final_returns.append(np.mean(all_rets[-5:])) # score last 5 rollouts
+            online_returns.append(all_rets)
+        return final_returns, online_returns
 
     def evaluate(self, epoch):
         statistics = OrderedDict()
         statistics.update(self.eval_statistics)
         self.eval_statistics = statistics
 
+        ### sample trajectories from prior for vis
+        prior_paths = []
+        for _ in range(10):
+            self.sample_z_from_prior()
+            prior_paths += self.obtain_eval_paths(None, deterministic=True, prior=True)
+        if self.dump_eval_paths:
+            logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
+
         ### train tasks
         dprint('evaluating on {} train tasks'.format(len(self.train_tasks)))
-        train_avg_returns = []
-        for idx in self.train_tasks:
-            dprint('task {} encoder RB size'.format(idx), self.enc_replay_buffer.task_buffers[idx]._size)
-            paths = self.collect_paths(idx, epoch, eval_task=False)
-            train_avg_returns.append(eval_util.get_average_returns(paths))
+        indices = np.random.choice(self.train_tasks, len(self.eval_tasks))
+        train_final_returns, train_online_returns = self._do_eval(indices, epoch)
 
         ### test tasks
         dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
@@ -182,8 +164,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             self.env.reset_task(idx)
 
             # collect data fo computing embedding if needed
-            if self.eval_embedding_source in ['online', 'initial_pool']:
+            if self.eval_embedding_source == 'initial_pool':
                 pass
+            elif self.eval_embedding_source == 'online':
+                self.eval_enc_replay_buffer.task_buffers[idx].clear()
             elif self.eval_embedding_source == 'online_exploration_trajectories':
                 self.eval_enc_replay_buffer.task_buffers[idx].clear()
                 # task embedding sampled from prior and held fixed
@@ -200,9 +184,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 raise Exception("Invalid option for computing eval embedding")
 
             dprint('task {} encoder RB size'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx]._size)
-            test_paths = self.collect_paths(idx, epoch, eval_task=True)
-
-            test_avg_returns.append(eval_util.get_average_returns(test_paths))
+            test_final_returns, test_online_returns = self._do_eval(self.eval_tasks, epoch)
 
             if self.use_information_bottleneck:
                 z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_dists[0].mean)))
@@ -210,15 +192,14 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 self.eval_statistics['Z mean eval'] = z_mean
                 self.eval_statistics['Z variance eval'] = z_sig
 
-            # TODO(KR) what does this do
-            if hasattr(self.env, "log_diagnostics"):
-                self.env.log_diagnostics(test_paths)
-
-
-        avg_train_return = np.mean(train_avg_returns)
-        avg_test_return = np.mean(test_avg_returns)
+        avg_train_return = np.mean(train_final_returns)
+        avg_test_return = np.mean(test_final_returns)
+        avg_train_online_return = np.mean(np.stack(train_online_returns), axis=0)
+        avg_test_online_return = np.mean(np.stack(test_online_returns), axis=0)
         self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
         self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
+        logger.save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
+        logger.save_extra_data(avg_test_online_return, path='online-test-epoch{}'.format(epoch))
 
         for key, value in self.eval_statistics.items():
             logger.record_tabular(key, value)
