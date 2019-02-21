@@ -59,9 +59,15 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         if idx is None:
             idx = self.task_idx
         if eval_task:
-            batch = self.eval_enc_replay_buffer.random_batch(idx, batch_size=batch_size, sequence=is_seq, padded=padded)
+            if batch_size == -1:
+                batch = self.eval_enc_replay_buffer.all_data(idx, starts=False)
+            else:
+                batch = self.eval_enc_replay_buffer.random_batch(idx, batch_size=batch_size, sequence=is_seq, padded=padded)
         else:
-            batch = self.enc_replay_buffer.random_batch(idx, batch_size=batch_size, sequence=is_seq, padded=padded)
+            if batch_size == -1:
+                batch = self.enc_replay_buffer.all_data(idx, starts=False)
+            else:
+                batch = self.enc_replay_buffer.random_batch(idx, batch_size=batch_size, sequence=is_seq, padded=padded)
         return np_to_pytorch_batch(batch)
 
     ##### Eval stuff #####
@@ -72,15 +78,30 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         the context used to condition the policy can be resampled at different intervals
         (to enable trajectory-level or transition-level adaptation, for example)
         '''
+        print(idx)
+        test_paths = []
         self.reset_posterior()
-        resample = 'never' if prior else self.resample_z
-        test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic, resample=resample)
+        if prior:
+            return self.eval_sampler.obtain_samples(num_samples = 1 * self.max_path_length + 1, deterministic=deterministic, resample='trajectory')
+        paths = self.eval_sampler.obtain_samples(num_samples = 1 * self.max_path_length + 1, deterministic=deterministic, resample='never')
+
+        self.eval_enc_replay_buffer.task_buffers[idx].add_path(paths[0])
+        test_paths += paths
+        eval_task = (idx in self.eval_tasks)
+
+        for _ in range(10):
+            print('encoder buffer size task: {}'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx].size())
+            self.infer_posterior(idx, batch_size=-1, eval_task=True)
+            paths = self.eval_sampler.obtain_samples(deterministic=deterministic, resample='never')
+            self.eval_enc_replay_buffer.task_buffers[idx].add_path(paths[0])
+            test_paths += paths
         if self.sparse_rewards:
             for p in test_paths:
                 p['rewards'] = self.env.sparsify_rewards(p['rewards'])
         return test_paths
 
     def collect_paths(self, idx, epoch, run):
+        self.eval_enc_replay_buffer.task_buffers[idx].clear()
         self.task_idx = idx
         dprint('Task:', idx)
         self.env.reset_task(idx)

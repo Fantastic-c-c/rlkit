@@ -29,7 +29,7 @@ def experiment(variant):
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
-    latent_dim = 128
+    latent_dim = 5
     task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
     reward_dim = 1
 
@@ -101,7 +101,7 @@ def main(gpu, docker):
             num_steps_per_task=10 * max_path_length,
             num_train_steps_per_itr=1000,
             num_evals=3, # number of independent evals
-            num_steps_per_eval=10 * max_path_length,  # num transitions to eval on
+            num_steps_per_eval=1 * max_path_length + 1,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
             embedding_batch_size=64,
             embedding_mini_batch_size=64,
