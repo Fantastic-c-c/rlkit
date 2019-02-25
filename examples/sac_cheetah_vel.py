@@ -103,9 +103,9 @@ def main(gpu, docker):
         algo_params=dict(
             meta_batch=10,
             num_iterations=500, # meta-train epochs
-            num_tasks_sample=5,
-            num_steps_per_task=2 * max_path_length,
-            num_train_steps_per_itr=2000,
+            num_tasks_sample=20,
+            num_steps_per_task=10 * max_path_length,
+            num_train_steps_per_itr=200,
             num_evals=2, # number of evals with separate task encodings
             num_steps_per_eval=2 * max_path_length,
             batch_size=256, # to compute training grads from
