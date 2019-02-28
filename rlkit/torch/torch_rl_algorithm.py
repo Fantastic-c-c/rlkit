@@ -91,13 +91,13 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         for _ in range(10):
             dprint('encoder buffer size task: {}'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx].size())
-            self.sample_z_from_posterior(idx, batch_size=-1, eval_task=True)
+            self.sample_z_from_posterior(idx, eval_task=True)
             paths = self.eval_sampler.obtain_samples(deterministic=deterministic)
             self.eval_enc_replay_buffer.task_buffers[idx].add_path(paths[0])
             test_paths += paths
 
         # collect multiple trajectories from final posterior to lower variance of result
-        self.sample_z_from_posterior(idx, batch_size=-1, eval_task=True)
+        self.sample_z_from_posterior(idx, eval_task=True)
         paths = self.eval_sampler.obtain_samples(num_samples= 5 * self.max_path_length + 1, deterministic=deterministic)
         test_paths += paths
 
