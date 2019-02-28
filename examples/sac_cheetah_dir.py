@@ -71,6 +71,7 @@ def experiment(variant):
     )
 
     agent = ProtoAgent(
+        env,
         latent_dim,
         [task_enc, policy, qf1, qf2, vf, rf],
         **variant['algo_params']
@@ -101,8 +102,8 @@ def main(gpu, docker):
             num_tasks_sample=5,
             num_steps_per_task=5 * max_path_length,
             num_train_steps_per_itr=2000,
-            num_evals=4, # number of evals with separate task encodings
-            num_steps_per_eval=2 * max_path_length,
+            num_evals=3, # number of evals with separate task encodings
+            num_steps_per_eval=1 * max_path_length + 1,
             batch_size=256, # to compute training grads from
             embedding_batch_size=256,
             embedding_mini_batch_size=256,
@@ -119,8 +120,12 @@ def main(gpu, docker):
             kl_lambda=.1,
             rf_loss_scale=1.,
             use_information_bottleneck=True,
+            #train_embedding_source='online_on_policy_trajectories',
             train_embedding_source='online_exploration_trajectories',
-            eval_embedding_source='online_exploration_trajectories',
+            resample_z='trajectory', # how often to resample z during eval {never, trajectory, transition}
+            resample_z_train=max_path_length, # how often to resample z when collecting train data
+            # (relevant only for online_on_policy_trajectories)
+            update_post_train=max_path_length, # how often to update posterior when collecting train data
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
         ),
@@ -128,7 +133,7 @@ def main(gpu, docker):
         use_gpu=True,
         gpu_id=gpu,
     )
-    exp_name = 'no-rf-final/cheetah-dir/{}'.format(gpu)
+    exp_name = 'cheetah-dir-online-rb-exploration'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='half-cheetah-dir', base_log_dir=log_dir)
