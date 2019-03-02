@@ -200,6 +200,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     # sample from prior, then sample more from the posterior
                     # embeddings computed from both prior and posterior data
                     self.enc_replay_buffer.task_buffers[idx].clear()
+                    # warm start with some trajectories from the prior
+                    self.collect_data(self.max_path_length * 10, self.resample_z_train, np.inf, self.embedding_batch_size, eval_task=False)
                     self.collect_data(self.num_steps_per_task, self.resample_z_train, self.update_post_train, self.embedding_batch_size, eval_task=False)
                 else:
                     raise Exception("Invalid option for computing train embedding {}".format(self.train_embedding_source))
@@ -238,13 +240,16 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         # makes no sense to update the posterior without resampling z
         assert resample_z_rate <= update_posterior_rate
         # start from the prior
+        #print('train data collection: reset to prior')
         self.reset_posterior()
         counter = 0
         for _ in range(num_samples // resample_z_rate):
             self.collect_transitions(self.policy, num_samples=resample_z_rate, eval_task=eval_task, add_to_enc_buffer=add_to_enc_buffer)
             counter += resample_z_rate
             if counter % update_posterior_rate == 0:
+                #print('train data collection: updating posterior')
                 self.infer_posterior(self.task_idx, update_batch_size, eval_task)
+            #print('train data collection: resample z')
             self.sample_z()
 
     # TODO: since switching tasks now resets the environment, we are not correctly handling episodes terminating

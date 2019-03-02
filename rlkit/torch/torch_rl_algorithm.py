@@ -83,34 +83,13 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         if prior:
             return self.eval_sampler.obtain_samples(num_samples = 1 * self.max_path_length + 1, deterministic=deterministic, resample='trajectory')
 
-        # warm start buffer with some trajectories from the prior
-        for _ in range(10):
-            self.sample_z()
-            paths = self.eval_sampler.obtain_samples(num_samples = 1 * self.max_path_length + 1, deterministic=deterministic, resample='never')
-            self.eval_enc_replay_buffer.task_buffers[idx].add_path(paths[0])
-            test_paths += paths
-
-        eval_task = (idx in self.eval_tasks)
-
-        #print('z mean', np.mean(np.abs(ptu.get_numpy(self.policy.z_means)), axis=0))
-        #print('z sig', np.mean(ptu.get_numpy(self.policy.z_vars), axis=0))
-
-        for _ in range(10):
-            dprint('encoder buffer size task: {}'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx].size())
-            self.infer_posterior(idx, batch_size=self.embedding_batch_size, eval_task=True)
-            #print('z', self.policy.z.detach().cpu().numpy())
-            paths = self.eval_sampler.obtain_samples(deterministic=deterministic, resample='never')
-            test_paths += paths
-
-        for path in test_paths:
-            self.eval_enc_replay_buffer.task_buffers[idx].add_path(path)
-
-        #print('z mean', np.mean(np.abs(ptu.get_numpy(self.policy.z_means)), axis=0))
-        #print('z sig', np.mean(ptu.get_numpy(self.policy.z_vars), axis=0))
+        self.collect_data(self.num_steps_per_task, self.resample_z_train, np.inf, self.embedding_batch_size, eval_task=True)
+        #print(self.enc_replay_buffer.task_buffers[idx]._size)
+        self.collect_data(self.num_steps_per_task, self.resample_z_train, self.update_post_train, self.embedding_batch_size, eval_task=True)
 
         # collect multiple trajectories from final posterior to lower variance of result
         self.infer_posterior(idx, batch_size=self.embedding_batch_size, eval_task=True)
-        paths = self.eval_sampler.obtain_samples(num_samples= 5 * self.max_path_length + 1, deterministic=deterministic, resample='never')
+        paths = self.eval_sampler.obtain_samples(num_samples= 5 * self.max_path_length + 1, deterministic=deterministic, resample='trajectory')
         test_paths += paths
 
         if self.sparse_rewards:
