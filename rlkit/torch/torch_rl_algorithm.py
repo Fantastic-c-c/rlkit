@@ -92,22 +92,24 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         eval_task = (idx in self.eval_tasks)
 
-        print('z mean', np.mean(np.abs(ptu.get_numpy(self.policy.z_means)), axis=0))
-        print('z sig', np.mean(ptu.get_numpy(self.policy.z_vars), axis=0))
+        #print('z mean', np.mean(np.abs(ptu.get_numpy(self.policy.z_means)), axis=0))
+        #print('z sig', np.mean(ptu.get_numpy(self.policy.z_vars), axis=0))
 
         for _ in range(10):
             dprint('encoder buffer size task: {}'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx].size())
-            self.infer_posterior(idx, batch_size=-1, eval_task=True)
-            print('z', self.policy.z.detach().cpu().numpy())
+            self.infer_posterior(idx, batch_size=self.embedding_batch_size, eval_task=True)
+            #print('z', self.policy.z.detach().cpu().numpy())
             paths = self.eval_sampler.obtain_samples(deterministic=deterministic, resample='never')
-            self.eval_enc_replay_buffer.task_buffers[idx].add_path(paths[0])
             test_paths += paths
 
-        print('z mean', np.mean(np.abs(ptu.get_numpy(self.policy.z_means)), axis=0))
-        print('z sig', np.mean(ptu.get_numpy(self.policy.z_vars), axis=0))
+        for path in test_paths:
+            self.eval_enc_replay_buffer.task_buffers[idx].add_path(path)
+
+        #print('z mean', np.mean(np.abs(ptu.get_numpy(self.policy.z_means)), axis=0))
+        #print('z sig', np.mean(ptu.get_numpy(self.policy.z_vars), axis=0))
 
         # collect multiple trajectories from final posterior to lower variance of result
-        self.sample_z()
+        self.infer_posterior(idx, batch_size=self.embedding_batch_size, eval_task=True)
         paths = self.eval_sampler.obtain_samples(num_samples= 5 * self.max_path_length + 1, deterministic=deterministic, resample='never')
         test_paths += paths
 
