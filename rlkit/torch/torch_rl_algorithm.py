@@ -85,11 +85,13 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         self.collect_data(self.num_steps_per_task, self.resample_z_train, np.inf, self.embedding_batch_size, eval_task=True)
         #print(self.enc_replay_buffer.task_buffers[idx]._size)
-        self.collect_data(self.num_steps_per_task, self.resample_z_train, self.update_post_train, self.embedding_batch_size, eval_task=True)
+        #self.collect_data(self.num_steps_per_task, self.resample_z_train, self.update_post_train, self.embedding_batch_size, eval_task=True)
 
         # collect multiple trajectories from final posterior to lower variance of result
-        self.infer_posterior(idx, batch_size=self.embedding_batch_size, eval_task=True)
-        paths = self.eval_sampler.obtain_samples(num_samples= 5 * self.max_path_length + 1, deterministic=deterministic, resample='trajectory')
+        paths = []
+        for _ in range(10):
+            self.infer_posterior(idx, batch_size=self.embedding_batch_size, eval_task=True)
+            paths += self.eval_sampler.obtain_samples(deterministic=deterministic, resample='trajectory')
         test_paths += paths
 
         if self.sparse_rewards:
@@ -117,11 +119,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         final_returns = []
         online_returns = []
         for idx in indices:
-            runs, all_rets = [], []
+            all_rets = []
             for r in range(self.num_evals):
                 paths = self.collect_paths(idx, epoch, r)
                 all_rets.append([eval_util.get_average_returns([p]) for p in paths])
-                runs.append(paths)
             all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
             final_returns.append(np.mean(all_rets[-5:])) # score last 5 rollouts
             online_returns.append(all_rets)

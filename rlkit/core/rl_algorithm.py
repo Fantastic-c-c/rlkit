@@ -194,7 +194,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     self.enc_replay_buffer.task_buffers[idx].clear()
                     self.collect_data(self.num_steps_per_task, self.resample_z_train, np.inf, self.embedding_batch_size, eval_task=False)
                     #print(self.enc_replay_buffer.task_buffers[idx]._size)
-                    self.collect_data(self.num_steps_per_task, self.resample_z_train, self.update_post_train, self.embedding_batch_size, eval_task=False, add_to_enc_buffer=True)
+                    self.collect_data(self.num_steps_per_task, self.resample_z_train, self.update_post_train, self.embedding_batch_size, eval_task=False, add_to_enc_buffer=False)
                     #print(self.enc_replay_buffer.task_buffers[idx]._size)
                 elif self.train_embedding_source == 'online_on_policy_trajectories':
                     # sample from prior, then sample more from the posterior
