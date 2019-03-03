@@ -106,13 +106,13 @@ def main(gpu, docker):
             meta_batch=16,
             num_iterations=10000,
             num_tasks_sample=10,
-            num_steps_per_task=10 * max_path_length,
+            num_steps_per_task=50 * max_path_length,
             num_train_steps_per_itr=1000,
             num_evals=3, # number of evals with separate task encodings
-            num_steps_per_eval=10 * max_path_length,  # num transitions to eval on
+            num_steps_per_eval=1 * max_path_length + 1,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
-            embedding_batch_size=1024,
-            embedding_mini_batch_size=1024,
+            embedding_batch_size=64,
+            embedding_mini_batch_size=64,
             max_path_length=max_path_length,
             discount=0.90,
             soft_target_tau=0.005,
@@ -141,7 +141,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'proto-sac-ib-avg-sparse-online-eval-traj'
+    exp_name = 'sparse-batch64-more-data-more-prior-radius2'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='point-mass', base_log_dir=log_dir)
