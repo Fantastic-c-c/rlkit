@@ -228,6 +228,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 indices = np.random.choice(self.train_tasks, self.meta_batch)
                 self._do_training(indices)
                 self._n_train_steps_total += 1
+            # torch.save(self.)
             gt.stamp('train')
 
             #self.training_mode(False)
