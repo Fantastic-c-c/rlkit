@@ -60,7 +60,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         return np_to_pytorch_batch(batch)
 
     ##### Eval stuff #####
-    def obtain_eval_paths(self, idx, eval_task=False, deterministic=False):
+    def obtain_eval_paths(self, env, idx, eval_task=False, deterministic=False):
         '''
         collect paths with current policy
         if online, task encoding will be updated after each transition
@@ -74,7 +74,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         dprint('task encoding ', self.policy.z)
 
-        test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic, is_online=is_online)
+        test_paths = self.eval_sampler.obtain_samples(env, deterministic=deterministic, is_online=is_online)
         if self.sparse_rewards:
             for p in test_paths:
                 p['rewards'] = ptu.sparsify_rewards(p['rewards'])
@@ -83,10 +83,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
     # TODO: might be useful to use the logging info in this method for visualization and seeing how episodes progress as
     # stuff gets inferred, especially as we debug online evaluations
-    def collect_data_for_embedding_online_with_logging(self, idx, epoch):
+    def collect_data_for_embedding_online_with_logging(self, env, idx, epoch):
         self.task_idx = idx
         dprint('Task:', idx)
-        self.env.reset_task(idx)
+        env.reset()
 
         n_exploration_episodes = 10
         n_inference_episodes = 10
@@ -98,15 +98,15 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         for i in range(n_exploration_episodes):
             initial_z = self.sample_z_from_prior()
 
-            init_paths = self.obtain_eval_paths(idx, z=initial_z, eval_task=True)
+            init_paths = self.obtain_eval_paths(env, idx, z=initial_z, eval_task=True)
             all_init_paths += init_paths
             self.enc_replay_buffer.add_paths(idx, init_paths)
         dprint('enc_replay_buffer.task_buffers[idx]._size', self.enc_replay_buffer.task_buffers[idx]._size)
 
         for i in range(n_inference_episodes):
-            paths = self.obtain_eval_paths(idx, eval_task=True)
+            paths = self.obtain_eval_paths(env, idx, eval_task=True)
             all_inference_paths += paths
-            self.enc_replay_buffer.add_paths(idx, init_paths)
+            self.enc_replay_buffer.add_paths(env, idx, init_paths)
 
         # save evaluation rollouts for vis
         # all paths
@@ -120,10 +120,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         average_inference_returns = [eval_util.get_average_returns(paths) for paths in all_inference_paths]
         self.eval_statistics['AverageInferenceReturns_test_task{}'.format(idx)] = average_inference_returns
 
-    def collect_paths(self, idx, epoch, eval_task=False):
-        self.task_idx = idx
-        dprint('Task:', idx)
-        self.env.reset_task(idx)
+    def collect_paths(self, env, idx, epoch, eval_task=False):
+        # self.task_idx = idx
+        # dprint('Task:', idx)
+        env.reset()
         if eval_task:
             num_evals = self.num_evals
         else: 
@@ -131,10 +131,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         paths = []
         for _ in range(num_evals):
-            paths += self.obtain_eval_paths(idx, eval_task=eval_task, deterministic=True)
-        goal = self.env._goal
-        for path in paths:
-            path['goal'] = goal # goal
+            paths += self.obtain_eval_paths(env, idx, eval_task=eval_task, deterministic=True)
+        # goal = self.env._goal
+        # for path in paths:
+        #     path['goal'] = goal # goal
 
         # save the paths for visualization, only useful for point mass
         if self.dump_eval_paths:
@@ -152,9 +152,9 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         )) # something is wrong with these exploration paths i'm pretty sure...
         average_returns = eval_util.get_average_returns(paths)
         self.eval_statistics['AverageReturn_{}_task{}'.format(split, self.task_idx)] = average_returns
-        goal = self.env._goal
-        dprint('GoalPosition_{}_task'.format(split))
-        dprint(goal)
+        # goal = self.env._goal
+        # dprint('GoalPosition_{}_task'.format(split))
+        # dprint(goal)
         self.eval_statistics['GoalPosition_{}_task{}'.format(split, self.task_idx)] = goal
 
     def evaluate(self, epoch):
@@ -165,9 +165,9 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         ### train tasks
         dprint('evaluating on {} train tasks'.format(len(self.train_tasks)))
         train_avg_returns = []
-        for idx in self.train_tasks:
+        for idx in self.train_idx:
             dprint('task {} encoder RB size'.format(idx), self.enc_replay_buffer.task_buffers[idx]._size)
-            paths = self.collect_paths(idx, epoch, eval_task=False)
+            paths = self.collect_paths(self.train_tasks[idx], idx, epoch, eval_task=False)
             train_avg_returns.append(eval_util.get_average_returns(paths))
 
         ### test tasks
@@ -175,9 +175,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         test_avg_returns = []
         # This is calculating the embedding online, because every iteration
         # we clear the encoding buffer for the test tasks.
-        for idx in self.eval_tasks:
+        for idx in self.eval_idx:
             self.task_idx = idx
-            self.env.reset_task(idx)
+            env = self.eval_tasks[idx]
+            env.reset()
 
             # collect data fo computing embedding if needed
             if self.eval_embedding_source in ['online', 'initial_pool']:
@@ -185,20 +186,20 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             elif self.eval_embedding_source == 'online_exploration_trajectories':
                 self.eval_enc_replay_buffer.task_buffers[idx].clear()
                 # task embedding sampled from prior and held fixed
-                self.collect_data_sampling_from_prior(num_samples=self.num_steps_per_task,
+                self.collect_data_sampling_from_prior(env=env, num_samples=self.num_steps_per_task,
                                                       resample_z_every_n=self.max_path_length,
                                                       eval_task=True)
             elif self.eval_embedding_source == 'online_on_policy_trajectories':
                 self.eval_enc_replay_buffer.task_buffers[idx].clear()
                 # half the data from z sampled from prior, the other half from z sampled from posterior
-                self.collect_data_online(idx=idx,
+                self.collect_data_online(env=env, idx=idx,
                                          num_samples=self.num_steps_per_task,
                                          eval_task=True)
             else:
                 raise Exception("Invalid option for computing eval embedding")
 
             dprint('task {} encoder RB size'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx]._size)
-            test_paths = self.collect_paths(idx, epoch, eval_task=True)
+            test_paths = self.collect_paths(env, idx, epoch, eval_task=True)
 
             test_avg_returns.append(eval_util.get_average_returns(test_paths))
 
@@ -207,10 +208,6 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 z_sig = np.mean(ptu.get_numpy(self.policy.z_dists[0].variance))
                 self.eval_statistics['Z mean eval'] = z_mean
                 self.eval_statistics['Z variance eval'] = z_sig
-
-            # TODO(KR) what does this do
-            if hasattr(self.env, "log_diagnostics"):
-                self.env.log_diagnostics(test_paths)
 
 
         avg_train_return = np.mean(train_avg_returns)

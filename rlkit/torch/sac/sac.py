@@ -17,7 +17,7 @@ from rlkit.torch.sac.proto import ProtoAgent
 class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
     def __init__(
             self,
-            env,
+            envs,
             train_tasks,
             eval_tasks,
             latent_dim,
@@ -44,7 +44,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             **kwargs
     ):
         super().__init__(
-            env=env,
+            envs=envs,
             policy=nets[0],
             train_tasks=train_tasks,
             eval_tasks=eval_tasks,
