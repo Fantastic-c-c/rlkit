@@ -83,17 +83,13 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         if prior:
             return self.eval_sampler.obtain_samples(num_samples = 1 * self.max_path_length + 1, deterministic=deterministic, resample='trajectory')
 
-        #self.collect_data(self.num_steps_per_task, self.resample_z_train, np.inf, self.embedding_batch_size, eval_task=True)
-        self.collect_data(self.num_steps_per_task * 2, self.resample_z_train, self.update_post_train, self.embedding_batch_size, eval_task=True)
-        #print(self.enc_replay_buffer.task_buffers[idx]._size)
-        #self.collect_data(self.num_steps_per_task, self.resample_z_train, self.update_post_train, self.embedding_batch_size, eval_task=True)
-
-        # collect multiple trajectories from final posterior to lower variance of result
-        paths = []
-        for _ in range(10):
-            self.infer_posterior(idx, batch_size=self.embedding_batch_size, eval_task=True)
-            paths += self.eval_sampler.obtain_samples(deterministic=deterministic, resample='trajectory')
-        test_paths += paths
+        self.collect_data(self.num_steps_per_task * 2, self.resample_z_train, self.update_post_train, -1, eval_task=True)
+        # hack: get data path-wise from replay buffer for scoring
+        rb = self.eval_enc_replay_buffer.task_buffers[idx]
+        starts = rb._episode_starts
+        for i in range(len(starts) - 1):
+            test_paths.append(rb.sample_data(list(range(starts[i], starts[i+1]))))
+        test_paths.append(rb.sample_data(list(range(starts[-1], rb.size()))))
 
         if self.sparse_rewards:
             for p in test_paths:
@@ -123,9 +119,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             all_rets = []
             for r in range(self.num_evals):
                 paths = self.collect_paths(idx, epoch, r)
-                all_rets.append([eval_util.get_average_returns([p]) for p in paths])
+                # hack: rescale rewards since they come from replay buffer
+                all_rets.append([eval_util.get_average_returns([p]) / self.reward_scale for p in paths])
             all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
-            final_returns.append(np.mean(all_rets[-5:])) # score last 5 rollouts
+            final_returns.append(np.mean(all_rets[-3:])) # score last 3 rollouts
             online_returns.append(all_rets)
         return final_returns, online_returns
 
@@ -163,14 +160,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         ### eval train tasks the same way as eval tasks to assess overfitting
         train_final_returns, train_online_returns = self._do_eval(indices, epoch)
-        print('train online returns')
-        print(train_online_returns)
 
         ### test tasks
         dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
         test_final_returns, test_online_returns = self._do_eval(self.eval_tasks, epoch)
-        print('test online returns')
-        print(test_online_returns)
 
         # save the final posterior
         if self.use_information_bottleneck:
