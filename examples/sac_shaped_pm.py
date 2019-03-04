@@ -63,17 +63,10 @@ def experiment(variant):
         latent_dim=latent_dim,
         action_dim=action_dim,
     )
-
-    rf = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + latent_dim,
-        output_size=1
-    )
-
     agent = ProtoAgent(
         env,
         latent_dim,
-        [task_enc, policy, qf1, qf2, vf, rf],
+        [task_enc, policy, qf1, qf2, vf],
         **variant['algo_params']
     )
 
@@ -81,7 +74,7 @@ def experiment(variant):
         env=env,
         train_tasks=list(tasks[:-20]),
         eval_tasks=list(tasks[-20:]),
-        nets=[agent, task_enc, policy, qf1, qf2, vf, rf],
+        nets=[agent, task_enc, policy, qf1, qf2, vf],
         latent_dim=latent_dim,
         **variant['algo_params']
     )
@@ -123,7 +116,6 @@ def main(gpu, docker):
             sparse_rewards=False,
             reparameterize=True,
             kl_lambda=.1,
-            rf_loss_scale=1.,
             use_information_bottleneck=True,
             train_embedding_source='online_on_policy_trajectories',
             #train_embedding_source='online_exploration_trajectories',

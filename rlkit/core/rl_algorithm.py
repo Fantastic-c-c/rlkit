@@ -260,7 +260,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             next_ob, raw_reward, terminal, env_info = (
                 self.env.step(action)
             )
-            reward = raw_reward * self.reward_scale
+            reward = raw_reward
             terminal = np.array([terminal])
             reward = np.array([reward])
             self._handle_step(
