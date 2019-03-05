@@ -121,8 +121,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             all_rets = []
             for r in range(self.num_evals):
                 paths = self.collect_paths(idx, epoch, r)
-                # hack: rescale rewards since they come from replay buffer
-                all_rets.append([eval_util.get_average_returns([p]) / self.reward_scale for p in paths])
+                all_rets.append([eval_util.get_average_returns([p]) for p in paths])
             all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
             final_returns.append(np.mean(all_rets[-3:])) # score last 3 rollouts
             online_returns.append(all_rets)
