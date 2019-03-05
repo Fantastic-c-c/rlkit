@@ -63,17 +63,10 @@ def experiment(variant):
         latent_dim=latent_dim,
         action_dim=action_dim,
     )
-
-    rf = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + latent_dim,
-        output_size=1
-    )
-
     agent = ProtoAgent(
         env,
         latent_dim,
-        [task_enc, policy, qf1, qf2, vf, rf],
+        [task_enc, policy, qf1, qf2, vf],
         **variant['algo_params']
     )
 
@@ -81,7 +74,7 @@ def experiment(variant):
         env=env,
         train_tasks=list(tasks[:-20]),
         eval_tasks=list(tasks[-20:]),
-        nets=[agent, task_enc, policy, qf1, qf2, vf, rf],
+        nets=[agent, task_enc, policy, qf1, qf2, vf],
         latent_dim=latent_dim,
         **variant['algo_params']
     )
@@ -109,10 +102,10 @@ def main(gpu, docker):
             num_steps_per_task=50 * max_path_length,
             num_train_steps_per_itr=1000,
             num_evals=3, # number of evals with separate task encodings
-            num_steps_per_eval=1 * max_path_length + 1,  # num transitions to eval on
+            num_steps_per_eval=10 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
-            embedding_batch_size=64,
-            embedding_mini_batch_size=64,
+            embedding_batch_size=1024,
+            embedding_mini_batch_size=1024,
             max_path_length=max_path_length,
             discount=0.90,
             soft_target_tau=0.005,
@@ -124,7 +117,6 @@ def main(gpu, docker):
             sparse_rewards=True,
             reparameterize=True,
             kl_lambda=1.,
-            rf_loss_scale=1.,
             use_information_bottleneck=True,
             train_embedding_source='online_on_policy_trajectories',
             # embedding_source should be chosen from
