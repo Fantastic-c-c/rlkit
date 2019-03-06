@@ -105,7 +105,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 all_rets.append([eval_util.get_average_returns([p]) for p in paths])
                 runs.append(paths)
             all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
-            final_returns.append(all_rets[-1])
+            final_returns.append(np.mean(all_rets[-3:]))
             online_returns.append(all_rets)
         return final_returns, online_returns
 
@@ -115,9 +115,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         self.eval_statistics = statistics
 
         ### sample trajectories from prior for vis
-        prior_paths = []
-        for _ in range(10):
-            prior_paths += self.obtain_eval_paths(None, deterministic=True, prior=True)
+        prior_paths = self.obtain_eval_paths(None, deterministic=True, prior=True)
         if self.dump_eval_paths:
             logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
 
