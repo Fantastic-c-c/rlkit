@@ -199,7 +199,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     self.enc_replay_buffer.task_buffers[idx].clear()
                     # warm start with some trajectories from the prior
                     if self.sparse_rewards:
-                        self.collect_data(self.max_path_length * 10, self.resample_z_train, np.inf, self.embedding_batch_size, eval_task=False)
+                        self.collect_data(self.max_path_length * 5, self.resample_z_train, np.inf, self.embedding_batch_size, eval_task=False)
                     self.collect_data(self.num_steps_per_task, self.resample_z_train, self.update_post_train, self.embedding_batch_size, eval_task=False)
                 else:
                     raise Exception("Invalid option for computing train embedding {}".format(self.train_embedding_source))
