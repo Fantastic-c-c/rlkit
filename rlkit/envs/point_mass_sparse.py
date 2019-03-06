@@ -20,6 +20,7 @@ class PointEnv(Env):
             xs = radius * np.cos(angles)
             ys = radius * np.sin(angles)
             goals = np.stack([xs, ys], axis=1)
+            np.random.seed = 1337
             np.random.shuffle(goals)
             goals = goals.tolist()
         else:
