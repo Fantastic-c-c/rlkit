@@ -125,6 +125,21 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         # eval on a subset of train tasks for speed
         indices = np.random.choice(self.train_tasks, len(self.eval_tasks))
         dprint('evaluating on {} train tasks'.format(len(indices)))
+        ### eval train tasks with posterior sampled from the training replay buffer
+        train_returns = []
+        for idx in indices:
+            self.task_idx = idx
+            self.env.reset_task(idx)
+            paths = []
+            for _ in range(10):
+                self.infer_posterior(idx, eval_task=False)
+                paths += self.eval_sampler.obtain_samples(num_samples=self.max_path_length + 1, deterministic=True, resample='never')
+            if self.sparse_rewards:
+                for p in paths:
+                    p['rewards'] = self.env.sparsify_rewards(p['rewards'])
+            train_returns.append(eval_util.get_average_returns(paths))
+        train_returns = np.mean(train_returns)
+        ### eval train tasks with on-policy data to match eval of test tasks
         train_final_returns, train_online_returns = self._do_eval(indices, epoch)
         print('train online returns')
         print(train_online_returns)
@@ -150,6 +165,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         avg_test_return = np.mean(test_final_returns)
         avg_train_online_return = np.mean(np.stack(train_online_returns), axis=0)
         avg_test_online_return = np.mean(np.stack(test_online_returns), axis=0)
+        self.eval_statistics['AverageTrainReturn_all_train_tasks'] = train_returns
         self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
         self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
         logger.save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
