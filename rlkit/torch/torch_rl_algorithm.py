@@ -84,7 +84,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         self.task_idx = idx
         dprint('Task:', idx)
         self.env.reset_task(idx)
-        paths = self.obtain_eval_paths(idx, deterministic=True)
+        paths = self.obtain_eval_paths(idx, deterministic=False)
         goal = self.env._goal
         for path in paths:
             path['goal'] = goal # goal
