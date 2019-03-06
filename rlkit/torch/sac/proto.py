@@ -122,15 +122,21 @@ class ProtoAgent(nn.Module):
     def infer_posterior(self, in_):
         ''' compute q(z|c) as a function of input context '''
         params = self.task_enc(in_)
+        # params is task x batch x feat
         params = params.view(in_.size(0), -1, self.task_enc.output_size)
         # with probabilistic z, predict mean and variance of q(z | c)
         if self.use_ib:
             mu = params[..., :self.latent_dim]
             sigma_squared = F.softplus(params[..., self.latent_dim:])
-            z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
-            self.z_means = torch.stack([p[0] for p in z_params])
-            self.z_vars = torch.stack([p[1] for p in z_params])
-        # sum rather than product of gaussians structure
+            # batch dim == 1 in recurrent case
+            if self.recurrent:
+                self.z_means = torch.unbind(mu, dim=1)[0]
+                self.z_vars = torch.unbind(sigma_squared, dim=1)[0]
+            else:
+                z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
+                self.z_means = torch.stack([p[0] for p in z_params])
+                self.z_vars = torch.stack([p[1] for p in z_params])
+        # take mean across transitions in the deterministic case
         else:
             self.z_means = torch.mean(params, dim=1)
 
@@ -154,11 +160,13 @@ class ProtoAgent(nn.Module):
         up_params = self.task_enc(in_) # task x batch x feat
         if up_params.size(0) != 1:
             raise Exception('incremental update for more than 1 task not supported')
+        # z dist params are updated by RNN
         if self.recurrent:
-            up_mu = up_params[..., :self.latent_dim]
-            up_ss = F.softplus(up_params[..., self.latent_dim:])
+            up_mu = up_params[0][..., :self.latent_dim]
+            up_ss = F.softplus(up_params[0][..., self.latent_dim:])
             self.z_means = up_mu[None]
             self.z_vars = up_ss[None]
+        # z dist params are updated by summing natural parameter
         else:
             num_updates = up_params.size(1)
             # only have one task here
@@ -175,6 +183,7 @@ class ProtoAgent(nn.Module):
                 m, s  = _natural_to_canonical(natural_z[:self.latent_dim], natural_z[self.latent_dim:]) # feat
                 self.z_means = m[None]
                 self.z_vars = s[None]
+            # in deterministic case, z is simply running average
             else:
                 for i in range(num_updates):
                     num_z += 1

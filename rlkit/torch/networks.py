@@ -167,7 +167,7 @@ class RecurrentEncoder(FlattenMlp):
         out = out.view(task, seq, -1)
         out, (hn, cn) = self.lstm(out, (self.hidden, torch.zeros(self.hidden.size()).to(ptu.device)))
         self.hidden = hn
-        # take the last hidden state to predict z
+        # take the last output as parameters of z dist
         out = out[:, -1, :]
 
         # output layer
