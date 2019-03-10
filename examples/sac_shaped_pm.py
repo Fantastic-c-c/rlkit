@@ -29,7 +29,7 @@ def experiment(variant):
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
-    latent_dim = 128
+    latent_dim = 5
     task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
     reward_dim = 1
 
@@ -98,10 +98,10 @@ def main(gpu, docker):
             meta_batch=16,
             num_iterations=10000,
             num_tasks_sample=5,
-            num_steps_per_task=10 * max_path_length,
+            num_steps_per_task=50 * max_path_length,
             num_train_steps_per_itr=1000,
             num_evals=3, # number of independent evals
-            num_steps_per_eval=10 * max_path_length,  # num transitions to eval on
+            num_steps_per_eval=3 * max_path_length + 1,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
             embedding_batch_size=64,
             embedding_mini_batch_size=64,
@@ -121,11 +121,11 @@ def main(gpu, docker):
             #train_embedding_source='online_exploration_trajectories',
             # embedding_source should be chosen from
             # {'initial_pool', 'online_exploration_trajectories', 'online_on_policy_trajectories'}
-            resample_z='trajectory', # how often to resample z during eval {never, trajectory, transition}
-            resample_z_train=max_path_length, # how often to resample z when collecting train data
+            resample_z='transition', # how often to resample z during eval {never, trajectory, transition}
+            resample_z_train=1, # how often to resample z when collecting train data
             # (relevant only for online_on_policy_trajectories)
             update_post_train=max_path_length, # how often to update posterior when collecting train data
-            recurrent=False, # recurrent or averaging encoder
+            recurrent=True, # recurrent or averaging encoder
             dump_eval_paths=False,
         ),
         net_size=300,
@@ -133,7 +133,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'proto-sac-ib-avg-online-eval-traj-latent128'
+    exp_name = 'online-update-trans-rnn-more-data-match-eval-length'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='point-mass', base_log_dir=log_dir)

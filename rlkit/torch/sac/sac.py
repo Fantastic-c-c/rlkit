@@ -95,9 +95,12 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # sample from replay buffer for each task
         # TODO(KR) this is ugly af
         obs, actions, rewards, next_obs, terms = [], [], [], [], []
+        #if encoder:
+            #batch_size = np.random.choice(list(range(self.max_path_length, self.embedding_batch_size)))
+        batch_size = None
         for idx in indices:
             if encoder:
-                batch = self.get_encoding_batch(idx=idx)
+                batch = self.get_encoding_batch(idx=idx, batch_size=batch_size)
             else:
                 batch = self.get_batch(idx=idx)
             o = batch['observations'][None, ...]
