@@ -73,9 +73,11 @@ class SimpleReplayBuffer(ReplayBuffer):
         indices = []
         while len(indices) < batch_size:
             # TODO hack to not deal with wrapping episodes, just don't take the last one
-            start = np.random.choice(self._episode_starts[:-1])
+            safe_starts = self._episode_starts if len(self._episode_starts) == 1 else self._episode_starts[:-1]
+            start = np.random.choice(safe_starts)
             pos_idx = self._episode_starts.index(start)
-            indices += list(range(start, self._episode_starts[pos_idx + 1]))
+            end = self._top - 1 if len(self._episode_starts) == 1 else self._episode_starts[pos_idx + 1]
+            indices += list(range(start, end))
             i += 1
         # cut off the last traj if needed to respect batch size
         indices = indices[:batch_size]
