@@ -122,17 +122,25 @@ class ProtoAgent(nn.Module):
     def infer_posterior(self, in_):
         ''' compute q(z|c) as a function of input context '''
         params = self.task_enc(in_)
-        params = params.view(in_.size(0), -1, self.task_enc.output_size)
-        # with probabilistic z, predict mean and variance of q(z | c)
-        if self.use_ib:
-            mu = params[..., :self.latent_dim]
-            sigma_squared = F.softplus(params[..., self.latent_dim:])
-            z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
-            self.z_means = torch.stack([p[0] for p in z_params])
-            self.z_vars = torch.stack([p[1] for p in z_params])
-        # sum rather than product of gaussians structure
+        if self.recurrent:
+            # batch dim == 1 in recurrent case
+            if self.use_ib:
+                self.z_means = params[..., :self.latent_dim]
+                self.z_vars = F.softplus(params[..., self.latent_dim:])
+            else:
+                self.z_means = params
         else:
-            self.z_means = torch.mean(params, dim=1)
+            params = params.view(in_.size(0), -1, self.task_enc.output_size)
+            # with probabilistic z, predict mean and variance of q(z | c)
+            if self.use_ib:
+                mu = params[..., :self.latent_dim]
+                sigma_squared = F.softplus(params[..., self.latent_dim:])
+                z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
+                self.z_means = torch.stack([p[0] for p in z_params])
+                self.z_vars = torch.stack([p[1] for p in z_params])
+            # sum rather than product of gaussians structure
+            else:
+                self.z_means = torch.mean(params, dim=1)
 
     def sample_z(self):
         if self.use_ib:
