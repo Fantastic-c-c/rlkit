@@ -85,7 +85,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         if self.sparse_rewards:
             self.collect_data(self.max_path_length * 5, self.resample_z_train, np.inf, self.embedding_batch_size, eval_task=True)
-        self.collect_data(self.num_steps_per_task, self.resample_z_train, self.update_post_train, -1, eval_task=True)
+        self.collect_data(self.num_steps_per_task, self.resample_z_train, np.inf, self.embedding_batch_size, eval_task=True)
+        self.collect_data(self.max_path_length * 3 + 1, self.resample_z_train, self.update_post_train, self.embedding_batch_size, eval_task=True)
         # hack: get data path-wise from replay buffer for scoring
         rb = self.eval_enc_replay_buffer.task_buffers[idx]
         starts = rb._episode_starts

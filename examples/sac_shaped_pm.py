@@ -103,8 +103,8 @@ def main(gpu, docker):
             num_evals=1, # number of independent evals
             num_steps_per_eval=1 * max_path_length + 1,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
-            embedding_batch_size=64,
-            embedding_mini_batch_size=64,
+            embedding_batch_size=60,
+            embedding_mini_batch_size=60,
             max_path_length=max_path_length,
             discount=0.99,
             soft_target_tau=0.005,
@@ -117,8 +117,8 @@ def main(gpu, docker):
             reparameterize=True,
             kl_lambda=.1,
             use_information_bottleneck=True,
-            train_embedding_source='online_on_policy_trajectories',
-            #train_embedding_source='online_exploration_trajectories',
+            #train_embedding_source='online_on_policy_trajectories',
+            train_embedding_source='online_exploration_trajectories',
             # embedding_source should be chosen from
             # {'initial_pool', 'online_exploration_trajectories', 'online_on_policy_trajectories'}
             resample_z='trajectory', # how often to resample z during eval {never, trajectory, transition}
@@ -133,7 +133,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'debug-on-policy-no-prior-aligned-online-rb'
+    exp_name = 'avg-online-eval-traj-full-rb-fixlstm-exp-verify'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='point-mass', base_log_dir=log_dir)
