@@ -176,7 +176,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 for idx in self.train_tasks:
                     self.task_idx = idx
                     self.env.reset_task(idx)
-                    self.collect_data(10 * self.max_path_length, self.max_path_length, 10 * self.max_path_length, self.embedding_batch_size, eval_task=False)
+                    self.collect_data(10 * self.max_path_length, self.max_path_length, np.inf, self.embedding_batch_size, eval_task=False)
             # Sample data from train tasks.
             for i in range(self.num_tasks_sample):
                 idx = np.random.randint(len(self.train_tasks))
