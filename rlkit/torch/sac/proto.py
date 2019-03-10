@@ -97,7 +97,8 @@ class ProtoAgent(nn.Module):
         ''' disable backprop through z '''
         self.z = self.z.detach()
         if self.recurrent:
-            self.task_enc.hidden = self.task_enc.hidden.detach()
+            self.task_enc.hidden[0].detach_()
+            self.task_enc.hidden[1].detach_()
 
     def update_context(self, inputs):
         ''' update q(z|c) with a single transition '''

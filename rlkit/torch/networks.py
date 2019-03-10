@@ -148,9 +148,9 @@ class RecurrentEncoder(FlattenMlp):
         self.save_init_params(locals())
         super().__init__(*args, **kwargs)
         self.hidden_dim = self.hidden_sizes[-1]
-        self.register_buffer('hidden', torch.zeros(1, 1, self.hidden_dim))
+        self.hidden = (ptu.zeros(1, 1, self.hidden_dim), ptu.zeros(1, 1, self.hidden_dim))
 
-        # input should be (task, seq, feat) and hidden should be (task, 1, feat)
+        # input should be (task, seq, feat) and hidden should be (1, task, feat)
 
         self.lstm = nn.LSTM(self.hidden_dim, self.hidden_dim, num_layers=1, batch_first=True)
 
@@ -165,7 +165,7 @@ class RecurrentEncoder(FlattenMlp):
             out = self.hidden_activation(out)
 
         out = out.view(task, seq, -1)
-        out, (hn, cn) = self.lstm(out, (self.hidden, torch.zeros(self.hidden.size()).to(ptu.device)))
+        out, hn = self.lstm(out, self.hidden)
         self.hidden = hn
         # take the last output as parameters of z dist
         out = out[:, -1, :]
@@ -179,7 +179,7 @@ class RecurrentEncoder(FlattenMlp):
             return output
 
     def reset(self, num_tasks=1):
-        self.hidden = self.hidden.new_full((1, num_tasks, self.hidden_dim), 0)
+        self.hidden = (ptu.zeros(1, num_tasks, self.hidden_dim), ptu.zeros(1, num_tasks, self.hidden_dim))
 
 
 
