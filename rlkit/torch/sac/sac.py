@@ -276,6 +276,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         act = batch['actions'][None, ...]
         rewards = batch['rewards'][None, ...]
         in_ = self.prepare_encoder_data(obs, act, rewards)
+        self.policy.clear_z() # necessary for RNN to clear hidden state!!
         self.policy.infer_posterior(in_)
         self.sample_z()
 
