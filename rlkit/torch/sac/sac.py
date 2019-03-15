@@ -133,7 +133,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         mb_size = self.embedding_mini_batch_size
         num_updates = self.embedding_batch_size // mb_size
 
-        batch = self.sample_data(indices, encoder=True)
+        batch = self.sample_data(indices, encoder=False)
 
         # zero out context and hidden encoder state
         self.reset_posterior(num_tasks=len(indices))
@@ -141,18 +141,18 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         for i in range(num_updates):
             # TODO(KR) argh so ugly
             mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
-            obs_enc, act_enc, rewards_enc, _, _ = mini_batch
-            self._take_step(indices, obs_enc, act_enc, rewards_enc)
+            obs_enc, act_enc, rewards_enc, next_obs_enc, terms_enc = mini_batch
+            self._take_step(indices, obs_enc, act_enc, rewards_enc, next_obs_enc, terms_enc)
 
             # stop backprop
             self.policy.detach_z()
 
-    def _take_step(self, indices, obs_enc, act_enc, rewards_enc):
+    def _take_step(self, indices, obs_enc, act_enc, rewards_enc, next_obs_enc, terms_enc):
 
         num_tasks = len(indices)
 
         # data is (task, batch, feat)
-        obs, actions, rewards, next_obs, terms = self.sample_data(indices)
+        obs, actions, rewards, next_obs, terms = obs_enc, act_enc, rewards_enc, next_obs_enc, terms_enc
         enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
 
         # run inference in networks
@@ -175,7 +175,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         terms_flat = terms.view(self.batch_size * num_tasks, -1)
         q_target = rewards_flat + (1. - terms_flat) * self.discount * target_v_values
         qf_loss = torch.mean((q1_pred - q_target) ** 2) + torch.mean((q2_pred - q_target) ** 2)
-        qf_loss.backward()
+        qf_loss.backward(retain_graph=True)
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
         self.context_optimizer.step()

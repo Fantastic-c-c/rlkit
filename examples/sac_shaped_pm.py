@@ -102,7 +102,7 @@ def main(gpu, docker):
             num_train_steps_per_itr=1000,
             num_evals=3, # number of independent evals
             num_steps_per_eval=3 * max_path_length + 1,  # num transitions to eval on
-            batch_size=256,  # to compute training grads from
+            batch_size=64,  # to compute training grads from
             embedding_batch_size=64,
             embedding_mini_batch_size=64,
             max_path_length=max_path_length,
@@ -116,7 +116,7 @@ def main(gpu, docker):
             sparse_rewards=False,
             reparameterize=True,
             kl_lambda=.1,
-            use_information_bottleneck=True,
+            use_information_bottleneck=False,
             train_embedding_source='online_on_policy_trajectories',
             #train_embedding_source='online_exploration_trajectories',
             # embedding_source should be chosen from
@@ -133,7 +133,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'online-update-trans-rnn-more-data-match-eval-length'
+    exp_name = 'online-rnn-fix-data-sample-rl2-adaptation'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='point-mass', base_log_dir=log_dir)

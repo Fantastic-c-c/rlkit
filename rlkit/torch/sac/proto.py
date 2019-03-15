@@ -236,7 +236,7 @@ class ProtoAgent(nn.Module):
         v = self.vf(obs, task_z.detach())
 
         # run policy, get log probs and new actions
-        in_ = torch.cat([obs, task_z.detach()], dim=1)
+        in_ = torch.cat([obs, task_z], dim=1)
         policy_outputs = self.policy(in_, reparameterize=self.reparam, return_log_prob=True)
 
         # get targets for use in V and Q updates

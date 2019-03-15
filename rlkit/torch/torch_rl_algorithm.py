@@ -42,9 +42,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
     ##### Data handling #####
     def get_batch(self, idx=None):
         ''' get a batch from replay buffer for input into net '''
+        is_seq = self.recurrent
         if idx is None:
             idx = self.task_idx
-        batch = self.replay_buffer.random_batch(idx, self.batch_size)
+        batch = self.replay_buffer.random_batch(idx, batch_size=self.batch_size, sequence=is_seq)
         return np_to_pytorch_batch(batch)
 
     def get_encoding_batch(self, idx=None, batch_size=None, eval_task=False):
