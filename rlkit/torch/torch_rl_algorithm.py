@@ -106,7 +106,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 all_rets.append([eval_util.get_average_returns([p]) for p in paths])
                 runs.append(paths)
             all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
-            final_returns.append(np.mean(all_rets[-3:]))
+            final_returns.append(np.mean(all_rets[-1:]))
             online_returns.append(all_rets)
         return final_returns, online_returns
 

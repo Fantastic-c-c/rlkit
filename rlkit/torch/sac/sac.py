@@ -169,10 +169,10 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # qf and encoder update (note encoder does not get grads from policy or vf)
         self.qf1_optimizer.zero_grad()
         self.qf2_optimizer.zero_grad()
-        rewards_flat = rewards.view(self.batch_size * num_tasks, -1)
+        rewards_flat = rewards.contiguous().view(self.embedding_mini_batch_size * num_tasks, -1)
         # scale rewards for Bellman update
         rewards_flat = rewards_flat * self.reward_scale
-        terms_flat = terms.view(self.batch_size * num_tasks, -1)
+        terms_flat = terms.contiguous().view(self.embedding_mini_batch_size * num_tasks, -1)
         q_target = rewards_flat + (1. - terms_flat) * self.discount * target_v_values
         qf_loss = torch.mean((q1_pred - q_target) ** 2) + torch.mean((q2_pred - q_target) ** 2)
         qf_loss.backward(retain_graph=True)

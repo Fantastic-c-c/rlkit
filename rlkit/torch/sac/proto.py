@@ -132,7 +132,7 @@ class ProtoAgent(nn.Module):
             else:
                 self.z_means = params
         else:
-            params = params.view(in_.size(0), -1, self.task_enc.output_size)
+            params = params.contiguous().view(in_.size(0), -1, self.task_enc.output_size)
             # with probabilistic z, predict mean and variance of q(z | c)
             if self.use_ib:
                 mu = params[..., :self.latent_dim]
@@ -223,9 +223,9 @@ class ProtoAgent(nn.Module):
         task_z = self.z
 
         t, b, _ = obs.size()
-        obs = obs.view(t * b, -1)
-        actions = actions.view(t * b, -1)
-        next_obs = next_obs.view(t * b, -1)
+        obs = obs.contiguous().view(t * b, -1)
+        actions = actions.contiguous().view(t * b, -1)
+        next_obs = next_obs.contiguous().view(t * b, -1)
         task_z = [z.repeat(b, 1) for z in task_z]
         task_z = torch.cat(task_z, dim=0)
 
@@ -247,7 +247,7 @@ class ProtoAgent(nn.Module):
 
     def min_q(self, obs, actions, task_z):
         t, b, _ = obs.size()
-        obs = obs.view(t * b, -1)
+        obs = obs.contiguous().view(t * b, -1)
 
         q1 = self.qf1(obs, actions, task_z.detach())
         q2 = self.qf2(obs, actions, task_z.detach())

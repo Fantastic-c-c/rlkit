@@ -65,23 +65,18 @@ def experiment(variant):
         action_dim=action_dim,
     )
 
-    rf = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + latent_dim,
-        output_size=1
-    )
-
     agent = ProtoAgent(
+        env,
         latent_dim,
-        [task_enc, policy, qf1, qf2, vf, rf],
+        [task_enc, policy, qf1, qf2, vf],
         **variant['algo_params']
     )
 
     algorithm = ProtoSoftActorCritic(
         env=env,
-        train_tasks=tasks[:-30],
-        eval_tasks=tasks[-30:],
-        nets=[agent, task_enc, policy, qf1, qf2, vf, rf],
+        train_tasks=list(tasks[:-30]),
+        eval_tasks=list(tasks[-30:]),
+        nets=[agent, task_enc, policy, qf1, qf2, vf],
         latent_dim=latent_dim,
         **variant['algo_params']
     )
@@ -107,9 +102,9 @@ def main(gpu, docker):
             num_steps_per_task=2 * max_path_length,
             num_train_steps_per_itr=2000,
             num_evals=2, # number of evals with separate task encodings
-            num_steps_per_eval=2 * max_path_length,
-            batch_size=256, # to compute training grads from
-            embedding_batch_size=100,
+            num_steps_per_eval=2 * max_path_length + 1,
+            batch_size=400, # to compute training grads from
+            embedding_batch_size=400,
             embedding_mini_batch_size=100,
             max_path_length=max_path_length,
             discount=0.99,
@@ -122,18 +117,20 @@ def main(gpu, docker):
             sparse_rewards=False,
             reparameterize=True,
             kl_lambda=.1,
-            rf_loss_scale=1.,
-            use_information_bottleneck=True,
-            train_embedding_source='online_exploration_trajectories',
-            eval_embedding_source='online_exploration_trajectories',
-            recurrent=False, # recurrent or averaging encoder
+            use_information_bottleneck=False,
+            train_embedding_source='online_on_policy_trajectories',
+            resample_z='transition', # how often to resample z during eval {never, trajectory, transition}
+            resample_z_train=1, # how often to resample z when collecting train data
+            # (relevant only for online_on_policy_trajectories)
+            update_post_train=max_path_length, # how often to update posterior when collecting train data
+            recurrent=True, # recurrent or averaging encoder
             dump_eval_paths=False,
         ),
         net_size=300,
         use_gpu=True,
         gpu_id=gpu,
     )
-    exp_name = 'no-rf-final/cheetah-vel/{}'.format(gpu)
+    exp_name = 'online-rl2-adaptation-embatch400'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='half-cheetah-vel', base_log_dir=log_dir)
