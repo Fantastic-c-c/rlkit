@@ -98,10 +98,10 @@ def main(gpu, docker):
             meta_batch=16,
             num_iterations=10000,
             num_tasks_sample=5,
-            num_steps_per_task=50 * max_path_length,
+            num_steps_per_task=10 * max_path_length,
             num_train_steps_per_itr=1000,
             num_evals=3, # number of independent evals
-            num_steps_per_eval=3 * max_path_length + 1,  # num transitions to eval on
+            num_steps_per_eval=10 * max_path_length + 1,  # num transitions to eval on
             batch_size=64,  # to compute training grads from
             embedding_batch_size=64,
             embedding_mini_batch_size=64,
@@ -133,7 +133,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'online-rnn-fix-data-sample-rl2-adaptation'
+    exp_name='online-rnn-rl2'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='point-mass', base_log_dir=log_dir)
