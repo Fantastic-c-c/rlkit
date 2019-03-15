@@ -165,7 +165,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         ### train tasks
         dprint('evaluating on {} train tasks'.format(len(self.train_tasks)))
         train_avg_returns = []
-        for idx in self.train_tasks:
+        for idx in self.train_tasks[:10]:
             dprint('task {} encoder RB size'.format(idx), self.enc_replay_buffer.task_buffers[idx]._size)
             paths = self.collect_paths(idx, epoch, eval_task=False)
             train_avg_returns.append(eval_util.get_average_returns(paths))
