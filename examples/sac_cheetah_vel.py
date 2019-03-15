@@ -66,6 +66,7 @@ def experiment(variant):
     )
 
     agent = ProtoAgent(
+        env,
         latent_dim,
         [task_enc, policy, qf1, qf2, vf],
         **variant['algo_params']
@@ -73,8 +74,8 @@ def experiment(variant):
 
     algorithm = ProtoSoftActorCritic(
         env=env,
-        train_tasks=tasks[:-30],
-        eval_tasks=tasks[-30:],
+        train_tasks=list(tasks[:-30]),
+        eval_tasks=list(tasks[-30:]),
         nets=[agent, task_enc, policy, qf1, qf2, vf],
         latent_dim=latent_dim,
         **variant['algo_params']
@@ -101,10 +102,10 @@ def main(gpu, docker):
             num_steps_per_task=2 * max_path_length,
             num_train_steps_per_itr=2000,
             num_evals=2, # number of evals with separate task encodings
-            num_steps_per_eval=2 * max_path_length,
+            num_steps_per_eval=2 * max_path_length + 1,
             batch_size=256, # to compute training grads from
-            embedding_batch_size=100,
-            embedding_mini_batch_size=100,
+            embedding_batch_size=64,
+            embedding_mini_batch_size=64,
             max_path_length=max_path_length,
             discount=0.99,
             soft_target_tau=0.005,
@@ -117,8 +118,11 @@ def main(gpu, docker):
             reparameterize=True,
             kl_lambda=.1,
             use_information_bottleneck=True,
-            train_embedding_source='online_exploration_trajectories',
-            eval_embedding_source='online_exploration_trajectories',
+            train_embedding_source='online_on_policy_trajectories',
+            resample_z='trajectory', # how often to resample z during eval {never, trajectory, transition}
+            resample_z_train=max_path_length, # how often to resample z when collecting train data
+            # (relevant only for online_on_policy_trajectories)
+            update_post_train=max_path_length, # how often to update posterior when collecting train data
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
         ),
