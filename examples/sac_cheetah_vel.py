@@ -103,9 +103,9 @@ def main(gpu, docker):
         algo_params=dict(
             meta_batch=10,
             num_iterations=500, # meta-train epochs
-            num_tasks_sample=5,
-            num_steps_per_task=2 * max_path_length,
-            num_train_steps_per_itr=2000,
+            num_tasks_sample=20,
+            num_steps_per_task=10 * max_path_length,
+            num_train_steps_per_itr=200,
             num_evals=2, # number of evals with separate task encodings
             num_steps_per_eval=2 * max_path_length,
             batch_size=256, # to compute training grads from
@@ -133,7 +133,7 @@ def main(gpu, docker):
         use_gpu=True,
         gpu_id=gpu,
     )
-    exp_name = 'same-enc-rl-data/cheetah-vel/{}'.format(gpu)
+    exp_name = 'pseudo-onpolicy-sameencrldata/cheetah-vel/{}'.format('4')
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='half-cheetah-vel', base_log_dir=log_dir)
