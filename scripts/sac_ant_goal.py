@@ -132,7 +132,9 @@ def main(gpu, docker):
     exp_name = 'pearl'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
-    experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='ant-goal', base_log_dir=log_dir)
+    exp_id = 'ant-goal'
+    os.makedirs(os.path.join(log_dir, exp_id), exist_ok=True)
+    experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id=exp_id, base_log_dir=log_dir)
 
     # creates directories for pickle outputs of trajectories (point mass)
     pickle_dir = experiment_log_dir + '/eval_trajectories'
