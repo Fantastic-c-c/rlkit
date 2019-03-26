@@ -1,5 +1,12 @@
+import joblib
+import pdb
+
+
 """
-Run Prototypical Soft Actor Critic on point mass.
+Script to evaluate a trained PEARL policy.
+
+Loads saved params from params.pkl file, and runs the meta-learning training and
+evaluation.
 
 """
 import os
@@ -7,7 +14,9 @@ import numpy as np
 import click
 import datetime
 import pathlib
+from gym.envs.mujoco import HalfCheetahEnv
 
+from rlkit.envs.half_cheetah_vel import HalfCheetahVelEnv
 from rlkit.envs.point_mass import PointEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
@@ -17,10 +26,8 @@ from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYZEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_hand_insert import SawyerHandInsertEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_sweep import SawyerSweepEnv
-
 
 
 def datetimestamp(divider=''):
@@ -28,6 +35,10 @@ def datetimestamp(divider=''):
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
 def experiment(variant):
+    task_params = variant['task_params']
+    params = joblib.load('/home/deirdre/rlkit/output/metaworld/metaworld-test/params.pkl')
+
+    # env.render()
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
     tasks = []
@@ -36,10 +47,6 @@ def experiment(variant):
         tasks.append(SawyerHandInsertEnv())
     for _ in range(1):
         tasks.append(SawyerSweepEnv())
-
-    for env in tasks:
-        print('env.observation_space.shape', env.observation_space.shape)
-        print('env.action_space.shape))', env.action_space.shape)
 
     obs_dim = int(np.prod(tasks[0].observation_space.shape))
     action_dim = int(np.prod(tasks[0].action_space.shape))
@@ -51,44 +58,13 @@ def experiment(variant):
     # start with linear task encoding
     recurrent = variant['algo_params']['recurrent']
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
-    task_enc = encoder_model(
-            hidden_sizes=[200, 200, 200], # deeper net + higher dim space generalize better
-            input_size=obs_dim + action_dim + reward_dim,
-            output_size=task_enc_output_dim,
-    )
-    qf1 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + latent_dim,
-        output_size=1,
-    )
-    qf2 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + latent_dim,
-        output_size=1,
-    )
-    vf = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + latent_dim,
-        output_size=1,
-    )
-    policy = TanhGaussianPolicy(
-        hidden_sizes=[net_size, net_size, net_size],
-        obs_dim=obs_dim + latent_dim,
-        latent_dim=latent_dim,
-        action_dim=action_dim,
-    )
-
-    rf = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + action_dim + latent_dim,
-        output_size=1
-    )
-
-    agent = ProtoAgent(
-        latent_dim,
-        [task_enc, policy, qf1, qf2, vf, rf],
-        **variant['algo_params']
-    )
+    task_enc = params['task_enc']
+    qf1 = params['qf1']
+    qf2 = params['qf2']
+    vf = params['vf']
+    policy = params['policy']
+    rf = params['rf']
+    agent = params['exploration_policy']
 
     algorithm = ProtoSoftActorCritic(
         envs=tasks,
@@ -107,7 +83,7 @@ def experiment(variant):
 @click.argument('gpu', default=0)
 @click.option('--docker', default=0)
 def main(gpu, docker):
-    max_path_length = 999
+    max_path_length = 100
     # noinspection PyTypeChecker
     variant = dict(
         task_params=dict(
@@ -118,8 +94,8 @@ def main(gpu, docker):
             meta_batch=16,
             num_iterations=10000,
             num_tasks_sample=5,
-            num_steps_per_task=10 * max_path_length,
-            num_train_steps_per_itr=1000,
+            num_steps_per_task=1 * max_path_length,
+            num_train_steps_per_itr=1,
             num_evals=5, # number of evals with separate task encodings
             num_steps_per_eval=3 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
@@ -144,16 +120,18 @@ def main(gpu, docker):
             eval_embedding_source='online_exploration_trajectories',
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
+            task_idx_for_render=0,
         ),
         net_size=300,
         use_gpu=True,
         gpu_id=gpu,
     )
 
-    exp_name = 'metaworld_test'
+
+    exp_name = 'metaworld_videos'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
-    experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)
+    experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='point-mass', base_log_dir=log_dir)
 
     # creates directories for pickle outputs of trajectories (point mass)
     pickle_dir = experiment_log_dir + '/eval_trajectories'

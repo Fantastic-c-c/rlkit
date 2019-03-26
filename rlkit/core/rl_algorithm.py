@@ -10,6 +10,7 @@ from rlkit.data_management.env_replay_buffer import MultiTaskReplayBuffer
 from rlkit.data_management.path_builder import PathBuilder
 from rlkit.policies.base import ExplorationPolicy
 from rlkit.samplers.in_place import InPlacePathSampler
+import pdb
 
 
 class MetaRLAlgorithm(metaclass=abc.ABCMeta):
@@ -37,6 +38,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             eval_embedding_source='initial_pool',
             eval_deterministic=True,
             render=False,
+            task_idx_for_render=None,
             save_replay_buffer=False,
             save_algorithm=False,
             save_environment=False,
@@ -89,6 +91,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.eval_embedding_source = eval_embedding_source # TODO: add options for computing embeddings on train tasks too
         self.eval_deterministic = eval_deterministic
         self.render = render
+        self.task_idx_for_render = task_idx_for_render
+
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
         self.save_environment = save_environment
@@ -177,7 +181,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     env = self.train_tasks[idx]
                     env.reset()
                     # env = envs
-                    self.collect_data_sampling_from_prior(env=env, num_samples=self.max_path_length * 10,
+
+                    self.collect_data_sampling_from_prior(env=env, num_samples=self.max_path_length * 1,
                                                           resample_z_every_n=self.max_path_length,
                                                           eval_task=False)
                 """
@@ -210,15 +215,23 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 elif self.train_embedding_source == 'online_exploration_trajectories':
                     # embeddings are computed using only data collected using the prior
                     # sample data from posterior to train RL algorithm
+
+
                     self.enc_replay_buffer.task_buffers[idx].clear()
                     # resamples using current policy, conditioned on prior
                     self.collect_data_sampling_from_prior(env=env, num_samples=self.num_steps_per_task,
                                                           resample_z_every_n=self.max_path_length,
                                                           add_to_enc_buffer=True)
 
+                    if idx == self.task_idx_for_render:
+                        render=True
+                    else:
+                        render = False
+
+                    print('Collecting data from task posterior')
                     self.collect_data_from_task_posterior(env=env, idx=idx,
                                                           num_samples=self.num_steps_per_task,
-                                                          add_to_enc_buffer=False)
+                                                          add_to_enc_buffer=False, render=render)
                 elif self.train_embedding_source == 'online_on_policy_trajectories':
                     # sample from prior, then sample more from the posterior
                     # embeddings computed from both prior and posterior data
@@ -270,28 +283,28 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
     # TODO: maybe find a better name for resample_z_every_n?
     def collect_data_sampling_from_prior(self, env, num_samples=1, resample_z_every_n=None, eval_task=False,
-                                         add_to_enc_buffer=True):
+                                         add_to_enc_buffer=True, render=False):
         # do not resample z if resample_z_every_n is None
         if resample_z_every_n is None:
             self.policy.clear_z()
             self.collect_data(env=env, agent=self.policy, num_samples=num_samples, eval_task=eval_task,
-                              add_to_enc_buffer=add_to_enc_buffer)
+                              add_to_enc_buffer=add_to_enc_buffer, render=render)
         else:
             # collects more data in batches of resample_z_every_n until done
             while num_samples > 0:
                 self.collect_data_sampling_from_prior(env=env, num_samples=min(resample_z_every_n, num_samples),
                                                       resample_z_every_n=None,
                                                       eval_task=eval_task,
-                                                      add_to_enc_buffer=add_to_enc_buffer)
+                                                      add_to_enc_buffer=add_to_enc_buffer, render=render)
                 num_samples -= resample_z_every_n
 
     def collect_data_from_task_posterior(self, env, idx, num_samples=1, resample_z_every_n=None, eval_task=False,
-                                         add_to_enc_buffer=True):
+                                         add_to_enc_buffer=True, render=False):
         # do not resample z if resample_z_every_n is None
         if resample_z_every_n is None:
             self.sample_z_from_posterior(idx, eval_task=eval_task)
             self.collect_data(env=env, agent=self.policy, num_samples=num_samples, eval_task=eval_task,
-                              add_to_enc_buffer=add_to_enc_buffer)
+                              add_to_enc_buffer=add_to_enc_buffer, render=render)
         else:
             # collects more data in batches of resample_z_every_n until done
             while num_samples > 0:
@@ -300,7 +313,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                                                       num_samples=min(resample_z_every_n, num_samples),
                                                       resample_z_every_n=None,
                                                       eval_task=eval_task,
-                                                      add_to_enc_buffer=add_to_enc_buffer)
+                                                      add_to_enc_buffer=add_to_enc_buffer,
+                                                      render=render)
                 num_samples -= resample_z_every_n
 
     # split number of prior and posterior samples
@@ -319,14 +333,14 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     # TODO: since switching tasks now resets the environment, we are not correctly handling episodes terminating
     # correctly. We also aren't using the episodes anywhere, but we should probably change this to make it gather paths
     # until we have more samples than num_samples, to make sure every episode cleanly terminates when intended.
-    def collect_data(self, env, agent, num_samples=1, eval_task=False, add_to_enc_buffer=True):
+    def collect_data(self, env, agent, num_samples=1, eval_task=False, add_to_enc_buffer=True, render=False):
         '''
         collect data from current env in batch mode
         with given policy
         '''
         for _ in range(num_samples):
             action, agent_info = self._get_action_and_info(agent, self.train_obs)
-            if self.render:
+            if render:
                 env.render()
             next_ob, raw_reward, terminal, env_info = (
                 env.step(action)
@@ -419,7 +433,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         )
 
     def _can_train(self):
-        return all([self.replay_buffer.num_steps_can_sample(idx) >= self.batch_size for idx in self.train_tasks])
+        return all([self.replay_buffer.num_steps_can_sample(idx) >= self.batch_size for idx in self.train_idx])
 
     def _get_action_and_info(self, agent, observation):
         """
@@ -564,6 +578,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             epoch=epoch,
             exploration_policy=self.exploration_policy,
         )
+        # pdb.set_trace()
         if self.save_environment:
             data_to_save['env'] = self.training_env
         return data_to_save
@@ -575,8 +590,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         :param epoch:
         :return:
         """
-        if self.render:
-            self.training_env.render(close=True)
+        # if self.render:
+        #     self.training_env.render(close=True)
         data_to_save = dict(
             epoch=epoch,
         )
