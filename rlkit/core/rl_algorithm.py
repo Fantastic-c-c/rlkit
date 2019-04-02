@@ -217,41 +217,39 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
     def collect_data(self, num_samples, resample_z_rate, update_posterior_rate, update_batch_size, add_to_enc_buffer=True):
         '''
-        collect transitions from the task
-        :param task_idx: the task ID to sample from
+        collect transitions from the current task
         :param num_samples: total number of transitions to sample
         :param resample_z_rate: how often to resample latent context z
         :param update_posterior_rate: how often to update q(z | c) from which z is sampled
-        :param update_batch_size: controls what data is used to infer the new q(z | c)
+        :param update_batch_size: how much data is used to infer the new q(z | c)
+        :param add_to_enc_buffer: whether to add collected data to encoder replay buffer
         '''
         # makes no sense to update the posterior without resampling z
         assert resample_z_rate <= update_posterior_rate
         # start from the prior
         self.reset_posterior()
-        counter = 0
+        num_collected = 0
+        update_count = 1
         for _ in range(num_samples // resample_z_rate):
-            self.collect_transitions(self.policy, num_samples=resample_z_rate, add_to_enc_buffer=add_to_enc_buffer)
-            counter += resample_z_rate
-            if counter % update_posterior_rate == 0:
+            num_collected += self.collect_transitions(self.policy, num_samples=resample_z_rate, add_to_enc_buffer=add_to_enc_buffer)
+            if num_collected >=  update_posterior_rate * update_count:
                 self.infer_posterior(self.task_idx, update_batch_size)
+                update_count += 1
             self.sample_z()
 
-    # TODO: since switching tasks now resets the environment, we are not correctly handling episodes terminating
-    # correctly. We also aren't using the episodes anywhere, but we should probably change this to make it gather paths
-    # until we have more samples than num_samples, to make sure every episode cleanly terminates when intended.
-    def collect_transitions(self, agent, num_samples=1, add_to_enc_buffer=True):
+    def collect_trajectories(self, agent, num_samples=1, add_to_enc_buffer=True):
         '''
-        collect data from current env in batch mode
-        with given policy
+        get trajectories from current env in batch mode with given policy
+        collect complete trajectories until the number of collected transitions >= num_samples
         '''
-        for _ in range(num_samples):
+        num_collected = 0
+        while num_collected < num_samples:
             action, agent_info = self._get_action_and_info(agent, self.train_obs)
             if self.render:
                 self.env.render()
-            next_ob, raw_reward, terminal, env_info = (
+            next_ob, reward, terminal, env_info = (
                 self.env.step(action)
             )
-            reward = raw_reward
             terminal = np.array([terminal])
             reward = np.array([reward])
             self._handle_step(
@@ -265,14 +263,16 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 agent_info=agent_info,
                 env_info=env_info,
             )
-            if terminal or len(self._current_path_builder) >= self.max_path_length:
+            num_collected += 1
+            if terminal:
                 self._handle_rollout_ending()
                 self.train_obs = self._start_new_rollout()
             else:
                 self.train_obs = next_ob
 
-        self._n_env_steps_total += num_samples
+        self._n_env_steps_total += num_collected
         gt.stamp('sample')
+        return num_collected
 
     def _try_to_eval(self, epoch):
         logger.save_extra_data(self.get_extra_data_to_save(epoch))
