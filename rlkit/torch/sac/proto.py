@@ -45,13 +45,11 @@ def _canonical_to_natural(mu, sigma_squared):
 class ProtoAgent(nn.Module):
 
     def __init__(self,
-                 env,
                  latent_dim,
                  nets,
                  **kwargs
     ):
         super().__init__()
-        self.env = env
         self.latent_dim = latent_dim
         self.task_enc, self.policy, self.qf1, self.qf2, self.vf = nets
         self.target_vf = self.vf.copy()
