@@ -3,13 +3,13 @@
 def make_variant(max_path_length):
     variant = dict(
         env_name='point-robot',
-        n_train_tasks=5,
-        n_eval_tasks=5,
+        n_train_tasks=5, # first n_train_tasks out of all tasks are the train tasks
+        n_eval_tasks=5, # last n_eval_tasks out of all tasks are test tasks
         latent_size=5, # dimension of the latent context vector
         net_size=300, # number of units per FC layer in each network
         path_to_weights=None, # path to pre-trained weights to load into networks
         env_params=dict(
-            n_tasks=10, # number of distinct tasks in this domain, shoudl equal sum of train and eval tasks
+            n_tasks=10, # number of distinct tasks in this domain, should equal sum of train and eval tasks if you want disjoint sets of tasks (true for most envs)
             randomize_tasks=True, # shuffle the tasks after creating them
         ),
         algo_params=dict(
@@ -19,8 +19,8 @@ def make_variant(max_path_length):
             num_tasks_sample=5, # number of randomly sampled tasks to collect data for each iteration
             num_steps_per_task=10 * max_path_length, # number of transitions to collect per task
             num_train_steps_per_itr=1000, # number of meta-gradient steps taken per iteration
-            num_evals=5, # number of independent evals
-            num_steps_per_eval=3 * max_path_length,  # nuumber of transitions to eval on
+            num_evals=5, # number of independent evals per task
+            num_steps_per_eval=3 * max_path_length,  # number of transitions to eval on each time
             batch_size=256, # number of transitions in the RL batch
             embedding_batch_size=64, # number of transitions in the context batch
             embedding_mini_batch_size=64, # number of context transitions to backprop through (should equal the arg above except in the recurrent encoder case)
@@ -31,9 +31,9 @@ def make_variant(max_path_length):
             qf_lr=3E-4,
             vf_lr=3E-4,
             context_lr=3e-4,
-            reward_scale=100., # scale rewards before constructing Bellman update
+            reward_scale=100., # scales rewards before constructing Bellman update, effectively controls the entropy weighting in SAC
             sparse_rewards=False, # whether to sparsify rewards as determined in env
-            reparameterize=True, # should always be True
+            reparameterize=True, # whether to use reparameterization trick for the SAC policy gradient, should always be True
             kl_lambda=.1, # weight on KL divergence term in encoder loss
             use_information_bottleneck=True, # False makes latent context deterministic
             # train embedding source should choose from {'online_exploration_trajectories', 'online_on_policy_trajectories'}
