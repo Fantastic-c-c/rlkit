@@ -128,7 +128,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 paths += self.eval_sampler.obtain_samples(num_samples=self.max_path_length + 1, deterministic=True, resample=np.inf)
             if self.sparse_rewards:
                 for p in paths:
-                    p['rewards'] = self.env.sparsify_rewards(p['rewards'])
+                    sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
+                    p['rewards'] = sparse_rewards
             train_returns.append(eval_util.get_average_returns(paths))
         train_returns = np.mean(train_returns)
         ### eval train tasks with on-policy data to match eval of test tasks
