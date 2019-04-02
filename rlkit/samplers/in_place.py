@@ -30,19 +30,23 @@ class InPlacePathSampler(object):
     def shutdown_worker(self):
         pass
 
-    def obtain_samples(self, deterministic=False, num_samples=None, resample='never'):
+    def obtain_samples(self, deterministic=False, num_samples=None, resample=1):
         policy = MakeDeterministic(self.policy) if deterministic else self.policy
         paths = []
         n_steps_total = 0
+        n_trajs = 0
         max_samp = self.max_samples
         if num_samples is not None:
             max_samp = num_samples
         while n_steps_total + self.max_path_length < max_samp:
             path = rollout(
-                self.env, policy, max_path_length=self.max_path_length, resample=resample)
+                self.env, policy, max_path_length=self.max_path_length)
             # save the latent context that generated this trajectory
             path['context'] = policy.z.detach().cpu().numpy()
             paths.append(path)
             n_steps_total += len(path['observations'])
+            n_trajs += 1
+            if resample % n_trajs == 0:
+                policy.sample_z()
         return paths
 

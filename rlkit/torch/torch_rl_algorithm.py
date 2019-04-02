@@ -110,7 +110,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             prior_paths = []
             for _ in range(100 // self.num_steps_per_eval):
                 # just want stochasticity of z, not the policy
-                prior_paths += self.eval_sampler.obtain_samples(deterministic=True, resample='never')
+                prior_paths += self.eval_sampler.obtain_samples(deterministic=True, resample=np.inf)
             logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
 
         ### train tasks
@@ -125,7 +125,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             paths = []
             for _ in range(10):
                 self.infer_posterior(idx)
-                paths += self.eval_sampler.obtain_samples(num_samples=self.max_path_length + 1, deterministic=True, resample='never')
+                paths += self.eval_sampler.obtain_samples(num_samples=self.max_path_length + 1, deterministic=True, resample=np.inf)
             if self.sparse_rewards:
                 for p in paths:
                     p['rewards'] = self.env.sparsify_rewards(p['rewards'])
