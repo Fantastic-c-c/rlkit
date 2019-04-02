@@ -181,12 +181,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 self.task_idx = idx
                 self.env.reset_task(idx)
 
-                # TODO: there may be more permutations of sampling/adding to encoding buffer we may wish to try
-                if self.train_embedding_source == 'initial_pool':
-                    # embeddings are computed using only the initial pool of data
-                    # sample data from posterior to train RL algorithm
-                    self.collect_data(self.num_steps_per_task, self.resample_z_train, np.inf, self.embedding_batch_size, add_to_enc_buffer=False)
-                elif self.train_embedding_source == 'online_exploration_trajectories':
+                if self.train_embedding_source == 'online_exploration_trajectories':
                     # embeddings are computed using only data collected using the prior
                     # sample data from posterior to train RL algorithm
                     self.enc_replay_buffer.task_buffers[idx].clear()
