@@ -58,7 +58,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         return np_to_pytorch_batch(batch)
 
     ##### Eval stuff #####
-    def obtain_eval_paths(self, idx, deterministic=False, prior=False):
+    def obtain_eval_paths(self, idx, deterministic=False):
         '''
         collect paths with current policy
         each transition will update the running latent context
@@ -66,8 +66,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         (to enable trajectory-level or transition-level adaptation, for example)
         '''
         self.reset_posterior()
-        resample = 'never' if prior else self.resample_z
-        test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic, resample=resample)
+        test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic, resample=self.resample_z)
         if self.sparse_rewards:
             for p in test_paths:
                 p['rewards'] = ptu.sparsify_rewards(p['rewards'])
@@ -106,11 +105,12 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         statistics.update(self.eval_statistics)
         self.eval_statistics = statistics
 
-        ### sample trajectories from prior for vis
-        prior_paths = []
-        for _ in range(10):
-            prior_paths += self.obtain_eval_paths(None, deterministic=True, prior=True)
+        ### sample trajectories from prior for debugging / visualization
         if self.dump_eval_paths:
+            prior_paths = []
+            for _ in range(100 // self.num_steps_per_eval):
+                # just want stochasticity of z, not the policy
+                prior_paths += self.eval_sampler.obtain_samples(deterministic=True, resample='never')
             logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
 
         ### train tasks
