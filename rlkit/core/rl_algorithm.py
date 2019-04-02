@@ -174,7 +174,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 for idx in self.train_tasks:
                     self.task_idx = idx
                     self.env.reset_task(idx)
-                    self.collect_data(self.num_initial_steps, self.max_path_length, np.inf, self.embedding_batch_size)
+                    self.collect_data(self.policy, self.num_initial_steps, 1, np.inf)
             # Sample data from train tasks.
             for i in range(self.num_tasks_sample):
                 idx = np.random.randint(len(self.train_tasks))
@@ -185,12 +185,12 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     # embeddings are computed using only data collected using the prior
                     # sample data from posterior to train RL algorithm
                     self.enc_replay_buffer.task_buffers[idx].clear()
-                    self.collect_data(self.num_steps_per_task, self.resample_z_train, np.inf, self.embedding_batch_size)
-                    self.collect_data(self.num_steps_per_task, self.resample_z_train, self.update_post_train, self.embedding_batch_size, add_to_enc_buffer=False)
+                    self.collect_data(self.policy, self.num_steps_per_task, self.resample_z_train, np.inf)
+                    self.collect_data(self.policy, self.num_steps_per_task, self.resample_z_train, self.update_post_train, add_to_enc_buffer=False)
                 elif self.train_embedding_source == 'online_on_policy_trajectories':
                     # embeddings computed from both prior and posterior data
                     self.enc_replay_buffer.task_buffers[idx].clear()
-                    self.collect_data(self.num_steps_per_task, self.resample_z_train, self.update_post_train, self.embedding_batch_size)
+                    self.collect_data(self.policy, self.num_steps_per_task, self.resample_z_train, self.update_post_train)
                 else:
                     raise Exception("Invalid option for computing train embedding {}".format(self.train_embedding_source))
 
@@ -215,35 +215,23 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         """
         pass
 
-    def collect_data(self, num_samples, resample_z_rate, update_posterior_rate, update_batch_size, add_to_enc_buffer=True):
-        '''
-        collect transitions from the current task
-        :param num_samples: total number of transitions to sample
-        :param resample_z_rate: how often to resample latent context z
-        :param update_posterior_rate: how often to update q(z | c) from which z is sampled
-        :param update_batch_size: how much data is used to infer the new q(z | c)
-        :param add_to_enc_buffer: whether to add collected data to encoder replay buffer
-        '''
-        # makes no sense to update the posterior without resampling z
-        assert resample_z_rate <= update_posterior_rate
-        # start from the prior
-        self.reset_posterior()
-        num_collected = 0
-        update_count = 1
-        for _ in range(num_samples // resample_z_rate):
-            num_collected += self.collect_transitions(self.policy, num_samples=resample_z_rate, add_to_enc_buffer=add_to_enc_buffer)
-            if num_collected >=  update_posterior_rate * update_count:
-                self.infer_posterior(self.task_idx, update_batch_size)
-                update_count += 1
-            self.sample_z()
-
-    def collect_trajectories(self, agent, num_samples=1, add_to_enc_buffer=True):
+    def collect_data(self, agent, num_samples, resample_z_rate, update_posterior_rate, add_to_enc_buffer=True):
         '''
         get trajectories from current env in batch mode with given policy
         collect complete trajectories until the number of collected transitions >= num_samples
+
+        :param agent: policy to rollout
+        :param num_samples: total number of transitions to sample
+        :param resample_z_rate: how often to resample latent context z (in units of trajectories)
+        :param update_posterior_rate: how often to update q(z | c) from which z is sampled (in units of trajectories)
+        :param add_to_enc_buffer: whether to add collected data to encoder replay buffer
         '''
-        num_collected = 0
-        while num_collected < num_samples:
+        # start from the prior
+        self.reset_posterior()
+
+        num_transitions = 0
+        num_trajectories = 0
+        while num_transitions < num_samples:
             action, agent_info = self._get_action_and_info(agent, self.train_obs)
             if self.render:
                 self.env.render()
@@ -263,16 +251,20 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 agent_info=agent_info,
                 env_info=env_info,
             )
-            num_collected += 1
-            if terminal:
+            num_transitions += 1
+            if terminal or len(self._current_path_builder) >= self.max_path_length:
                 self._handle_rollout_ending()
                 self.train_obs = self._start_new_rollout()
+                num_trajectories += 1
+                if num_trajectories % update_posterior_rate == 0:
+                    self.infer_posterior(self.task_idx, self.embedding_batch_size)
+                elif num_trajectories % resample_z_rate == 0:
+                    self.sample_z()
             else:
                 self.train_obs = next_ob
 
-        self._n_env_steps_total += num_collected
+        self._n_env_steps_total += num_transitions
         gt.stamp('sample')
-        return num_collected
 
     def _try_to_eval(self, epoch):
         logger.save_extra_data(self.get_extra_data_to_save(epoch))
