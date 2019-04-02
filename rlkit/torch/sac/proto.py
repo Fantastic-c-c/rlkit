@@ -100,9 +100,9 @@ class ProtoAgent(nn.Module):
     def update_context(self, inputs):
         ''' update q(z|c) with a single transition '''
         # TODO there should be one generic method for preparing data for the encoder!!!
-        o, a, r, no, d = inputs
+        o, a, r, no, d, info = inputs
         if self.sparse_rewards:
-            r = ptu.sparsify_rewards(r)
+            r = info['sparse_reward']
         o = ptu.from_numpy(o[None, None, ...])
         a = ptu.from_numpy(a[None, None, ...])
         r = ptu.from_numpy(np.array([r])[None, None, ...])

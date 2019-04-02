@@ -102,7 +102,11 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 batch = self.get_batch(idx=idx)
             o = batch['observations'][None, ...]
             a = batch['actions'][None, ...]
-            r = batch['rewards'][None, ...]
+            if encoder and self.sparse_rewards:
+                # in sparse reward settings, only the encoder is trained with sparse reward
+                r = batch['sparse_rewards'][None, ...]
+            else:
+                r = batch['rewards'][None, ...]
             no = batch['next_observations'][None, ...]
             t = batch['terminals'][None, ...]
             obs.append(o)
@@ -121,8 +125,6 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         ''' prepare task data for encoding '''
         # for now we embed only observations and rewards
         # assume obs and rewards are (task, batch, feat)
-        if self.sparse_rewards:
-            rewards = ptu.sparsify_rewards(rewards)
         task_data = torch.cat([obs, act, rewards], dim=2)
         return task_data
 

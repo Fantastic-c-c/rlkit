@@ -38,7 +38,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
         # update the latent context online
-        agent.update_context([o, a, r, next_o, d])
+        agent.update_context([o, a, r, next_o, d, env_info])
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
