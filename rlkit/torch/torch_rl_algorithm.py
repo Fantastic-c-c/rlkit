@@ -75,7 +75,6 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
     def collect_paths(self, idx, epoch, run):
         self.task_idx = idx
-        dprint('Task:', idx)
         self.env.reset_task(idx)
         paths = self.obtain_eval_paths(idx, deterministic=False)
         goal = self.env._goal
@@ -125,7 +124,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             self.env.reset_task(idx)
             paths = []
             for _ in range(10):
-                self.infer_posterior(idx, eval_task=False)
+                self.infer_posterior(idx)
                 paths += self.eval_sampler.obtain_samples(num_samples=self.max_path_length + 1, deterministic=True, resample='never')
             if self.sparse_rewards:
                 for p in paths:
