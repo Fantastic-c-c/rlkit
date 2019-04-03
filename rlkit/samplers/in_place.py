@@ -46,7 +46,7 @@ class InPlacePathSampler(object):
             paths.append(path)
             n_steps_total += len(path['observations'])
             n_trajs += 1
-            if resample % n_trajs == 0:
+            if n_trajs % resample == 0:
                 policy.sample_z()
         return paths
 
