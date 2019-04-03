@@ -38,7 +38,7 @@ class InPlacePathSampler(object):
         max_samp = self.max_samples
         if num_samples is not None:
             max_samp = num_samples
-        while n_steps_total + self.max_path_length < max_samp:
+        while n_steps_total < max_samp:
             path = rollout(
                 self.env, policy, max_path_length=self.max_path_length)
             # save the latent context that generated this trajectory
