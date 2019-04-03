@@ -14,12 +14,12 @@ def make_variant(max_path_length):
         ),
         algo_params=dict(
             meta_batch=16, # number of tasks to average the gradient across
-            num_iterations=10000, # number of data sampling / training iterates
+            num_iterations=500, # number of data sampling / training iterates
             num_initial_steps=10 * max_path_length, # number of transitions collected per task before training
             num_tasks_sample=5, # number of randomly sampled tasks to collect data for each iteration
-            num_steps_per_task=10 * max_path_length, # number of transitions to collect per task
+            num_steps_per_task=2 * max_path_length, # number of transitions to collect per task
             num_train_steps_per_itr=1000, # number of meta-gradient steps taken per iteration
-            num_evals=5, # number of independent evals per task
+            num_evals=3, # number of independent evals per task
             num_steps_per_eval=3 * max_path_length,  # number of transitions to eval on each time
             batch_size=256, # number of transitions in the RL batch
             embedding_batch_size=64, # number of transitions in the context batch
