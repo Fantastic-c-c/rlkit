@@ -73,23 +73,23 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
 
         # TODO consolidate optimizers!
         self.policy_optimizer = optimizer_class(
-            self.policy.policy.parameters(),
+            self.agent.policy.parameters(),
             lr=policy_lr,
         )
         self.qf1_optimizer = optimizer_class(
-            self.policy.qf1.parameters(),
+            self.agent.qf1.parameters(),
             lr=qf_lr,
         )
         self.qf2_optimizer = optimizer_class(
-            self.policy.qf2.parameters(),
+            self.agent.qf2.parameters(),
             lr=qf_lr,
         )
         self.vf_optimizer = optimizer_class(
-            self.policy.vf.parameters(),
+            self.agent.vf.parameters(),
             lr=vf_lr,
         )
         self.context_optimizer = optimizer_class(
-            self.policy.task_enc.parameters(),
+            self.agent.task_enc.parameters(),
             lr=context_lr,
         )
 
@@ -183,7 +183,7 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
             self._take_step(indices, obs_enc, act_enc, rewards_enc)
 
             # stop backprop
-            self.policy.detach_z()
+            self.agent.detach_z()
 
     def _take_step(self, indices, obs_enc, act_enc, rewards_enc):
 
@@ -194,13 +194,13 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
 
         # run inference in networks
-        q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.policy(obs, actions, next_obs, enc_data, obs_enc, act_enc)
+        q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.agent(obs, actions, next_obs, enc_data, obs_enc, act_enc)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         # KL constraint on z if probabilistic
         self.context_optimizer.zero_grad()
         if self.use_information_bottleneck:
-            kl_div = self.policy.compute_kl_div()
+            kl_div = self.agent.compute_kl_div()
             kl_loss = self.kl_lambda * kl_div
             kl_loss.backward(retain_graph=True)
 
@@ -219,7 +219,7 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         self.context_optimizer.step()
 
         # compute min Q on the new actions
-        min_q_new_actions = self.policy.min_q(obs, new_actions, task_z)
+        min_q_new_actions = self.agent.min_q(obs, new_actions, task_z)
 
         # vf update
         v_target = min_q_new_actions - log_pi
@@ -227,7 +227,7 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         self.vf_optimizer.zero_grad()
         vf_loss.backward()
         self.vf_optimizer.step()
-        self.policy._update_target_network()
+        self.agent._update_target_network()
 
         # policy update
         # n.b. policy update includes dQ/da
@@ -264,8 +264,8 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
             self.eval_statistics = OrderedDict()
             if self.use_information_bottleneck:
                 # TODO should average across tasks rather than tasking the first
-                z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_means[0])))
-                z_sig = np.mean(ptu.get_numpy(self.policy.z_vars[0]))
+                z_mean = np.mean(np.abs(ptu.get_numpy(self.agent.z_means[0])))
+                z_sig = np.mean(ptu.get_numpy(self.agent.z_vars[0]))
                 self.eval_statistics['Z mean train'] = z_mean
                 self.eval_statistics['Z variance train'] = z_sig
                 self.eval_statistics['KL Divergence'] = ptu.get_numpy(kl_div)
@@ -299,7 +299,7 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
     #####
     def reset_posterior(self, num_tasks=1):
         # reset to prior and sample z
-        self.policy.clear_z(num_tasks=num_tasks)
+        self.agent.clear_z(num_tasks=num_tasks)
 
     def infer_posterior(self, idx, batch_size=None):
         # infer q(z | c) given context
@@ -310,22 +310,22 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         act = batch['actions'][None, ...]
         rewards = batch['rewards'][None, ...]
         in_ = self.prepare_encoder_data(obs, act, rewards)
-        self.policy.infer_posterior(in_)
-        self.policy.sample_z()
+        self.agent.infer_posterior(in_)
+        self.agent.sample_z()
 
     @property
     def networks(self):
-        return self.policy.networks + [self.policy]
+        return self.agent.networks + [self.agent]
 
     def get_epoch_snapshot(self, epoch):
         # NOTE: overriding parent method which also optionally saves the env
         snapshot = OrderedDict(
-            qf1=self.policy.qf1.state_dict(),
-            qf2=self.policy.qf2.state_dict(),
-            policy=self.policy.policy.state_dict(),
-            vf=self.policy.vf.state_dict(),
-            target_vf=self.policy.target_vf.state_dict(),
-            task_enc=self.policy.task_enc.state_dict(),
+            qf1=self.agent.qf1.state_dict(),
+            qf2=self.agent.qf2.state_dict(),
+            policy=self.agent.policy.state_dict(),
+            vf=self.agent.vf.state_dict(),
+            target_vf=self.agent.target_vf.state_dict(),
+            task_enc=self.agent.task_enc.state_dict(),
         )
         return snapshot
 
