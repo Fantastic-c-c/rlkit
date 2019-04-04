@@ -16,7 +16,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def __init__(
             self,
             env,
-            policy,
+            agent,
             train_tasks,
             eval_tasks,
             meta_batch=64,
@@ -50,7 +50,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         """
         Base class for Meta RL Algorithms
         :param env: training env
-        :param policy: policy that is conditioned on a latent variable z that rl_algorithm is responsible for feeding in
+        :param agent: agent that is conditioned on a latent variable z that rl_algorithm is responsible for feeding in
         :param train_tasks: list of tasks used for training
         :param eval_tasks: list of tasks used for eval
         :param meta_batch: number of tasks used for meta-update
@@ -74,8 +74,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         :param save_environment:
         """
         self.env = env
-        self.policy = policy
-        self.exploration_policy = policy # Can potentially use a different policy purely for exploration rather than also solving tasks, currently not being used
+        self.agent = agent
+        self.exploration_agent = agent # Can potentially use a different policy purely for exploration rather than also solving tasks, currently not being used
         self.train_tasks = train_tasks
         self.eval_tasks = eval_tasks
         self.meta_batch = meta_batch
@@ -110,7 +110,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
         self.eval_sampler = InPlacePathSampler(
             env=env,
-            policy=policy,
+            policy=agent,
             max_samples=self.num_steps_per_eval,
             max_path_length=self.max_path_length,
         )
@@ -183,7 +183,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 for idx in self.train_tasks:
                     self.task_idx = idx
                     self.env.reset_task(idx)
-                    self.collect_data(self.policy, self.num_initial_steps, 1, np.inf)
+                    self.collect_data(self.agent, self.num_initial_steps, 1, np.inf)
             # Sample data from train tasks.
             for i in range(self.num_tasks_sample):
                 idx = np.random.randint(len(self.train_tasks))
@@ -194,12 +194,12 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     # embeddings are computed using only data collected using the prior
                     # sample data from posterior to train RL algorithm
                     self.enc_replay_buffer.task_buffers[idx].clear()
-                    self.collect_data(self.policy, self.num_steps_per_task, self.resample_z_train, np.inf)
-                    self.collect_data(self.policy, self.num_steps_per_task, self.resample_z_train, self.update_post_train, add_to_enc_buffer=False)
+                    self.collect_data(self.agent, self.num_steps_per_task, self.resample_z_train, np.inf)
+                    self.collect_data(self.agent, self.num_steps_per_task, self.resample_z_train, self.update_post_train, add_to_enc_buffer=False)
                 elif self.train_embedding_source == 'online_on_policy_trajectories':
                     # embeddings computed from both prior and posterior data
                     self.enc_replay_buffer.task_buffers[idx].clear()
-                    self.collect_data(self.policy, self.num_steps_per_task, self.resample_z_train, self.update_post_train)
+                    self.collect_data(self.agent, self.num_steps_per_task, self.resample_z_train, self.update_post_train)
                 else:
                     raise Exception("Invalid option for computing train embedding {}".format(self.train_embedding_source))
 
@@ -588,8 +588,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         # should we just move eval into sac?
         # save the final posterior
         if self.use_information_bottleneck:
-            z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_means[0])))
-            z_sig = np.mean(ptu.get_numpy(self.policy.z_vars[0]))
+            z_mean = np.mean(np.abs(ptu.get_numpy(self.agent.z_means[0])))
+            z_sig = np.mean(ptu.get_numpy(self.agent.z_vars[0]))
             self.eval_statistics['Z mean eval'] = z_mean
             self.eval_statistics['Z variance eval'] = z_sig
 
