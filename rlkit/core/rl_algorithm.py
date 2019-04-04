@@ -4,7 +4,7 @@ import time
 import gtimer as gt
 import numpy as np
 
-from rlkit.core import logger
+from rlkit.core import logger, eval_util
 from rlkit.data_management.env_replay_buffer import MultiTaskReplayBuffer
 
 from rlkit.data_management.path_builder import PathBuilder
@@ -43,6 +43,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             save_replay_buffer=False,
             save_algorithm=False,
             save_environment=False,
+            render_eval_paths=False,
+            dump_eval_paths=False,
+            plotter=None,
     ):
         """
         Base class for Meta RL Algorithms
@@ -99,6 +102,11 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
         self.save_environment = save_environment
+
+        self.eval_statistics = None
+        self.render_eval_paths = render_eval_paths
+        self.dump_eval_paths = dump_eval_paths
+        self.plotter = plotter
 
         self.eval_sampler = InPlacePathSampler(
             env=env,
@@ -159,6 +167,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         gt.reset()
         gt.set_def_unique(False)
         self._current_path_builder = PathBuilder()
+        # TODO: why do we need this to be a property of rl_algo?
         self.train_obs = self._start_new_rollout()
 
         # at each iteration, we first collect data from tasks, perform meta-updates, then try to evaluate
@@ -353,6 +362,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         logger.log("Started Training: {0}".format(self._can_train()))
         logger.pop_prefix()
 
+
+    ##### Handles environment interactions #####
     def _start_new_rollout(self):
         return self.env.reset()
 
@@ -453,6 +464,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             )
             self._current_path_builder = PathBuilder()
 
+
+    ##### Snapshotting utils #####
     def get_epoch_snapshot(self, epoch):
         data_to_save = dict(
             epoch=epoch,
@@ -482,6 +495,128 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             data_to_save['algorithm'] = self
         return data_to_save
 
+
+    ##### Eval stuff #####
+    def obtain_eval_paths(self, deterministic=False):
+        '''
+        collect paths with current policy
+        each transition will update the running latent context
+        the context used to condition the policy can be resampled at different intervals
+        (to enable trajectory-level or transition-level adaptation, for example)
+        '''
+        self.reset_posterior()
+        test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic, resample=self.resample_z)
+        if self.sparse_rewards:
+            for p in test_paths:
+                p['rewards'] = self.env.sparsify_rewards(p['rewards'])
+        return test_paths
+
+    def collect_paths(self, idx, epoch, run):
+        self.task_idx = idx
+        self.env.reset_task(idx)
+        paths = self.obtain_eval_paths(deterministic=False)
+        goal = self.env._goal
+        for path in paths:
+            path['goal'] = goal # goal
+
+        # save the paths for visualization, only useful for point mass
+        if self.dump_eval_paths:
+            logger.save_extra_data(paths, path='eval_trajectories/task{}-epoch{}-run{}'.format(idx, epoch, run))
+
+        return paths
+
+    def _do_eval(self, indices, epoch):
+        final_returns = []
+        online_returns = []
+        for idx in indices:
+            runs, all_rets = [], []
+            for r in range(self.num_evals):
+                paths = self.collect_paths(idx, epoch, r)
+                all_rets.append([eval_util.get_average_returns([p]) for p in paths])
+                runs.append(paths)
+            all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
+            final_returns.append(all_rets[-1])
+            online_returns.append(all_rets)
+        return final_returns, online_returns
+
+    def evaluate(self, epoch):
+        statistics = OrderedDict()
+        statistics.update(self.eval_statistics)
+        self.eval_statistics = statistics
+
+        ### sample trajectories from prior for debugging / visualization
+        if self.dump_eval_paths:
+            prior_paths = []
+            for _ in range(100 // self.num_steps_per_eval):
+                # just want stochasticity of z, not the policy
+                prior_paths += self.eval_sampler.obtain_samples(deterministic=True, resample=np.inf)
+            logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
+
+        ### train tasks
+        # eval on a subset of train tasks for speed
+        indices = np.random.choice(self.train_tasks, len(self.eval_tasks))
+        dprint('evaluating on {} train tasks'.format(len(indices)))
+        ### eval train tasks with posterior sampled from the training replay buffer
+        train_returns = []
+        for idx in indices:
+            self.task_idx = idx
+            self.env.reset_task(idx)
+            paths = []
+            # TODO: put these lines into method evaluate_task(idx) that goes into sac.py?
+            for _ in range(10):
+                self.infer_posterior(idx)
+                paths += self.eval_sampler.obtain_samples(num_samples=self.max_path_length + 1, deterministic=True, resample=np.inf)
+            if self.sparse_rewards:
+                for p in paths:
+                    sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
+                    p['rewards'] = sparse_rewards
+            train_returns.append(eval_util.get_average_returns(paths))
+        train_returns = np.mean(train_returns)
+        ### eval train tasks with on-policy data to match eval of test tasks
+        train_final_returns, train_online_returns = self._do_eval(indices, epoch)
+        print('train online returns')
+        print(train_online_returns)
+
+        ### test tasks
+        # TOOD: should this be using the dprint in eval_util or pythons own dprint?
+        dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
+        test_final_returns, test_online_returns = self._do_eval(self.eval_tasks, epoch)
+        print('test online returns')
+        print(test_online_returns)
+
+        # ewww, this section breaks abstraction
+        # should we just move eval into sac?
+        # save the final posterior
+        if self.use_information_bottleneck:
+            z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_means[0])))
+            z_sig = np.mean(ptu.get_numpy(self.policy.z_vars[0]))
+            self.eval_statistics['Z mean eval'] = z_mean
+            self.eval_statistics['Z variance eval'] = z_sig
+
+        # TODO(KR) what does this do
+        #if hasattr(self.env, "log_diagnostics"):
+        #self.env.log_diagnostics(paths)
+
+        avg_train_return = np.mean(train_final_returns)
+        avg_test_return = np.mean(test_final_returns)
+        avg_train_online_return = np.mean(np.stack(train_online_returns), axis=0)
+        avg_test_online_return = np.mean(np.stack(test_online_returns), axis=0)
+        self.eval_statistics['AverageTrainReturn_all_train_tasks'] = train_returns
+        self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
+        self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
+        logger.save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
+        logger.save_extra_data(avg_test_online_return, path='online-test-epoch{}'.format(epoch))
+
+        for key, value in self.eval_statistics.items():
+            logger.record_tabular(key, value)
+        self.eval_statistics = None
+
+        if self.render_eval_paths:
+            self.env.render_paths(paths)
+
+        if self.plotter:
+            self.plotter.draw(
+
     @abc.abstractmethod
     def training_mode(self, mode):
         """
@@ -492,18 +627,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def evaluate(self, epoch):
-        """
-        Evaluate the policy, e.g. save/print progress.
-        :param epoch:
-        :return:
-        """
-        pass
-
-    @abc.abstractmethod
     def _do_training(self):
         """
         Perform some update, e.g. perform one gradient step.
         :return:
         """
         pass
+

@@ -1,6 +1,7 @@
 from collections import OrderedDict
 import numpy as np
 import pickle
+from typing import Iterable
 
 import torch
 import torch.optim as optim
@@ -8,13 +9,13 @@ from torch import nn as nn
 from torch.autograd import Variable
 
 import rlkit.torch.pytorch_util as ptu
-from rlkit.torch.core import np_ify, torch_ify
+from rlkit.torch.core import PyTorchModule, np_ify, torch_ify
 from rlkit.core.eval_util import create_stats_ordered_dict
-from rlkit.torch.torch_rl_algorithm import MetaTorchRLAlgorithm
+from rlkit.core.rl_algorithm import MetaRLAlgorithm
 from rlkit.torch.sac.proto import ProtoAgent
 
 
-class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
+class ProtoSoftActorCritic(MetaRLAlgorithm):
     def __init__(
             self,
             env,
@@ -23,7 +24,6 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             latent_dim,
             nets,
 
-            class_lr=1e-1,
             policy_lr=1e-3,
             qf_lr=1e-3,
             vf_lr=1e-3,
@@ -34,6 +34,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             policy_pre_activation_weight=0.,
             optimizer_class=optim.Adam,
             reparameterize=True,
+            recurrent=False,
             use_information_bottleneck=False,
             sparse_rewards=False,
 
@@ -49,7 +50,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             eval_tasks=eval_tasks,
             **kwargs
         )
-        deterministic_embedding=False
+
         self.soft_target_tau = soft_target_tau
         self.policy_mean_reg_weight = policy_mean_reg_weight
         self.policy_std_reg_weight = policy_std_reg_weight
@@ -57,6 +58,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.plotter = plotter
         self.render_eval_paths = render_eval_paths
 
+        self.recurrent = recurrent
         self.latent_dim = latent_dim
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
@@ -90,6 +92,41 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.policy.task_enc.parameters(),
             lr=context_lr,
         )
+
+    ###### Torch stuff #####
+    @property
+    @abc.abstractmethod
+    def networks(self) -> Iterable[PyTorchModule]:
+        pass
+
+    def training_mode(self, mode):
+        for net in self.networks:
+            net.train(mode)
+
+    def to(self, device=None):
+        if device == None:
+            device = ptu.device
+        for net in self.networks:
+            net.to(device)
+
+    ##### Data handling #####
+    def get_batch(self, idx=None):
+        ''' get a batch from replay buffer for input into net '''
+        if idx is None:
+            idx = self.task_idx
+        batch = self.replay_buffer.random_batch(idx, self.batch_size)
+        return np_to_pytorch_batch(batch)
+
+    def get_encoding_batch(self, idx=None, batch_size=None):
+        ''' get a batch from the separate encoding replay buffer '''
+        if batch_size is None:
+            batch_size = self.embedding_batch_size
+        # if using sequence model for encoder, samples should be ordered
+        is_seq = self.recurrent
+        if idx is None:
+            idx = self.task_idx
+        batch = self.enc_replay_buffer.random_batch(idx, batch_size=batch_size, sequence=is_seq)
+        return np_to_pytorch_batch(batch)
 
     def sample_data(self, indices, encoder=False):
         # sample from replay buffer for each task
@@ -128,6 +165,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         task_data = torch.cat([obs, act, rewards], dim=2)
         return task_data
 
+
+    ##### Training #####
     def _do_training(self, indices):
         mb_size = self.embedding_mini_batch_size
         num_updates = self.embedding_batch_size // mb_size
@@ -257,14 +296,10 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 'Policy log std',
                 ptu.get_numpy(policy_log_std),
             ))
-
+    #####
     def reset_posterior(self, num_tasks=1):
         # reset to prior and sample z
         self.policy.clear_z(num_tasks=num_tasks)
-
-    def sample_z(self):
-        # sample z from existing posterior
-        self.policy.sample_z()
 
     def infer_posterior(self, idx, batch_size=None):
         # infer q(z | c) given context
@@ -276,7 +311,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         rewards = batch['rewards'][None, ...]
         in_ = self.prepare_encoder_data(obs, act, rewards)
         self.policy.infer_posterior(in_)
-        self.sample_z()
+        self.policy.sample_z()
 
     @property
     def networks(self):
@@ -293,3 +328,26 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             task_enc=self.policy.task_enc.state_dict(),
         )
         return snapshot
+
+
+# TODO: make a new file to place these utils, maybe torch/sac/sac_utils.py? alternatively just move them into pytorch utils
+def _elem_or_tuple_to_variable(elem_or_tuple):
+    if isinstance(elem_or_tuple, tuple):
+        return tuple(
+            _elem_or_tuple_to_variable(e) for e in elem_or_tuple
+        )
+    return ptu.from_numpy(elem_or_tuple).float()
+
+def _filter_batch(np_batch):
+    for k, v in np_batch.items():
+        if v.dtype == np.bool:
+            yield k, v.astype(int)
+        else:
+            yield k, v
+
+def np_to_pytorch_batch(np_batch):
+    return {
+        k: _elem_or_tuple_to_variable(x)
+        for k, x in _filter_batch(np_batch)
+        if x.dtype != np.dtype('O')  # ignore object (e.g. dictionaries)
+    }
