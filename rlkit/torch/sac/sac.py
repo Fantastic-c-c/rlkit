@@ -45,7 +45,7 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
     ):
         super().__init__(
             env=env,
-            policy=nets[0],
+            agent=nets[0],
             train_tasks=train_tasks,
             eval_tasks=eval_tasks,
             **kwargs
@@ -95,9 +95,8 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
 
     ###### Torch stuff #####
     @property
-    @abc.abstractmethod
-    def networks(self) -> Iterable[PyTorchModule]:
-        pass
+    def networks(self):
+        return self.agent.networks + [self.agent]
 
     def training_mode(self, mode):
         for net in self.networks:
@@ -313,9 +312,6 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         self.agent.infer_posterior(in_)
         self.agent.sample_z()
 
-    @property
-    def networks(self):
-        return self.agent.networks + [self.agent]
 
     def get_epoch_snapshot(self, epoch):
         # NOTE: overriding parent method which also optionally saves the env
