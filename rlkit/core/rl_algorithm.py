@@ -1,4 +1,5 @@
 import abc
+from collections import OrderedDict
 import time
 
 import gtimer as gt
@@ -6,10 +7,10 @@ import numpy as np
 
 from rlkit.core import logger, eval_util
 from rlkit.data_management.env_replay_buffer import MultiTaskReplayBuffer
-
 from rlkit.data_management.path_builder import PathBuilder
 from rlkit.policies.base import ExplorationPolicy
 from rlkit.samplers.in_place import InPlacePathSampler
+from rlkit.torch import pytorch_util as ptu
 
 
 class MetaRLAlgorithm(metaclass=abc.ABCMeta):
