@@ -269,7 +269,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 if num_trajectories % update_posterior_rate == 0:
                     self.infer_posterior(self.task_idx, self.embedding_batch_size)
                 elif num_trajectories % resample_z_rate == 0:
-                    self.sample_z()
+                    self.agent.sample_z()
             else:
                 self.train_obs = next_ob
 
@@ -555,7 +555,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         ### train tasks
         # eval on a subset of train tasks for speed
         indices = np.random.choice(self.train_tasks, len(self.eval_tasks))
-        dprint('evaluating on {} train tasks'.format(len(indices)))
+        eval_util.dprint('evaluating on {} train tasks'.format(len(indices)))
         ### eval train tasks with posterior sampled from the training replay buffer
         train_returns = []
         for idx in indices:
@@ -574,18 +574,18 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         train_returns = np.mean(train_returns)
         ### eval train tasks with on-policy data to match eval of test tasks
         train_final_returns, train_online_returns = self._do_eval(indices, epoch)
-        print('train online returns')
-        print(train_online_returns)
+        eval_util.dprint('train online returns')
+        eval_util.dprint(train_online_returns)
 
         ### test tasks
         # TOOD: should this be using the dprint in eval_util or pythons own dprint?
-        dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
+        eval_util.dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
         test_final_returns, test_online_returns = self._do_eval(self.eval_tasks, epoch)
-        print('test online returns')
-        print(test_online_returns)
+        eval_util.dprint('test online returns')
+        eval_util.dprint(test_online_returns)
 
         # save the final posterior
-        self.agent.log_diagnostics()
+        self.agent.log_diagnostics(self.eval_statistics)
 
         # TODO(KR) what does this do
         #if hasattr(self.env, "log_diagnostics"):

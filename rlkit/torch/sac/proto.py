@@ -242,8 +242,8 @@ class ProtoAgent(nn.Module):
         '''
         adds logging data about encodings to eval_statistics
         '''
-        z_mean = np.mean(np.abs(ptu.get_numpy(self.agent.z_means[0])))
-        z_sig = np.mean(ptu.get_numpy(self.agent.z_vars[0]))
+        z_mean = np.mean(np.abs(ptu.get_numpy(self.z_means[0])))
+        z_sig = np.mean(ptu.get_numpy(self.z_vars[0]))
         eval_statistics['Z mean eval'] = z_mean
         eval_statistics['Z variance eval'] = z_sig
 
