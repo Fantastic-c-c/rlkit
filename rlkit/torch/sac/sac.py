@@ -114,7 +114,7 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         if idx is None:
             idx = self.task_idx
         batch = self.replay_buffer.random_batch(idx, self.batch_size)
-        return np_to_pytorch_batch(batch)
+        return ptu.np_to_pytorch_batch(batch)
 
     def get_encoding_batch(self, idx=None, batch_size=None):
         ''' get a batch from the separate encoding replay buffer '''
@@ -125,7 +125,7 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         if idx is None:
             idx = self.task_idx
         batch = self.enc_replay_buffer.random_batch(idx, batch_size=batch_size, sequence=is_seq)
-        return np_to_pytorch_batch(batch)
+        return ptu.np_to_pytorch_batch(batch)
 
     def sample_data(self, indices, encoder=False):
         # sample from replay buffer for each task
@@ -324,26 +324,3 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
             task_enc=self.agent.task_enc.state_dict(),
         )
         return snapshot
-
-
-# TODO: make a new file to place these utils, maybe torch/sac/sac_utils.py? alternatively just move them into pytorch utils
-def _elem_or_tuple_to_variable(elem_or_tuple):
-    if isinstance(elem_or_tuple, tuple):
-        return tuple(
-            _elem_or_tuple_to_variable(e) for e in elem_or_tuple
-        )
-    return ptu.from_numpy(elem_or_tuple).float()
-
-def _filter_batch(np_batch):
-    for k, v in np_batch.items():
-        if v.dtype == np.bool:
-            yield k, v.astype(int)
-        else:
-            yield k, v
-
-def np_to_pytorch_batch(np_batch):
-    return {
-        k: _elem_or_tuple_to_variable(x)
-        for k, x in _filter_batch(np_batch)
-        if x.dtype != np.dtype('O')  # ignore object (e.g. dictionaries)
-    }
