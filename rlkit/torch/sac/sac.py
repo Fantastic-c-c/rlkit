@@ -35,7 +35,7 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
             optimizer_class=optim.Adam,
             reparameterize=True,
             recurrent=False,
-            use_information_bottleneck=False,
+            use_information_bottleneck=True,
             sparse_rewards=False,
 
             soft_target_tau=1e-2,
