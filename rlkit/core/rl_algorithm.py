@@ -585,14 +585,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         print('test online returns')
         print(test_online_returns)
 
-        # ewww, this section breaks abstraction
-        # should we just move eval into sac?
         # save the final posterior
-        if self.use_information_bottleneck:
-            z_mean = np.mean(np.abs(ptu.get_numpy(self.agent.z_means[0])))
-            z_sig = np.mean(ptu.get_numpy(self.agent.z_vars[0]))
-            self.eval_statistics['Z mean eval'] = z_mean
-            self.eval_statistics['Z variance eval'] = z_sig
+        self.agent.log_diagnostics()
 
         # TODO(KR) what does this do
         #if hasattr(self.env, "log_diagnostics"):

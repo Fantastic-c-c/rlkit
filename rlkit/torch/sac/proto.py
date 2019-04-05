@@ -238,6 +238,15 @@ class ProtoAgent(nn.Module):
         min_q = torch.min(q1, q2)
         return min_q
 
+    def log_diagnostics(self, eval_statistics):
+        '''
+        adds logging data about encodings to eval_statistics
+        '''
+        z_mean = np.mean(np.abs(ptu.get_numpy(self.agent.z_means[0])))
+        z_sig = np.mean(ptu.get_numpy(self.agent.z_vars[0]))
+        eval_statistics['Z mean eval'] = z_mean
+        eval_statistics['Z variance eval'] = z_sig
+
     @property
     def networks(self):
         return [self.task_enc, self.policy, self.qf1, self.qf2, self.vf, self.target_vf]
