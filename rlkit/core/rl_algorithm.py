@@ -104,6 +104,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.save_algorithm = save_algorithm
         self.save_environment = save_environment
 
+        self.eval_statistics = None
         self.render_eval_paths = render_eval_paths
         self.dump_eval_paths = dump_eval_paths
         self.plotter = plotter
@@ -540,7 +541,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         return final_returns, online_returns
 
     def evaluate(self, epoch):
-        eval_statistics = OrderedDict()
+        if self.eval_statistics is None:
+            self.eval_statistics = OrderedDict()
 
         ### sample trajectories from prior for debugging / visualization
         if self.dump_eval_paths:
@@ -583,7 +585,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         print(test_online_returns)
 
         # save the final posterior
-        self.agent.log_diagnostics(eval_statistics)
+        self.agent.log_diagnostics()
 
         # TODO(KR) what does this do
         #if hasattr(self.env, "log_diagnostics"):
@@ -593,15 +595,15 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         avg_test_return = np.mean(test_final_returns)
         avg_train_online_return = np.mean(np.stack(train_online_returns), axis=0)
         avg_test_online_return = np.mean(np.stack(test_online_returns), axis=0)
-
-        eval_statistics['AverageTrainReturn_all_train_tasks'] = train_returns
-        eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
-        eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
+        self.eval_statistics['AverageTrainReturn_all_train_tasks'] = train_returns
+        self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
+        self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
         logger.save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
         logger.save_extra_data(avg_test_online_return, path='online-test-epoch{}'.format(epoch))
 
-        for key, value in eval_statistics.items():
+        for key, value in self.eval_statistics.items():
             logger.record_tabular(key, value)
+        self.eval_statistics = None
 
         if self.render_eval_paths:
             self.env.render_paths(paths)
