@@ -70,7 +70,10 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         self.use_information_bottleneck = use_information_bottleneck
         self.sparse_rewards = sparse_rewards
 
-        # TODO consolidate optimizers!
+        self.qf1, self.qf2, self.vf = nets[1:]
+        self.target_vf = self.vf.copy()
+
+        # TODO consolidate optimizers! # I personally think it's nicer to have separate optimizers so it's easier to track when updates to each thing are happening
         self.policy_optimizer = optimizer_class(
             self.agent.policy.parameters(),
             lr=policy_lr,
@@ -95,7 +98,7 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
     ###### Torch stuff #####
     @property
     def networks(self):
-        return self.agent.networks + [self.agent]
+        return self.agent.networks + [self.agent] + [self.qf1, self.qf2, self.vf, self.target_vf]
 
     def training_mode(self, mode):
         for net in self.networks:
@@ -183,6 +186,18 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
             # stop backprop
             self.agent.detach_z()
 
+    def _min_q(self, obs, actions, task_z):
+        t, b, _ = obs.size()
+        obs = obs.view(t * b, -1)
+
+        q1 = self.qf1(obs, actions, task_z.detach())
+        q2 = self.qf2(obs, actions, task_z.detach())
+        min_q = torch.min(q1, q2)
+        return min_q
+
+    def _update_target_network(self):
+        ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
+
     def _take_step(self, indices, obs_enc, act_enc, rewards_enc):
 
         num_tasks = len(indices)
@@ -192,8 +207,17 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
 
         # run inference in networks
-        q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.agent(obs, actions, next_obs, enc_data, obs_enc, act_enc)
+        policy_outputs, task_z = self.agent(obs, enc_data)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
+
+        # Q and V networks
+        # encoder will only get gradients from Q nets
+        q1_pred = self.qf1(obs, actions, task_z)
+        q2_pred = self.qf2(obs, actions, task_z)
+        v_pred = self.vf(obs, task_z.detach())
+        # get targets for use in V and Q updates
+        with torch.no_grad():
+            target_v_values = self.target_vf(next_obs, task_z)
 
         # KL constraint on z if probabilistic
         self.context_optimizer.zero_grad()
@@ -217,7 +241,7 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         self.context_optimizer.step()
 
         # compute min Q on the new actions
-        min_q_new_actions = self.agent.min_q(obs, new_actions, task_z)
+        min_q_new_actions = self._min_q(obs, new_actions, task_z)
 
         # vf update
         v_target = min_q_new_actions - log_pi
@@ -225,7 +249,7 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         self.vf_optimizer.zero_grad()
         vf_loss.backward()
         self.vf_optimizer.step()
-        self.agent._update_target_network()
+        self._update_target_network()
 
         # policy update
         # n.b. policy update includes dQ/da
@@ -294,6 +318,7 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
                 'Policy log std',
                 ptu.get_numpy(policy_log_std),
             ))
+
     #####
     def reset_posterior(self, num_tasks=1):
         # reset to prior and sample z
