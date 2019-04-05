@@ -64,7 +64,6 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         self.vf_criterion = nn.MSELoss()
         self.vib_criterion = nn.MSELoss()
         self.l2_reg_criterion = nn.MSELoss()
-        self.eval_statistics = None
         self.kl_lambda = kl_lambda
 
         self.reparameterize = reparameterize
