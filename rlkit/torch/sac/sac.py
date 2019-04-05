@@ -79,15 +79,15 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
             lr=policy_lr,
         )
         self.qf1_optimizer = optimizer_class(
-            self.agent.qf1.parameters(),
+            self.qf1.parameters(),
             lr=qf_lr,
         )
         self.qf2_optimizer = optimizer_class(
-            self.agent.qf2.parameters(),
+            self.qf2.parameters(),
             lr=qf_lr,
         )
         self.vf_optimizer = optimizer_class(
-            self.agent.vf.parameters(),
+            self.vf.parameters(),
             lr=vf_lr,
         )
         self.context_optimizer = optimizer_class(
@@ -187,9 +187,6 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
             self.agent.detach_z()
 
     def _min_q(self, obs, actions, task_z):
-        t, b, _ = obs.size()
-        obs = obs.view(t * b, -1)
-
         q1 = self.qf1(obs, actions, task_z.detach())
         q2 = self.qf2(obs, actions, task_z.detach())
         min_q = torch.min(q1, q2)
@@ -209,6 +206,12 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         # run inference in networks
         policy_outputs, task_z = self.agent(obs, enc_data)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
+
+        # flattens out the task dimension
+        t, b, _ = obs.size()
+        obs = obs.view(t * b, -1)
+        actions = actions.view(t * b, -1)
+        next_obs = next_obs.view(t * b, -1)
 
         # Q and V networks
         # encoder will only get gradients from Q nets
@@ -340,11 +343,11 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
     def get_epoch_snapshot(self, epoch):
         # NOTE: overriding parent method which also optionally saves the env
         snapshot = OrderedDict(
-            qf1=self.agent.qf1.state_dict(),
-            qf2=self.agent.qf2.state_dict(),
+            qf1=self.qf1.state_dict(),
+            qf2=self.qf2.state_dict(),
             policy=self.agent.policy.state_dict(),
-            vf=self.agent.vf.state_dict(),
-            target_vf=self.agent.target_vf.state_dict(),
+            vf=self.vf.state_dict(),
+            target_vf=self.target_vf.state_dict(),
             task_enc=self.agent.task_enc.state_dict(),
         )
         return snapshot
