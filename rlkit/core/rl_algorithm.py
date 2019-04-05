@@ -616,7 +616,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.env.render_paths(paths)
 
         if self.plotter:
-            self.plotter.draw(
+            self.plotter.draw()
 
     @abc.abstractmethod
     def training_mode(self, mode):
