@@ -5,6 +5,8 @@ Launcher for experiments with PEARL
 import os
 import pathlib
 import numpy as np
+import click
+import json
 import torch
 
 from rlkit.envs import ENVS
@@ -15,6 +17,7 @@ from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 from rlkit.launchers.launcher_util import setup_logger
 import rlkit.torch.pytorch_util as ptu
+from configs.default import default_config
 
 
 def experiment(variant):
@@ -106,4 +109,33 @@ def experiment(variant):
 
     # run the algorithm
     algorithm.train()
+
+def deep_update_dict(fr, to):
+    ''' update dict of dicts with new values '''
+    # assume dicts have same keys
+    for k, v in fr.items():
+        if type(v) is dict:
+            deep_update_dict(v, to[k])
+        else:
+            to[k] = v
+    return to
+
+@click.command()
+@click.argument('config', default=None)
+@click.option('--gpu', default=0)
+@click.option('--docker', is_flag=True, default=False)
+@click.option('--debug', is_flag=True, default=False)
+def main(config, gpu, docker, debug):
+
+    variant = default_config
+    if config:
+        with open(os.path.join(config)) as f:
+            exp_params = json.load(f)
+        variant = deep_update_dict(exp_params, variant)
+    variant.update({'gpu': gpu})
+
+    experiment(variant)
+
+if __name__ == "__main__":
+    main()
 
