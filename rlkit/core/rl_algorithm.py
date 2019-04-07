@@ -109,6 +109,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.dump_eval_paths = dump_eval_paths
         self.plotter = plotter
 
+        # make this a generic sampler? or split it into train/eval. Not sure why we would need separate samplers for each.
         self.eval_sampler = InPlacePathSampler(
             env=env,
             policy=agent,
@@ -168,8 +169,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         gt.reset()
         gt.set_def_unique(False)
         self._current_path_builder = PathBuilder()
-        # TODO: why do we need this to be a property of rl_algo?
-        self.train_obs = self._start_new_rollout()
 
         # at each iteration, we first collect data from tasks, perform meta-updates, then try to evaluate
         for it_ in gt.timed_for(
@@ -225,6 +224,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         """
         pass
 
+    # do we care about the flexibility to pass in an agent?
     def collect_data(self, agent, num_samples, resample_z_rate, update_posterior_rate, add_to_enc_buffer=True):
         '''
         get trajectories from current env in batch mode with given policy
@@ -240,39 +240,15 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.reset_posterior()
 
         num_transitions = 0
-        num_trajectories = 0
         while num_transitions < num_samples:
-            action, agent_info = self._get_action_and_info(agent, self.train_obs)
-            if self.render:
-                self.env.render()
-            next_ob, reward, terminal, env_info = (
-                self.env.step(action)
-            )
-            terminal = np.array([terminal])
-            reward = np.array([reward])
-            self._handle_step(
-                self.task_idx,
-                self.train_obs,
-                action,
-                reward,
-                next_ob,
-                terminal,
-                add_to_enc_buffer=add_to_enc_buffer,
-                agent_info=agent_info,
-                env_info=env_info,
-            )
-            num_transitions += 1
-            if terminal or len(self._current_path_builder) >= self.max_path_length:
-                self._handle_rollout_ending()
-                self.train_obs = self._start_new_rollout()
-                num_trajectories += 1
-                if num_trajectories % update_posterior_rate == 0:
-                    self.infer_posterior(self.task_idx, self.embedding_batch_size)
-                elif num_trajectories % resample_z_rate == 0:
-                    self.agent.sample_z()
-            else:
-                self.train_obs = next_ob
-
+            paths, n_samples = self.eval_sampler.obtain_samples(num_samples=num_samples - num_transitions,
+                                                                num_trajs=update_posterior_rate,
+                                                                resample=resample_z_rate)
+            num_transitions += n_samples
+            self.infer_posterior(self.task_idx, self.embedding_batch_size)
+            self.replay_buffer.add_paths(self.task_idx, paths)
+            if add_to_enc_buffer:
+                self.enc_replay_buffer.add_paths(self.task_idx, paths)
         self._n_env_steps_total += num_transitions
         gt.stamp('sample')
 
@@ -363,109 +339,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         logger.log("Started Training: {0}".format(self._can_train()))
         logger.pop_prefix()
 
-
-    ##### Handles environment interactions #####
-    def _start_new_rollout(self):
-        return self.env.reset()
-
-    # not used
-    def _handle_path(self, path):
-        """
-        Naive implementation: just loop through each transition.
-        :param path:
-        :return:
-        """
-        for (
-            ob,
-            action,
-            reward,
-            next_ob,
-            terminal,
-            agent_info,
-            env_info
-        ) in zip(
-            path["observations"],
-            path["actions"],
-            path["rewards"],
-            path["next_observations"],
-            path["terminals"],
-            path["agent_infos"],
-            path["env_infos"],
-        ):
-            self._handle_step(
-                ob,
-                action,
-                reward,
-                next_ob,
-                terminal,
-                agent_info=agent_info,
-                env_info=env_info,
-            )
-        self._handle_rollout_ending()
-
-    def _handle_step(
-            self,
-            task_idx,
-            observation,
-            action,
-            reward,
-            next_observation,
-            terminal,
-            agent_info,
-            env_info,
-            add_to_enc_buffer=True,
-    ):
-        """
-        Implement anything that needs to happen after every step
-        :return:
-        """
-        self._current_path_builder.add_all(
-            task=task_idx,
-            observations=observation,
-            actions=action,
-            rewards=reward,
-            next_observations=next_observation,
-            terminals=terminal,
-            agent_infos=agent_info,
-            env_infos=env_info,
-        )
-        self.replay_buffer.add_sample(
-            task=task_idx,
-            observation=observation,
-            action=action,
-            reward=reward,
-            terminal=terminal,
-            next_observation=next_observation,
-            agent_info=agent_info,
-            env_info=env_info,
-        )
-        if add_to_enc_buffer:
-            self.enc_replay_buffer.add_sample(
-                task=task_idx,
-                observation=observation,
-                action=action,
-                reward=reward,
-                terminal=terminal,
-                next_observation=next_observation,
-                agent_info=agent_info,
-                env_info=env_info,
-            )
-
-    def _handle_rollout_ending(self):
-        """
-        Implement anything that needs to happen after every rollout.
-        """
-        self.replay_buffer.terminate_episode(self.task_idx)
-        self.enc_replay_buffer.terminate_episode(self.task_idx)
-
-        self._n_rollouts_total += 1
-        if len(self._current_path_builder) > 0:
-            self._exploration_paths.append(
-                self._current_path_builder.get_all_stacked()
-            )
-            self._current_path_builder = PathBuilder()
-
-
     ##### Snapshotting utils #####
     def get_epoch_snapshot(self, epoch):
         data_to_save = dict(
@@ -506,7 +379,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         (to enable trajectory-level or transition-level adaptation, for example)
         '''
         self.reset_posterior()
-        test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic, resample=self.resample_z)
+        test_paths, _ = self.eval_sampler.obtain_samples(deterministic=deterministic,
+                                                         num_samples=self.num_steps_per_eval,
+                                                         resample=self.resample_z)
         if self.sparse_rewards:
             for p in test_paths:
                 p['rewards'] = self.env.sparsify_rewards(p['rewards'])
@@ -515,7 +390,15 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def collect_paths(self, idx, epoch, run):
         self.task_idx = idx
         self.env.reset_task(idx)
-        paths = self.obtain_eval_paths(deterministic=False)
+
+        # paths = self.obtain_eval_paths(deterministic=False)
+        self.reset_posterior()
+        paths, _ = self.eval_sampler.obtain_samples(num_samples=self.num_steps_per_eval,
+                                                    resample=self.resample_z)
+        if self.sparse_rewards:
+            for p in paths:
+                p['rewards'] = self.env.sparsify_rewards(p['rewards'])
+
         goal = self.env._goal
         for path in paths:
             path['goal'] = goal # goal
@@ -549,7 +432,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             prior_paths = []
             for _ in range(100 // self.num_steps_per_eval):
                 # just want stochasticity of z, not the policy
-                prior_paths += self.eval_sampler.obtain_samples(deterministic=True, resample=np.inf)
+                prior_paths += self.eval_sampler.obtain_samples(deterministic=True,
+                                                                num_samples=self.num_steps_per_eval,
+                                                                resample=np.inf)[0]
             logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
 
         ### train tasks
@@ -565,7 +450,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             # TODO: put these lines into method evaluate_task(idx) that goes into sac.py?
             for _ in range(10):
                 self.infer_posterior(idx)
-                paths += self.eval_sampler.obtain_samples(num_samples=self.max_path_length + 1, deterministic=True, resample=np.inf)
+                # why do we want max_path_length + 1?
+                paths += self.eval_sampler.obtain_samples(num_samples=self.max_path_length + 1,
+                                                          deterministic=True,
+                                                          resample=np.inf)[0]
             if self.sparse_rewards:
                 for p in paths:
                     sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
@@ -578,7 +466,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         eval_util.dprint(train_online_returns)
 
         ### test tasks
-        # TOOD: should this be using the dprint in eval_util or pythons own dprint?
         eval_util.dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
         test_final_returns, test_online_returns = self._do_eval(self.eval_tasks, epoch)
         eval_util.dprint('test online returns')
