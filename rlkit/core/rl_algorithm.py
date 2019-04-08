@@ -411,11 +411,13 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         ### sample trajectories from prior for debugging / visualization
         if self.dump_eval_paths:
             prior_paths = []
+            # (AZ): should this be hardcoded? also why is this # 100?
             for _ in range(100 // self.num_steps_per_eval):
                 # just want stochasticity of z, not the policy
-                prior_paths += self.eval_sampler.obtain_samples(deterministic=True,
-                                                                num_samples=self.num_steps_per_eval,
-                                                                resample=np.inf)[0]
+                paths, _ = self.eval_sampler.obtain_samples(deterministic=True,
+                                                            num_samples=self.num_steps_per_eval,
+                                                            resample=np.inf)
+                prior_paths += paths
             logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
 
         ### train tasks
@@ -429,12 +431,14 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.env.reset_task(idx)
             paths = []
             # TODO: put these lines into method evaluate_task(idx) that goes into sac.py?
+            # (AZ): should this be hardcoded?
             for _ in range(10):
                 self.infer_posterior(idx)
                 # why do we want max_path_length + 1?
-                paths += self.eval_sampler.obtain_samples(num_samples=self.max_path_length + 1,
+                p = self.eval_sampler.obtain_samples(num_samples=self.max_path_length + 1,
                                                           deterministic=True,
                                                           resample=np.inf)[0]
+                paths += p
 
             train_returns.append(eval_util.get_average_returns(paths, sparse=self.sparse_rewards))
         train_returns = np.mean(train_returns)
