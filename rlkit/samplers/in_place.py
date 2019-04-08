@@ -1,3 +1,5 @@
+import numpy as np
+
 from rlkit.samplers.util import rollout
 from rlkit.torch.sac.policies import MakeDeterministic
 
@@ -25,23 +27,18 @@ class InPlacePathSampler(object):
     def shutdown_worker(self):
         pass
 
-    def obtain_samples(self, deterministic=False, num_samples=None, num_trajs=None, resample=1):
+    def obtain_samples(self, deterministic=False, max_samples=np.inf, max_trajs=np.inf, resample=1):
         """
-        Obtains samples in the environment until either we reach either num_samples transitions or
-        num_traj trajectories
-
+        Obtains samples in the environment until either we reach either max_samples transitions or
+        num_traj trajectories.
+        The resample argument specifies how often (in trajectories) the agent will resample it's context.
         """
+        assert max_samples < np.inf or max_trajs < np.inf, "either max_samples or max_trajs must be finite"
         policy = MakeDeterministic(self.policy) if deterministic else self.policy
         paths = []
         n_steps_total = 0
         n_trajs = 0
-        max_samp = self.max_path_length
-        max_trajs = max_samp # function will default to operating based on num_samples over trajectories
-        if num_samples is not None:
-            max_samp = num_samples
-        if num_trajs is not None:
-            max_trajs = num_trajs
-        while n_steps_total < max_samp and n_trajs < max_trajs:
+        while n_steps_total < max_samples and n_trajs < max_trajs:
             path = rollout(
                 self.env, policy, max_path_length=self.max_path_length)
             # save the latent context that generated this trajectory
@@ -49,6 +46,7 @@ class InPlacePathSampler(object):
             paths.append(path)
             n_steps_total += len(path['observations'])
             n_trajs += 1
+            # don't we also want the option to resample z ever transition?
             if n_trajs % resample == 0:
                 policy.sample_z()
         return paths, n_steps_total
