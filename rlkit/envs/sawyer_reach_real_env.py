@@ -1,3 +1,6 @@
+import sys
+sys.path.append('/home/justin/ros_ws/src/sawyer_control/src/')
+
 from sawyer_control.envs.sawyer_reaching import SawyerReachXYZEnv
 import numpy as np
 
@@ -57,3 +60,4 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
         # We have redefined this not to reset the goal (as this is handled in reset_task)
         self._reset_robot()
         return self._get_obs()  # Redefine to just return state
+

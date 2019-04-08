@@ -150,7 +150,6 @@ def main(gpu, docker):
     # creates directories for pickle outputs of trajectories (point mass)
     pickle_dir = experiment_log_dir + '/eval_trajectories'
     pathlib.Path(pickle_dir).mkdir(parents=True, exist_ok=True)
-    variant['algo_params']['output_dir'] = pickle_dir
 
     # debugging triggers a lot of printing
     DEBUG = 0
