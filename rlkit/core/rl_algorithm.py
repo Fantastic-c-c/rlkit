@@ -183,7 +183,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 for idx in self.train_tasks:
                     self.task_idx = idx
                     self.env.reset_task(idx)
-                    self.collect_data(self.agent, self.num_initial_steps, 1, np.inf)
+                    self.collect_data(self.num_initial_steps, 1, np.inf)
             # Sample data from train tasks.
             for i in range(self.num_tasks_sample):
                 idx = np.random.randint(len(self.train_tasks))
@@ -194,12 +194,13 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     # embeddings are computed using only data collected using the prior
                     # sample data from posterior to train RL algorithm
                     self.enc_replay_buffer.task_buffers[idx].clear()
-                    self.collect_data(self.agent, self.num_steps_per_task, self.resample_z_train, np.inf)
-                    self.collect_data(self.agent, self.num_steps_per_task, self.resample_z_train, self.update_post_train, add_to_enc_buffer=False)
+                    self.collect_data(self.num_steps_per_task, self.resample_z_train, np.inf)
+                    self.collect_data(self.num_steps_per_task, self.resample_z_train,
+                                      self.update_post_train, add_to_enc_buffer=False)
                 elif self.train_embedding_source == 'online_on_policy_trajectories':
                     # embeddings computed from both prior and posterior data
                     self.enc_replay_buffer.task_buffers[idx].clear()
-                    self.collect_data(self.agent, self.num_steps_per_task, self.resample_z_train, self.update_post_train)
+                    self.collect_data(self.num_steps_per_task, self.resample_z_train, self.update_post_train)
                 else:
                     raise Exception("Invalid option for computing train embedding {}".format(self.train_embedding_source))
 
@@ -224,8 +225,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         """
         pass
 
-    # do we care about the flexibility to pass in an agent?
-    def collect_data(self, agent, num_samples, resample_z_rate, update_posterior_rate, add_to_enc_buffer=True):
+    def collect_data(self, num_samples, resample_z_rate, update_posterior_rate, add_to_enc_buffer=True):
         '''
         get trajectories from current env in batch mode with given policy
         collect complete trajectories until the number of collected transitions >= num_samples
@@ -436,8 +436,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 self.infer_posterior(idx)
                 # why do we want max_path_length + 1?
                 p = self.eval_sampler.obtain_samples(num_samples=self.max_path_length + 1,
-                                                          deterministic=True,
-                                                          resample=np.inf)[0]
+                                                     deterministic=True,
+                                                     resample=np.inf)[0]
                 paths += p
 
             train_returns.append(eval_util.get_average_returns(paths, sparse=self.sparse_rewards))
