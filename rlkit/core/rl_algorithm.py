@@ -113,7 +113,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.eval_sampler = InPlacePathSampler(
             env=env,
             policy=agent,
-            max_samples=self.num_steps_per_eval,
             max_path_length=self.max_path_length,
         )
 
