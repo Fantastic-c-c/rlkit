@@ -410,7 +410,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         ### sample trajectories from prior for debugging / visualization
         if self.dump_eval_paths:
             prior_paths = []
-            # (AZ): should this be hardcoded? also why is this # 100?
+            # 100 arbitrarily chosen for visualizations of point_robot trajectories
             for _ in range(100 // self.num_steps_per_eval):
                 # just want stochasticity of z, not the policy
                 paths, _ = self.eval_sampler.obtain_samples(deterministic=True,
@@ -433,9 +433,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             # (AZ): should this be hardcoded?
             for _ in range(10):
                 self.infer_posterior(idx)
-                p = self.eval_sampler.obtain_samples(num_samples=self.max_path_length,
-                                                     deterministic=True,
-                                                     resample=np.inf)[0]
+                p, _ = self.eval_sampler.obtain_samples(num_samples=self.max_path_length,
+                                                        deterministic=True,
+                                                        resample=np.inf)
                 paths += p
 
             train_returns.append(eval_util.get_average_returns(paths, sparse=self.sparse_rewards))
