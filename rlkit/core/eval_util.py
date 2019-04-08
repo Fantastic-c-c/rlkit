@@ -39,8 +39,11 @@ def get_generic_path_information(paths, stat_prefix=''):
     return statistics
 
 
-def get_average_returns(paths):
-    returns = [sum(path["rewards"]) for path in paths]
+def get_average_returns(paths, sparse=False):
+    if sparse:
+        returns = [sum(path["env_infos"]["sparse_reward"]) for path in paths]
+    else:
+        returns = [sum(path["rewards"]) for path in paths]
     return np.mean(returns)
 
 
