@@ -135,7 +135,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         paths = []
         for _ in range(num_evals):
             paths += self.obtain_eval_paths(idx, eval_task=eval_task, deterministic=True)
-        goal = self.env._goal
+        goal = self.env.get_goal() # TODO: Fix for other envs (this breaks non-sawyer envs)
         for path in paths:
             path['goal'] = goal # goal
 
