@@ -20,6 +20,7 @@ import rlkit.torch.pytorch_util as ptu
 
 
 NUM_TASKS = 100
+RENDER = True
 
 def datetimestamp(divider=''):
     now = datetime.datetime.now()
@@ -73,7 +74,7 @@ def experiment(variant):
     )
 
     algorithm = ProtoSoftActorCritic(
-        render = False, # whether we wnt to render or not
+        render=RENDER, # whether we wnt to render or not
         env=env,
         train_tasks=list(tasks[:int(NUM_TASKS * 0.8)]),
         eval_tasks=list(tasks[int(NUM_TASKS * 0.8):]),
@@ -141,7 +142,6 @@ def main(gpu, docker):
     # creates directories for pickle outputs of trajectories (point mass)
     pickle_dir = experiment_log_dir + '/eval_trajectories'
     pathlib.Path(pickle_dir).mkdir(parents=True, exist_ok=True)
-    variant['algo_params']['output_dir'] = pickle_dir
 
     # debugging triggers a lot of printing
     DEBUG = 0
