@@ -1,0 +1,24 @@
+{
+    "env_name": "sawyer-reach-sim-3d",
+    "n_train_tasks": 80,
+    "n_eval_tasks": 20,
+    "env_params": {
+        "n_tasks": 100,
+        "randomize_tasks": true
+    }
+    ,
+    "algo_params": {
+        "initial_data_path": "",
+        "num_initial_steps": 50,
+        "num_iterations": 2000,
+        "num_steps_prior": 20,
+        "num_steps_posterior": 0,
+        "num_extra_rl_steps_posterior": 20,
+        "num_train_steps_per_itr": 1000,
+        "num_steps_per_eval": 20,
+        "max_path_length": 10,
+        "num_tasks_sample": 8,
+        "reward_scale": 100.0,
+        "kl_lambda": 0.1
+    }
+}

@@ -1,0 +1,9 @@
+Fri Jan 11 19:47:37 2019
+ERROR: Expired activation key
+
+Thu May 30 15:30:21 2019
+ERROR: Track body id is outside valid range
+
+Thu May 30 15:46:37 2019
+ERROR: Fixed camera id is outside valid range
+

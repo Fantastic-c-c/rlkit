@@ -47,6 +47,42 @@ The Anaconda env should be enough, but this docker image addresses some of the r
 To use the GPU docker image, you will need a GPU and [nvidia-docker installed](https://github.com/nvidia/nvidia-docker/wiki/Installation-(version-2.0)).
 Note that you'll need to [get your own MuJoCo key](https://www.roboti.us/license.html) if you want to use MuJoCo.
 
+## Real World Experiments
+### Enabling the Controller
+1. `cd ~/ros_ws`
+2. `./lordi.sh` (or whatever robot you are going to use)
+3. `roslaunch ~/ros_ws/src/sawyer_control/exp_nodes.launch` To start the controller
+4. Open a new terminal:
+5. `rosrun intera_interface enable_robot.py -e` To enable the robot
+* To disable the robot, you can run `rosrun intera_interface enable_robot.py -d` 
+* Note: sometimes the IK controller will fail and you will see an error message. The
+robot controller is still running even after this so you do not need to restart it.
+
+### Running the script
+1. `cd ~/ros_ws`
+2. `./lordi.sh` (or whatever robot you are going to use). You need to start a 
+separate terminal for the script (in addition to the controller script)
+3. `cd ~/Documents/sawyer_pearl`
+4. `python3 launch_experiment.py configs/sawyer_reach_real_3d.json`
+
+### Debugging
+1. If ros master node cannot be found, reboot the robot's computer
+2. If you can't enable, check e-stop button, try again
+3. If the robot starts moving weirdly reboot exp_nodes
+
+### Other Stuff
+To define the safety bounds of the Sawyer you can run:
+1. `cd ~/ros_ws`
+2. `./lordi.sh` (or whatever robot you are going to use). You need to start a 
+separate terminal for the script (in addition to the controller script)
+3. `cd ~/Documents/sawyer_pearl`
+4. `python print_cartesian_positions.py`. The coordinates of the end-effector (as well as its orientation) will be displayed.
+Make sure you are looking at the end-effector position and not its orientation.
+The x-value is forward and back, the y-value is left and right, the z-value is up and down. 
+5. Make the necessary edits to `~/ros_ws/src/sawyer_control/src/sawyer_control/configs/pearl_lordi_config.py`
+
+If you want to define a torque safety box, you can look at `base_config` in the `sawyer_control` repor for an example.
+
 ## Visualizing a policy and seeing results
 During training, the results will be saved to a file called under
 ```

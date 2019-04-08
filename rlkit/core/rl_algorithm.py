@@ -1,22 +1,23 @@
 import abc
+from collections import OrderedDict
 import time
+import pickle
 
 import gtimer as gt
 import numpy as np
 
-from rlkit.core import logger
+from rlkit.core import logger, eval_util
 from rlkit.data_management.env_replay_buffer import MultiTaskReplayBuffer
-
 from rlkit.data_management.path_builder import PathBuilder
-from rlkit.policies.base import ExplorationPolicy
 from rlkit.samplers.in_place import InPlacePathSampler
+from rlkit.torch import pytorch_util as ptu
 
 
 class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def __init__(
             self,
             env,
-            policy,
+            agent,
             train_tasks,
             eval_tasks,
             meta_batch=64,
@@ -24,7 +25,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             num_train_steps_per_itr=1000,
             num_initial_steps=100,
             num_tasks_sample=100,
-            num_steps_per_task=100,
+            num_steps_prior=100,
+            num_steps_posterior=100,
+            num_extra_rl_steps_posterior=100,
             num_evals=10,
             num_steps_per_eval=1000,
             batch_size=1024,
@@ -34,43 +37,30 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             discount=0.99,
             replay_buffer_size=1000000,
             reward_scale=1,
-            train_embedding_source='posterior_only',
-            eval_embedding_source='initial_pool',
+            num_exp_traj_eval=1,
+            update_post_train=1,
             eval_deterministic=True,
             render=False,
             save_replay_buffer=False,
             save_algorithm=False,
             save_environment=False,
+            save_goals=True,
+            render_eval_paths=False,
+            dump_eval_paths=False,
+            plotter=None,
+            initial_data_path=None,
     ):
         """
-        Base class for Meta RL Algorithms
         :param env: training env
-        :param policy: policy that is conditioned on a latent variable z that rl_algorithm is responsible for feeding in
+        :param agent: agent that is conditioned on a latent variable z that rl_algorithm is responsible for feeding in
         :param train_tasks: list of tasks used for training
         :param eval_tasks: list of tasks used for eval
-        :param meta_batch: number of tasks used for meta-update
-        :param num_iterations: number of meta-updates taken
-        :param num_train_steps_per_itr: number of meta-updates performed per iteration
-        :param num_initial_steps: number of transitions to collect per task before training starts
-        :param num_tasks_sample: number of train tasks to sample to collect data for
-        :param num_steps_per_task: number of transitions to collect per task
-        :param num_evals: number of independent evaluation runs, with separate task encodings
-        :param num_steps_per_eval: number of transitions to sample for evaluation
-        :param batch_size: size of batches used to compute RL update
-        :param embedding_batch_size: size of batches used to compute embedding
-        :param embedding_mini_batch_size: size of batch used for encoder update
-        :param max_path_length: max episode length
-        :param discount:
-        :param replay_buffer_size: max replay buffer size
-        :param reward_scale:
-        :param render:
-        :param save_replay_buffer:
-        :param save_algorithm:
-        :param save_environment:
+
+        see default experiment config file for descriptions of the rest of the arguments
         """
         self.env = env
-        self.policy = policy
-        self.exploration_policy = policy # Can potentially use a different policy purely for exploration rather than also solving tasks, currently not being used
+        self.agent = agent
+        self.exploration_agent = agent # Can potentially use a different policy purely for exploration rather than also solving tasks, currently not being used
         self.train_tasks = train_tasks
         self.eval_tasks = eval_tasks
         self.meta_batch = meta_batch
@@ -78,7 +68,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.num_train_steps_per_itr = num_train_steps_per_itr
         self.num_initial_steps = num_initial_steps
         self.num_tasks_sample = num_tasks_sample
-        self.num_steps_per_task = num_steps_per_task
+        self.num_steps_prior = num_steps_prior
+        self.num_steps_posterior = num_steps_posterior
+        self.num_extra_rl_steps_posterior = num_extra_rl_steps_posterior
         self.num_evals = num_evals
         self.num_steps_per_eval = num_steps_per_eval
         self.batch_size = batch_size
@@ -88,25 +80,30 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.discount = discount
         self.replay_buffer_size = replay_buffer_size
         self.reward_scale = reward_scale
-        self.train_embedding_source = train_embedding_source
-        self.eval_embedding_source = eval_embedding_source # TODO: add options for computing embeddings on train tasks too
+        self.update_post_train = update_post_train
+        self.num_exp_traj_eval = num_exp_traj_eval
         self.eval_deterministic = eval_deterministic
         self.render = render
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
         self.save_environment = save_environment
+        self.save_goals = save_goals
 
-        self.eval_sampler = InPlacePathSampler(
+        self.eval_statistics = None
+        self.render_eval_paths = render_eval_paths
+        self.dump_eval_paths = dump_eval_paths
+        self.plotter = plotter
+
+        self.sampler = InPlacePathSampler(
             env=env,
-            policy=policy,
-            max_samples=self.num_steps_per_eval,
+            policy=agent,
             max_path_length=self.max_path_length,
+            animated=self.render,
         )
 
         # separate replay buffers for
         # - training RL update
         # - training encoder update
-        # - testing encoder
         self.replay_buffer = MultiTaskReplayBuffer(
                 self.replay_buffer_size,
                 env,
@@ -118,11 +115,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 env,
                 self.train_tasks,
         )
-        self.eval_enc_replay_buffer = MultiTaskReplayBuffer(
-            self.replay_buffer_size,
-            env,
-            self.eval_tasks
-        )
 
         self._n_env_steps_total = 0
         self._n_train_steps_total = 0
@@ -133,6 +125,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self._old_table_keys = None
         self._current_path_builder = PathBuilder()
         self._exploration_paths = []
+
+        self.initial_data_path = initial_data_path
 
     def make_exploration_policy(self, policy):
          return policy
@@ -160,7 +154,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         gt.reset()
         gt.set_def_unique(False)
         self._current_path_builder = PathBuilder()
-        self.train_obs = self._start_new_rollout()
 
         # at each iteration, we first collect data from tasks, perform meta-updates, then try to evaluate
         for it_ in gt.timed_for(
@@ -170,52 +163,42 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self._start_epoch(it_)
             self.training_mode(True)
             if it_ == 0:
-                print('collecting initial pool of data for train and eval')
-                # temp for evaluating
-                for idx in self.train_tasks:
-                    self.task_idx = idx
-                    self.env.reset_task(idx)
-                    self.collect_data_sampling_from_prior(num_samples=self.num_initial_steps,
-                                                          resample_z_every_n=self.max_path_length,
-                                                          eval_task=False)
-
+                if not self.initial_data_path:
+                    print('collecting initial pool of data for train and eval')
+                    # temp for evaluating
+                    for idx in self.train_tasks:
+                        print("Collecting data for: {} {}".format(idx, self.env.get_goal()))
+                        self.task_idx = idx
+                        self.env.reset_task(idx)
+                        self.collect_data(self.num_initial_steps, 1, np.inf)
+                        # self.collect_data_sampling_from_prior(num_samples=self.num_initial_steps,
+                        #                                       resample_z_every_n=self.max_path_length,
+                        #                                       eval_task=False)
+                    # DUMP ENCODING BUFFER AS PICKLE
+                    print("Saving initial buffer")
+                    pickle.dump(self.replay_buffer, open("initial_data_replay.pkl", "wb"))
+                else:
+                    print("Loading from: {}".format(self.initial_data_path))
+                    self.replay_buffer = pickle.load(open(self.initial_data_path, "rb"))
+                    self.enc_replay_buffer = pickle.load(open(self.initial_data_path, "rb"))
+                    print("Done loading - goals: {}".format(self.env.goals))
             # Sample data from train tasks.
             for i in range(self.num_tasks_sample):
                 idx = np.random.randint(len(self.train_tasks))
                 self.task_idx = idx
                 self.env.reset_task(idx)
+                self.enc_replay_buffer.task_buffers[idx].clear()
 
-                # TODO: there may be more permutations of sampling/adding to encoding buffer we may wish to try
-                if self.train_embedding_source == 'initial_pool':
-                    # embeddings are computed using only the initial pool of data
-                    # sample data from posterior to train RL algorithm
-                    self.collect_data_from_task_posterior(idx=idx,
-                                                          num_samples=self.num_steps_per_task,
-                                                          add_to_enc_buffer=False)
-                elif self.train_embedding_source == 'posterior_only':
-                    self.collect_data_from_task_posterior(idx=idx, num_samples=self.num_steps_per_task, eval_task=False,
-                                                          add_to_enc_buffer=True)
-                elif self.train_embedding_source == 'online_exploration_trajectories':
-                    # embeddings are computed using only data collected using the prior
-                    # sample data from posterior to train RL algorithm
-                    self.enc_replay_buffer.task_buffers[idx].clear()
-                    # resamples using current policy, conditioned on prior
-                    self.collect_data_sampling_from_prior(num_samples=self.num_steps_per_task,
-                                                          resample_z_every_n=self.max_path_length,
-                                                          add_to_enc_buffer=True)
+                # collect some trajectories with z ~ prior
+                if self.num_steps_prior > 0:
+                    self.collect_data(self.num_steps_prior, 1, np.inf)
+                # collect some trajectories with z ~ posterior
+                if self.num_steps_posterior > 0:
+                    self.collect_data(self.num_steps_per_task, 1, self.update_post_train)
+                # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
+                if self.num_extra_rl_steps_posterior > 0:
+                    self.collect_data(self.num_extra_rl_steps_posterior, 1, self.update_post_train, add_to_enc_buffer=False)
 
-                    self.collect_data_from_task_posterior(idx=idx,
-                                                          num_samples=self.num_steps_per_task,
-                                                          add_to_enc_buffer=False)
-                elif self.train_embedding_source == 'online_on_policy_trajectories':
-                    # sample from prior, then sample more from the posterior
-                    # embeddings computed from both prior and posterior data
-                    self.enc_replay_buffer.task_buffers[idx].clear()
-                    self.collect_data_online(idx=idx,
-                                             num_samples=self.num_steps_per_task,
-                                             add_to_enc_buffer=True)
-                else:
-                    raise Exception("Invalid option for computing train embedding {}".format(self.train_embedding_source))
 
             # Sample train tasks and compute gradient updates on parameters.
             for train_step in range(self.num_train_steps_per_itr):
@@ -224,10 +207,12 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 self._n_train_steps_total += 1
             gt.stamp('train')
 
-            #self.training_mode(False)
+            self.training_mode(False)
 
             # eval
-            self._try_to_eval(it_)
+            if (it_% 5 == 0):
+                self._try_to_eval(it_)
+
             gt.stamp('eval')
 
             self._end_epoch()
@@ -238,109 +223,35 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         """
         pass
 
-    def sample_z_from_prior(self):
-        """
-        Samples z from the prior distribution, which can be either a delta function at 0 or a standard Gaussian
-        depending on whether we use the information bottleneck.
-        :return: latent z as a Numpy array
-        """
-        pass
-
-    def sample_z_from_posterior(self, idx, eval_task):
-        """
-        Samples z from the posterior distribution given data from task idx, where data comes from the encoding buffer
-        :param idx: task idx from which to compute the posterior from
-        :param eval_task: whether or not the task is an eval task
-        :return: latent z as a Numpy array
-        """
-        pass
-
-    # TODO: maybe find a better name for resample_z_every_n?
-    def collect_data_sampling_from_prior(self, num_samples=1, resample_z_every_n=None, eval_task=False,
-                                         add_to_enc_buffer=True):
-        # do not resample z if resample_z_every_n is None
-        if resample_z_every_n is None:
-            self.policy.clear_z()
-            self.collect_data(self.policy, num_samples=num_samples, eval_task=eval_task,
-                              add_to_enc_buffer=add_to_enc_buffer)
-        else:
-            # collects more data in batches of resample_z_every_n until done
-            while num_samples > 0:
-                self.collect_data_sampling_from_prior(num_samples=min(resample_z_every_n, num_samples),
-                                                      resample_z_every_n=None,
-                                                      eval_task=eval_task,
-                                                      add_to_enc_buffer=add_to_enc_buffer)
-                num_samples -= resample_z_every_n
-
-    def collect_data_from_task_posterior(self, idx, num_samples=1, resample_z_every_n=None, eval_task=False,
-                                         add_to_enc_buffer=True):
-        # do not resample z if resample_z_every_n is None
-        if resample_z_every_n is None:
-            self.sample_z_from_posterior(idx, eval_task=eval_task)
-            self.collect_data(self.policy, num_samples=num_samples, eval_task=eval_task,
-                              add_to_enc_buffer=add_to_enc_buffer)
-        else:
-            # collects more data in batches of resample_z_every_n until done
-            while num_samples > 0:
-                self.collect_data_from_task_posterior(idx=idx,
-                                                      num_samples=min(resample_z_every_n, num_samples),
-                                                      resample_z_every_n=None,
-                                                      eval_task=eval_task,
-                                                      add_to_enc_buffer=add_to_enc_buffer)
-                num_samples -= resample_z_every_n
-
-    # split number of prior and posterior samples
-    def collect_data_online(self, idx, num_samples, eval_task=False, add_to_enc_buffer=True):
-        self.collect_data_sampling_from_prior(num_samples=num_samples,
-                                              resample_z_every_n=self.max_path_length,
-                                              eval_task=eval_task,
-                                              add_to_enc_buffer=True)
-        self.collect_data_from_task_posterior(idx=idx,
-                                              num_samples=num_samples,
-                                              resample_z_every_n=self.max_path_length,
-                                              eval_task=eval_task,
-                                              add_to_enc_buffer=add_to_enc_buffer)
-
-
-    # TODO: since switching tasks now resets the environment, we are not correctly handling episodes terminating
-    # correctly. We also aren't using the episodes anywhere, but we should probably change this to make it gather paths
-    # until we have more samples than num_samples, to make sure every episode cleanly terminates when intended.
-    def collect_data(self, agent, num_samples=1, eval_task=False, add_to_enc_buffer=True):
+    def collect_data(self, num_samples, resample_z_rate, update_posterior_rate, add_to_enc_buffer=True):
         '''
-        collect data from current env in batch mode
-        with given policy
-        '''
-        for _ in range(num_samples):
-            action, agent_info = self._get_action_and_info(agent, self.train_obs)
-            if self.render:
-                self.env.render()
-            next_ob, raw_reward, terminal, env_info = (
-                self.env.step(action)
-            )
-            reward = raw_reward
-            terminal = np.array([terminal])
-            reward = np.array([reward])
-            self._handle_step(
-                self.task_idx,
-                self.train_obs,
-                action,
-                reward,
-                next_ob,
-                terminal,
-                eval_task=eval_task,
-                add_to_enc_buffer=add_to_enc_buffer,
-                agent_info=agent_info,
-                env_info=env_info,
-            )
-            if terminal or len(self._current_path_builder) >= self.max_path_length:
-                self._handle_rollout_ending(eval_task=eval_task)
-                self.train_obs = self._start_new_rollout()
-            else:
-                self.train_obs = next_ob
+        get trajectories from current env in batch mode with given policy
+        collect complete trajectories until the number of collected transitions >= num_samples
 
-        if not eval_task:
-            self._n_env_steps_total += num_samples
-            gt.stamp('sample')
+        :param agent: policy to rollout
+        :param num_samples: total number of transitions to sample
+        :param resample_z_rate: how often to resample latent context z (in units of trajectories)
+        :param update_posterior_rate: how often to update q(z | c) from which z is sampled (in units of trajectories)
+        :param add_to_enc_buffer: whether to add collected data to encoder replay buffer
+        '''
+        # start from the prior
+        self.agent.clear_z()
+
+        num_transitions = 0
+        while num_transitions < num_samples:
+            paths, n_samples = self.sampler.obtain_samples(max_samples=num_samples - num_transitions,
+                                                                max_trajs=update_posterior_rate,
+                                                                accum_context=False,
+                                                                resample=resample_z_rate)
+            num_transitions += n_samples
+            self.replay_buffer.add_paths(self.task_idx, paths)
+            if add_to_enc_buffer:
+                self.enc_replay_buffer.add_paths(self.task_idx, paths)
+            if update_posterior_rate != np.inf:
+                context = self.prepare_context(self.task_idx)
+                self.agent.infer_posterior(context)
+        self._n_env_steps_total += num_transitions
+        gt.stamp('sample')
 
     def _try_to_eval(self, epoch):
         logger.save_extra_data(self.get_extra_data_to_save(epoch))
@@ -399,10 +310,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
         :return:
         """
-        return (
-            len(self._exploration_paths) > 0
-            and self.replay_buffer.num_steps_can_sample(self.task_idx) >= self.batch_size
-        )
+        # eval collects its own context, so can eval any time
+        return True
 
     def _can_train(self):
         return all([self.replay_buffer.num_steps_can_sample(idx) >= self.batch_size for idx in self.train_tasks])
@@ -429,122 +338,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         logger.log("Started Training: {0}".format(self._can_train()))
         logger.pop_prefix()
 
-    def _start_new_rollout(self):
-        return self.env.reset()
-
-    # not used
-    def _handle_path(self, path):
-        """
-        Naive implementation: just loop through each transition.
-        :param path:
-        :return:
-        """
-        for (
-            ob,
-            action,
-            reward,
-            next_ob,
-            terminal,
-            agent_info,
-            env_info
-        ) in zip(
-            path["observations"],
-            path["actions"],
-            path["rewards"],
-            path["next_observations"],
-            path["terminals"],
-            path["agent_infos"],
-            path["env_infos"],
-        ):
-            self._handle_step(
-                ob,
-                action,
-                reward,
-                next_ob,
-                terminal,
-                agent_info=agent_info,
-                env_info=env_info,
-            )
-        self._handle_rollout_ending()
-
-    def _handle_step(
-            self,
-            task_idx,
-            observation,
-            action,
-            reward,
-            next_observation,
-            terminal,
-            agent_info,
-            env_info,
-            eval_task=False,
-            add_to_enc_buffer=True,
-    ):
-        """
-        Implement anything that needs to happen after every step
-        :return:
-        """
-        self._current_path_builder.add_all(
-            task=task_idx,
-            observations=observation,
-            actions=action,
-            rewards=reward,
-            next_observations=next_observation,
-            terminals=terminal,
-            agent_infos=agent_info,
-            env_infos=env_info,
-        )
-        if eval_task:
-            self.eval_enc_replay_buffer.add_sample(
-                task=task_idx,
-                observation=observation,
-                action=action,
-                reward=reward,
-                terminal=terminal,
-                next_observation=next_observation,
-                agent_info=agent_info,
-                env_info=env_info,
-            )
-        else:
-            self.replay_buffer.add_sample(
-                task=task_idx,
-                observation=observation,
-                action=action,
-                reward=reward,
-                terminal=terminal,
-                next_observation=next_observation,
-                agent_info=agent_info,
-                env_info=env_info,
-            )
-            if add_to_enc_buffer:
-                self.enc_replay_buffer.add_sample(
-                    task=task_idx,
-                    observation=observation,
-                    action=action,
-                    reward=reward,
-                    terminal=terminal,
-                    next_observation=next_observation,
-                    agent_info=agent_info,
-                    env_info=env_info,
-                )
-
-    def _handle_rollout_ending(self, eval_task=False):
-        """
-        Implement anything that needs to happen after every rollout.
-        """
-        if eval_task:
-            self.eval_enc_replay_buffer.terminate_episode(self.task_idx)
-        else:
-            self.replay_buffer.terminate_episode(self.task_idx)
-            self.enc_replay_buffer.terminate_episode(self.task_idx)
-
-        self._n_rollouts_total += 1
-        if len(self._current_path_builder) > 0:
-            self._exploration_paths.append(
-                self._current_path_builder.get_all_stacked()
-            )
-            self._current_path_builder = PathBuilder()
-
+    ##### Snapshotting utils #####
     def get_epoch_snapshot(self, epoch):
         data_to_save = dict(
             epoch=epoch,
@@ -566,6 +360,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         data_to_save = dict(
             epoch=epoch,
         )
+        if self.save_goals:
+            data_to_save['goals'] = self.env.get_all_goals()  # TODO: make this work with other envs
         if self.save_environment:
             data_to_save['env'] = self.training_env
         if self.save_replay_buffer:
@@ -573,6 +369,155 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         if self.save_algorithm:
             data_to_save['algorithm'] = self
         return data_to_save
+
+    def collect_paths(self, idx, epoch, run):
+        self.task_idx = idx
+        self.env.reset_task(idx)
+
+        self.agent.clear_z()
+        paths = []
+        num_transitions = 0
+        num_trajs = 0
+        while num_transitions < self.num_steps_per_eval:
+            path, num = self.sampler.obtain_samples(deterministic=self.eval_deterministic, max_samples=self.num_steps_per_eval - num_transitions, max_trajs=1, accum_context=True)
+            paths += path
+            num_transitions += num
+            num_trajs += 1
+            if num_trajs >= self.num_exp_traj_eval:
+                self.agent.infer_posterior(self.agent.context)
+
+        if self.sparse_rewards:
+            for p in paths:
+                sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
+                p['rewards'] = sparse_rewards
+
+        goal = self.env._goal
+        for path in paths:
+            path['goal'] = goal # goal
+
+        # save the paths for visualization, only useful for point mass
+        if self.dump_eval_paths:
+            logger.save_extra_data(paths, path='eval_trajectories/task{}-epoch{}-run{}'.format(idx, epoch, run))
+
+        return paths
+
+    def _do_eval(self, indices, epoch):
+        final_returns = []
+        # online_returns = []
+        avg_returns = []
+        for idx in indices:
+            runs, avg_rets, final_rets = [], [], []
+            for r in range(self.num_evals):
+                paths = self.collect_paths(idx, epoch, r)
+                avg_rets.append(eval_util.get_average_returns(paths))
+                final_rets.append(eval_util.get_final_return(paths))
+                runs.append(paths)
+            avg_ret = np.mean(np.stack(avg_rets))
+            avg_returns.append(avg_ret)
+            final_ret = np.mean(final_rets)
+            final_returns.append(final_ret)
+            # final_returns.append(all_rets[-1])
+            # online_returns.append(all_rets)
+        return final_returns, avg_returns
+
+    def evaluate(self, epoch):
+        if self.eval_statistics is None:
+            self.eval_statistics = OrderedDict()
+
+        ### sample trajectories from prior for debugging / visualization
+        if self.dump_eval_paths:
+            # 100 arbitrarily chosen for visualizations of point_robot trajectories
+            # just want stochasticity of z, not the policy
+            self.agent.clear_z()
+            prior_paths, _ = self.sampler.obtain_samples(deterministic=self.eval_deterministic, max_samples=self.max_path_length * 20,
+                                                        accum_context=False,
+                                                        resample=1)
+            logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
+
+        ### train tasks
+        # eval on a subset of train tasks for speed
+        indices = self.train_tasks
+        eval_util.dprint('evaluating on {} train tasks'.format(len(indices)))
+        ### eval train tasks with posterior sampled from the training replay buffer
+        train_returns = []
+        for idx in indices:
+            self.task_idx = idx
+            self.env.reset_task(idx)
+            paths = []
+            for _ in range(self.num_steps_per_eval // self.max_path_length):
+                context = self.prepare_context(idx)
+                self.agent.infer_posterior(context)
+                p, _ = self.sampler.obtain_samples(deterministic=self.eval_deterministic, max_samples=self.max_path_length,
+                                                        accum_context=False,
+                                                        max_trajs=1,
+                                                        resample=np.inf)
+                paths += p
+
+            if self.sparse_rewards:
+                for p in paths:
+                    sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
+                    p['rewards'] = sparse_rewards
+
+            train_returns.append(eval_util.get_average_returns(paths))
+        train_returns = np.mean(train_returns)
+        ### eval train tasks with on-policy data to match eval of test tasks
+        train_final_returns, train_avg_returns = self._do_eval(indices, epoch)
+        eval_util.dprint('train online returns')
+        eval_util.dprint(train_avg_returns)
+
+        ### test tasks
+        eval_util.dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
+        test_final_returns, test_avg_returns = self._do_eval(self.eval_tasks, epoch)
+        eval_util.dprint('test online returns')
+        eval_util.dprint(test_avg_returns)
+
+        # save the final posterior
+        self.agent.log_diagnostics(self.eval_statistics)
+
+        if hasattr(self.env, "log_diagnostics"):
+            self.env.log_diagnostics(paths)
+
+        avg_train_online_return = np.mean(np.stack(train_avg_returns), axis=0)
+        avg_test_online_return = np.mean(np.stack(test_avg_returns), axis=0)
+        self.eval_statistics['AverageTrainReturn_all_train_tasks'] = train_returns
+
+        self.eval_statistics['AverageReturn_all_train_tasks'] = np.mean(train_avg_returns)
+        self.eval_statistics['AverageReturn_all_test_tasks'] = np.mean(test_avg_returns)
+        self.eval_statistics['Stddev_AverageReturn_all_train_tasks'] = np.std(train_avg_returns)
+        self.eval_statistics['Stddev_AverageReturn_all_test_tasks'] = np.std(test_avg_returns)
+
+        self.eval_statistics['AverageFinalReturn_all_train_tasks'] = np.mean(train_final_returns)
+        self.eval_statistics['AverageFinalReturn_all_test_tasks'] = np.mean(test_final_returns)
+        self.eval_statistics['Stddev_AverageFinalReturn_all_train_tasks'] = np.std(train_final_returns)
+        self.eval_statistics['Stddev_AverageFinalReturn_all_test_tasks'] = np.std(test_final_returns)
+
+        # TODO: Make this work with other envs
+        self.eval_statistics["TrainFinalReturns"] = train_final_returns
+        self.eval_statistics["TrainIndices"] = list(indices)
+        self.eval_statistics["TestFinalReturns"] = test_final_returns
+        self.eval_statistics["TestIndices"] = self.eval_tasks
+        # self.eval_statistics["BestTrainGoalFinalReturn"] = self.env.get_goal_at(np.argmax(train_final_returns))
+        # self.eval_statistics["WorstTrainGoalFinalReturn"] = self.env.get_goal_at(np.argmin(train_final_returns))
+        # self.eval_statistics["BestTrainGoalAvgReturn"] = self.env.get_goal_at(np.argmax(train_avg_returns))
+        # self.eval_statistics["WorstTrainGoalAvgReturn"] = self.env.get_goal_at(np.argmin(train_avg_returns))
+        #
+        # self.eval_statistics["BestTestGoalFinalReturn"] = self.env.get_goal_at(np.argmax(test_final_returns))
+        # self.eval_statistics["WorstTestGoalFinalReturn"] = self.env.get_goal_at(np.argmin(test_final_returns))
+        # self.eval_statistics["BestTestGoalAvgReturn"] = self.env.get_goal_at(np.argmax(test_avg_returns))
+        # self.eval_statistics["WorstTestGoalAvgReturn"] = self.env.get_goal_at(np.argmin(test_avg_returns))
+
+        logger.save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
+        logger.save_extra_data(avg_test_online_return, path='online-test-epoch{}'.format(epoch))
+
+        for key, value in self.eval_statistics.items():
+            logger.record_tabular(key, value)
+        self.eval_statistics = None
+
+        if self.render_eval_paths:
+            self.env.render_paths(paths)
+
+        if self.plotter:
+            self.plotter.draw()
 
     @abc.abstractmethod
     def training_mode(self, mode):
@@ -584,18 +529,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def evaluate(self, epoch):
-        """
-        Evaluate the policy, e.g. save/print progress.
-        :param epoch:
-        :return:
-        """
-        pass
-
-    @abc.abstractmethod
     def _do_training(self):
         """
         Perform some update, e.g. perform one gradient step.
         :return:
         """
         pass
+
