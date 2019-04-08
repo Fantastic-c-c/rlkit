@@ -369,29 +369,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             data_to_save['algorithm'] = self
         return data_to_save
 
-
-    ##### Eval stuff #####
-    def obtain_eval_paths(self, deterministic=False):
-        '''
-        collect paths with current policy
-        each transition will update the running latent context
-        the context used to condition the policy can be resampled at different intervals
-        (to enable trajectory-level or transition-level adaptation, for example)
-        '''
-        self.reset_posterior()
-        test_paths, _ = self.eval_sampler.obtain_samples(deterministic=deterministic,
-                                                         num_samples=self.num_steps_per_eval,
-                                                         resample=self.resample_z)
-        if self.sparse_rewards:
-            for p in test_paths:
-                p['rewards'] = self.env.sparsify_rewards(p['rewards'])
-        return test_paths
-
     def collect_paths(self, idx, epoch, run):
         self.task_idx = idx
         self.env.reset_task(idx)
 
-        # paths = self.obtain_eval_paths(deterministic=False)
         self.reset_posterior()
         paths, _ = self.eval_sampler.obtain_samples(num_samples=self.num_steps_per_eval,
                                                     resample=self.resample_z)
@@ -416,7 +397,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             runs, all_rets = [], []
             for r in range(self.num_evals):
                 paths = self.collect_paths(idx, epoch, r)
-                all_rets.append([eval_util.get_average_returns([p]) for p in paths])
+                all_rets.append([eval_util.get_average_returns([p], sparse=self.sparse_rewards) for p in paths])
                 runs.append(paths)
             all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
             final_returns.append(all_rets[-1])
@@ -454,11 +435,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 paths += self.eval_sampler.obtain_samples(num_samples=self.max_path_length + 1,
                                                           deterministic=True,
                                                           resample=np.inf)[0]
-            if self.sparse_rewards:
-                for p in paths:
-                    sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
-                    p['rewards'] = sparse_rewards
-            train_returns.append(eval_util.get_average_returns(paths))
+
+            train_returns.append(eval_util.get_average_returns(paths, sparse=self.sparse_rewards))
         train_returns = np.mean(train_returns)
         ### eval train tasks with on-policy data to match eval of test tasks
         train_final_returns, train_online_returns = self._do_eval(indices, epoch)
