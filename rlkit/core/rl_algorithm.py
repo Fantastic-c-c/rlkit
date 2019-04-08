@@ -240,8 +240,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
         num_transitions = 0
         while num_transitions < num_samples:
-            paths, n_samples = self.eval_sampler.obtain_samples(num_samples=num_samples - num_transitions,
-                                                                num_trajs=update_posterior_rate,
+            paths, n_samples = self.eval_sampler.obtain_samples(max_samples=num_samples - num_transitions,
+                                                                max_trajs=update_posterior_rate,
                                                                 resample=resample_z_rate)
             num_transitions += n_samples
             self.infer_posterior(self.task_idx, self.embedding_batch_size)
@@ -373,8 +373,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.env.reset_task(idx)
 
         self.reset_posterior()
-        paths, _ = self.eval_sampler.obtain_samples(num_samples=self.num_steps_per_eval,
-                                                    resample=self.resample_z)
+        paths, _ = self.eval_sampler.obtain_samples(max_samples=self.num_steps_per_eval, resample=self.resample_z)
         if self.sparse_rewards:
             for p in paths:
                 p['rewards'] = self.env.sparsify_rewards(p['rewards'])
@@ -413,8 +412,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             # 100 arbitrarily chosen for visualizations of point_robot trajectories
             for _ in range(100 // self.num_steps_per_eval):
                 # just want stochasticity of z, not the policy
-                paths, _ = self.eval_sampler.obtain_samples(deterministic=True,
-                                                            num_samples=self.num_steps_per_eval,
+                paths, _ = self.eval_sampler.obtain_samples(deterministic=True, max_samples=self.num_steps_per_eval,
                                                             resample=np.inf)
                 prior_paths += paths
             logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
@@ -433,8 +431,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             # (AZ): should this be hardcoded?
             for _ in range(10):
                 self.infer_posterior(idx)
-                p, _ = self.eval_sampler.obtain_samples(num_samples=self.max_path_length,
-                                                        deterministic=True,
+                p, _ = self.eval_sampler.obtain_samples(deterministic=True, max_samples=self.max_path_length,
                                                         resample=np.inf)
                 paths += p
 
