@@ -433,8 +433,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             # (AZ): should this be hardcoded?
             for _ in range(10):
                 self.infer_posterior(idx)
-                # why do we want max_path_length + 1?
-                p = self.eval_sampler.obtain_samples(num_samples=self.max_path_length + 1,
+                p = self.eval_sampler.obtain_samples(num_samples=self.max_path_length,
                                                      deterministic=True,
                                                      resample=np.inf)[0]
                 paths += p
