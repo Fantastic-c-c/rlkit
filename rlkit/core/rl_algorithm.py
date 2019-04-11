@@ -176,12 +176,16 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             if it_ == 0:
                 print('collecting initial pool of data for train and eval')
                 # temp for evaluating
-                for idx in range(len(self.train_tasks)):
+                if self.task_idx_for_render:
+                    tasks = [self.task_idx_for_render]
+                else:
+                    tasks = range(len(self.train_tasks))
+                for idx in tasks:
                     self.task_idx = idx
                     env = self.train_tasks[idx]
                     env.reset()
                     # env = envs
-
+                    print(env)
                     self.collect_data_sampling_from_prior(env=env, num_samples=self.max_path_length * 1,
                                                           resample_z_every_n=self.max_path_length,
                                                           eval_task=False)
@@ -197,7 +201,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
             # Sample data from train tasks.
             for i in range(self.num_tasks_sample):
-                idx = np.random.randint(len(self.train_tasks))
+                if self.task_idx_for_render is not None:
+                    idx = self.task_idx_for_render
+                else:
+                    idx = np.random.randint(len(self.train_tasks))
                 self.task_idx = idx
                 env = self.train_tasks[idx]
                 env.reset()
@@ -223,15 +230,15 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                                                           resample_z_every_n=self.max_path_length,
                                                           add_to_enc_buffer=True)
 
-                    if idx == self.task_idx_for_render:
-                        render=True
-                    else:
-                        render = False
-
                     print('Collecting data from task posterior')
-                    self.collect_data_from_task_posterior(env=env, idx=idx,
-                                                          num_samples=self.num_steps_per_task,
-                                                          add_to_enc_buffer=False, render=render)
+                    if idx == self.task_idx_for_render:
+                        self.collect_data_from_task_posterior(env=env, idx=idx,
+                                                              num_samples=self.num_steps_per_task,
+                                                              add_to_enc_buffer=False, render=True)
+                    else:
+                        self.collect_data_from_task_posterior(env=env, idx=idx,
+                                                              num_samples=self.num_steps_per_task,
+                                                              add_to_enc_buffer=False)
                 elif self.train_embedding_source == 'online_on_policy_trajectories':
                     # sample from prior, then sample more from the posterior
                     # embeddings computed from both prior and posterior data
@@ -346,6 +353,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 env.step(action)
             )
             reward = raw_reward * self.reward_scale
+            if render:
+                print('reward', reward)
             terminal = np.array([terminal])
             reward = np.array([reward])
             self._handle_step(

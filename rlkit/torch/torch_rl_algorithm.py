@@ -120,9 +120,11 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         average_inference_returns = [eval_util.get_average_returns(paths) for paths in all_inference_paths]
         self.eval_statistics['AverageInferenceReturns_test_task{}'.format(idx)] = average_inference_returns
 
-    def collect_paths(self, env, idx, epoch, eval_task=False):
+    def collect_paths(self, env, idx, epoch, eval_task=False, render=False):
         # self.task_idx = idx
         # dprint('Task:', idx)
+        if render:
+            env.render()
         env.reset()
         if eval_task:
             num_evals = self.num_evals
@@ -155,7 +157,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         # goal = self.env._goal
         # dprint('GoalPosition_{}_task'.format(split))
         # dprint(goal)
-        self.eval_statistics['GoalPosition_{}_task{}'.format(split, self.task_idx)] = goal
+        # self.eval_statistics['GoalPosition_{}_task{}'.format(split, self.task_idx)] = goal
 
     def evaluate(self, epoch):
         statistics = OrderedDict()
@@ -199,21 +201,29 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 raise Exception("Invalid option for computing eval embedding")
 
             dprint('task {} encoder RB size'.format(idx), self.eval_enc_replay_buffer.task_buffers[idx]._size)
-            test_paths = self.collect_paths(env, idx, epoch, eval_task=True)
+            
+            if False:
+            # if idx == self.task_idx_for_render:
+                test_paths = self.collect_paths(env, idx, epoch, eval_task=True, render=True)
+            else:
+                test_paths = self.collect_paths(env, idx, epoch, eval_task=True)
 
             test_avg_returns.append(eval_util.get_average_returns(test_paths))
 
             if self.use_information_bottleneck:
                 z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_dists[0].mean)))
                 z_sig = np.mean(ptu.get_numpy(self.policy.z_dists[0].variance))
-                self.eval_statistics['Z mean eval'] = z_mean
-                self.eval_statistics['Z variance eval'] = z_sig
+                # self.eval_statistics['Z mean eval task {}'.format(self.task_idx)] = z_mean
+                # self.eval_statistics['Z variance eval task {}'.format(self.task_idx)] = z_sig
+            self.log_statistics(test_paths)
+
 
 
         avg_train_return = np.mean(train_avg_returns)
         avg_test_return = np.mean(test_avg_returns)
         self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
         self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
+
 
         for key, value in self.eval_statistics.items():
             logger.record_tabular(key, value)

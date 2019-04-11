@@ -26,8 +26,17 @@ from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_hand_insert import SawyerHandInsertEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_sweep import SawyerSweepEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYZEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_hand_insert import SawyerHandInsert6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_sweep import SawyerSweep6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_book_place import SawyerBookPlace6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_hammer_6dof import SawyerHammer6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_laptop_close_6dof import SawyerLaptopClose6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_sweep_into_goal import SawyerSweepIntoGoal6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_button_press_topdown_6dof import SawyerButtonPressTopdown6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place_6dof import SawyerPickAndPlace6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_6dof import SawyerDoor6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_drawer_close_6dof import SawyerDrawerClose6DOFEnv
 
 
 def datetimestamp(divider=''):
@@ -36,21 +45,33 @@ def datetimestamp(divider=''):
 
 def experiment(variant):
     task_params = variant['task_params']
-    params = joblib.load('/home/deirdre/rlkit/output/metaworld/metaworld-test/params.pkl')
+    params = joblib.load('/home/deirdre/rlkit/output/metaworld/7tasks-rs1-vis/params.pkl')
 
     # env.render()
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
-    tasks = []
     # Initialize copies of each environment with random goals.
-    for _ in range(1):
-        tasks.append(SawyerHandInsertEnv())
-    for _ in range(1):
-        tasks.append(SawyerSweepEnv())
+    tasks = [
+    SawyerHandInsert6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=0),
+    SawyerSweep6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=1),
+    SawyerHammer6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=2),
+    SawyerBookPlace6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=3),
+    # SawyerNutAssembly6DOFEnv(rotMode='rotz', num_obs_space_obj_positions=3),
+    SawyerLaptopClose6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=4),
+    # SawyerSweepIntoGoal6DOFEnv(rotMode='rotz', multitask=True, multitask_num=8, task_idx=4),
+    # SawyerDrawerClose6DOFEnv(rotMode='rotz', multitask=True, multitask_num=8, task_idx=5),
+    SawyerButtonPressTopdown6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=5),
+    SawyerPickAndPlace6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=6)
+    ]
+
+    for env in tasks:
+        print('env.observation_space.shape', env.observation_space.shape)
+        print('env.action_space.shape))', env.action_space.shape)
+
 
     obs_dim = int(np.prod(tasks[0].observation_space.shape))
     action_dim = int(np.prod(tasks[0].action_space.shape))
-    latent_dim = 5
+    latent_dim = 2
     task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
     reward_dim = 1
 
@@ -83,11 +104,11 @@ def experiment(variant):
 @click.argument('gpu', default=0)
 @click.option('--docker', default=0)
 def main(gpu, docker):
-    max_path_length = 100
+    max_path_length = 999
     # noinspection PyTypeChecker
     variant = dict(
         task_params=dict(
-            n_tasks=2,
+            n_tasks=8,
             randomize_tasks=True,
         ),
         algo_params=dict(
@@ -95,7 +116,7 @@ def main(gpu, docker):
             num_iterations=10000,
             num_tasks_sample=5,
             num_steps_per_task=1 * max_path_length,
-            num_train_steps_per_itr=1,
+            num_train_steps_per_itr=1000,
             num_evals=5, # number of evals with separate task encodings
             num_steps_per_eval=3 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
@@ -113,20 +134,21 @@ def main(gpu, docker):
             reparameterize=True,
             kl_lambda=.1,
             rf_loss_scale=1.,
-            use_information_bottleneck=True,
+            use_information_bottleneck=False,
             train_embedding_source='online_exploration_trajectories',
             # embedding_source should be chosen from
             # {'initial_pool', 'online_exploration_trajectories', 'online_on_policy_trajectories'}
             eval_embedding_source='online_exploration_trajectories',
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
-            task_idx_for_render=0,
+            render_eval_paths=False,
+            render=False,
+            task_idx_for_render=5,
         ),
         net_size=300,
         use_gpu=True,
         gpu_id=gpu,
     )
-
 
     exp_name = 'metaworld_videos'
 

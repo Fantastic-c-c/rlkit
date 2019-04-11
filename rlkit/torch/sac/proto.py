@@ -7,6 +7,7 @@ import torch.nn.functional as F
 
 import rlkit.torch.pytorch_util as ptu
 from rlkit.torch.core import np_ify, torch_ify
+import pdb
 
 
 def _product_of_gaussians(mus, sigmas_squared):
@@ -153,11 +154,11 @@ class ProtoAgent(nn.Module):
     def _update_target_network(self):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.tau)
 
-    def forward(self, obs, actions, next_obs, enc_data, obs_enc, act_enc):
+    def forward(self, obs, actions, next_obs, enc_data, obs_enc, act_enc, task_idx_one_hots):
         self.set_z(enc_data)
-        return self.infer(obs, actions, next_obs, obs_enc, act_enc)
+        return self.infer(obs, actions, next_obs, obs_enc, act_enc, task_idx_one_hots)
 
-    def infer(self, obs, actions, next_obs, obs_enc, act_enc):
+    def infer(self, obs, actions, next_obs, obs_enc, act_enc, task_idx_one_hots):
         '''
         compute predictions of SAC networks for update
 
@@ -165,10 +166,16 @@ class ProtoAgent(nn.Module):
         '''
 
         task_z = self.z
+        task_z = torch.tensor(task_idx_one_hots, dtype=torch.float32, device=torch.device('cuda:0'))
+        # pdb.set_trace()
+
 
         # auxiliary reward regression
         rf_z = [z.repeat(obs_enc.size(1), 1) for z in task_z]
         rf_z = torch.cat(rf_z, dim=0)
+
+
+        # pdb.set_trace()
         r = self.rf(obs_enc.contiguous().view(obs_enc.size(0) * obs_enc.size(1), -1), 
                 act_enc.contiguous().view(act_enc.size(0) * act_enc.size(1), -1), 
                 rf_z)
@@ -194,6 +201,7 @@ class ProtoAgent(nn.Module):
         with torch.no_grad():
             target_v_values = self.target_vf(next_obs, task_z)
 
+# 
         return r, q1, q2, v, policy_outputs, target_v_values, task_z
 
     def min_q(self, obs, actions, task_z):
