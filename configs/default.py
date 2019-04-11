@@ -35,10 +35,11 @@ default_config = dict(
         reparameterize=True, # should always be True
         kl_lambda=.1, # weight on KL divergence term in encoder loss
         use_information_bottleneck=True, # False makes latent context deterministic
+        # train embedding source choose from {'initial_pool', 'online_exploration_trajectories', 'online_on_policy_trajectories'}
         train_embedding_source='online_exploration_trajectories',
-        # embedding_source should be chosen from
-        # {'initial_pool', 'online_exploration_trajectories', 'online_on_policy_trajectories'}
-        eval_embedding_source='online_exploration_trajectories',
+        resample_z=1, # how often to resample z at test-time (in trajectories)
+        resample_z_train=1, # how often to resample z at training time (in trajectories)
+        update_post_train=1, # how often to resample the context when collecting data during training (in trajectories)
         recurrent=False, # recurrent or permutation-invariant encoder
         dump_eval_paths=False, # whether to save evaluation trajectories
     ),
