@@ -242,6 +242,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         while num_transitions < num_samples:
             paths, n_samples = self.eval_sampler.obtain_samples(max_samples=num_samples - num_transitions,
                                                                 max_trajs=update_posterior_rate,
+                                                                update_context=False,
                                                                 resample=resample_z_rate)
             num_transitions += n_samples
             self.replay_buffer.add_paths(self.task_idx, paths)
@@ -373,7 +374,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.env.reset_task(idx)
 
         self.reset_posterior()
-        paths, _ = self.eval_sampler.obtain_samples(max_samples=self.num_steps_per_eval, resample=self.resample_z)
+        paths, _ = self.eval_sampler.obtain_samples(max_samples=self.num_steps_per_eval, update_context=True,
+                                                    resample=self.resample_z)
         if self.sparse_rewards:
             for p in paths:
                 p['rewards'] = self.env.sparsify_rewards(p['rewards'])
@@ -413,6 +415,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             for _ in range(100 // self.num_steps_per_eval):
                 # just want stochasticity of z, not the policy
                 paths, _ = self.eval_sampler.obtain_samples(deterministic=True, max_samples=self.num_steps_per_eval,
+                                                            update_context=True,
                                                             resample=np.inf)
                 prior_paths += paths
             logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
@@ -432,6 +435,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             for _ in range(10):
                 self.infer_posterior(idx)
                 p, _ = self.eval_sampler.obtain_samples(deterministic=True, max_samples=self.max_path_length,
+                                                        update_context=False,
                                                         resample=np.inf)
                 paths += p
 
