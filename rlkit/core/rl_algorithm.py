@@ -310,7 +310,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         :return:
         """
         return (
-            len(self._exploration_paths) > 0
+            self.enc_replay_buffer.num_steps_can_sample(self.task_idx) >= self.embedding_batch_size
             and self.replay_buffer.num_steps_can_sample(self.task_idx) >= self.batch_size
         )
 

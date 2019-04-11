@@ -24,6 +24,7 @@ def main(gpu, docker, debug):
     algo_params = variant['algo_params']
     algo_params['num_initial_steps'] = 400
     algo_params['num_steps_per_eval'] = 10 * max_path_length
+    algo_params['num_steps_per_task'] = 5 * max_path_length
     algo_params['reward_scale'] = 100.
     algo_params['kl_lambda'] = .1
     algo_params['train_embedding_source'] ='online_on_policy_trajectories'
