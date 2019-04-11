@@ -244,10 +244,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                                                                 max_trajs=update_posterior_rate,
                                                                 resample=resample_z_rate)
             num_transitions += n_samples
-            self.infer_posterior(self.task_idx, self.embedding_batch_size)
             self.replay_buffer.add_paths(self.task_idx, paths)
             if add_to_enc_buffer:
                 self.enc_replay_buffer.add_paths(self.task_idx, paths)
+            self.infer_posterior(self.task_idx, self.embedding_batch_size)
         self._n_env_steps_total += num_transitions
         gt.stamp('sample')
 
