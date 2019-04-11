@@ -59,7 +59,6 @@ class ProtoAgent(nn.Module):
         self.tau = kwargs['soft_target_tau']
         self.reward_scale = kwargs['reward_scale']
         self.sparse_rewards = kwargs['sparse_rewards']
-        self.det_z = False
 
         # initialize task embedding to zero
         # (task, latent dim)
@@ -88,6 +87,7 @@ class ProtoAgent(nn.Module):
             var = ptu.zeros(num_tasks, self.latent_dim)
         self.z_means = mu
         self.z_vars = var
+        self.num_z = ptu.zeros(1)
         self.sample_z()
         self.task_enc.reset(num_tasks) # clear hidden state in recurrent case
 
