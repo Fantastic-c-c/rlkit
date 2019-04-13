@@ -167,6 +167,22 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         return task_data
 
 
+    ##### Inferring latent context #####
+    def reset_posterior(self, num_tasks=1):
+        # reset to prior and sample z
+        self.agent.clear_z(num_tasks=num_tasks)
+
+    def infer_posterior(self, idx, batch_size):
+        # infer q(z | c) given context
+        batch = self.get_encoding_batch(idx=idx, batch_size=batch_size)
+        obs = batch['observations'][None, ...]
+        act = batch['actions'][None, ...]
+        rewards = batch['rewards'][None, ...]
+        in_ = self.prepare_encoder_data(obs, act, rewards)
+        self.agent.infer_posterior(in_)
+        self.agent.sample_z()
+
+
     ##### Training #####
     def _do_training(self, indices):
         mb_size = self.embedding_mini_batch_size
@@ -321,23 +337,6 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
                 'Policy log std',
                 ptu.get_numpy(policy_log_std),
             ))
-
-    #####
-    def reset_posterior(self, num_tasks=1):
-        # reset to prior and sample z
-        self.agent.clear_z(num_tasks=num_tasks)
-
-    def infer_posterior(self, idx, batch_size=None):
-        # infer q(z | c) given context
-        if batch_size == None:
-            batch_size = self.embedding_batch_size
-        batch = self.get_encoding_batch(idx=idx, batch_size=batch_size)
-        obs = batch['observations'][None, ...]
-        act = batch['actions'][None, ...]
-        rewards = batch['rewards'][None, ...]
-        in_ = self.prepare_encoder_data(obs, act, rewards)
-        self.agent.infer_posterior(in_)
-        self.agent.sample_z()
 
 
     def get_epoch_snapshot(self, epoch):

@@ -66,7 +66,10 @@ class SimpleReplayBuffer(ReplayBuffer):
 
     def random_batch(self, batch_size):
         ''' batch of unordered transitions '''
-        indices = np.random.randint(0, self._size, batch_size)
+        if batch_size == -1:
+            indices = list(range(self._size))
+        else:
+            indices = np.random.randint(0, self._size, batch_size)
         return self.sample_data(indices)
 
     def random_sequence(self, batch_size):

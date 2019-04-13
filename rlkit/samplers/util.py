@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def rollout(env, agent, max_path_length=np.inf, update_context=True, resample_z=False, animated=False):
+def rollout(env, agent, max_path_length=np.inf, animated=False):
     """
     The following value for the following keys will be a 2D array, with the
     first dimension corresponding to the time dimension.
@@ -37,9 +37,6 @@ def rollout(env, agent, max_path_length=np.inf, update_context=True, resample_z=
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
-        # update the latent context online
-        if update_context:
-            agent.update_context([o, a, r, next_o, d, env_info])
         observations.append(o)
         rewards.append(r)
         terminals.append(d)

@@ -64,8 +64,6 @@ class ProtoAgent(nn.Module):
         # initialize task embedding to zero
         # (task, latent dim)
         self.register_buffer('z', torch.zeros(1, latent_dim))
-        # for incremental update, must keep track of number of datapoints accumulated
-        self.register_buffer('num_z', torch.zeros(1))
 
         # initialize posterior to the prior
         mu = torch.zeros(1, latent_dim)
@@ -98,18 +96,6 @@ class ProtoAgent(nn.Module):
         if self.recurrent:
             self.task_enc.hidden = self.task_enc.hidden.detach()
 
-    def update_context(self, inputs):
-        ''' update q(z|c) with a single transition '''
-        # TODO there should be one generic method for preparing data for the encoder!!!
-        o, a, r, no, d, info = inputs
-        if self.sparse_rewards:
-            r = info['sparse_reward']
-        o = ptu.from_numpy(o[None, None, ...])
-        a = ptu.from_numpy(a[None, None, ...])
-        r = ptu.from_numpy(np.array([r])[None, None, ...])
-        data = torch.cat([o, a, r], dim=2)
-        self.update_posterior(data)
-
     def compute_kl_div(self):
         ''' compute KL( q(z|c) || r(z) ) '''
         prior = torch.distributions.Normal(ptu.zeros(self.latent_dim), ptu.ones(self.latent_dim))
@@ -140,45 +126,6 @@ class ProtoAgent(nn.Module):
             self.z = torch.stack(z)
         else:
             self.z = self.z_means
-
-    def update_posterior(self, in_):
-        '''
-        update current q(z|c) with new data
-         - by adding to sum of natural parameters for prototypical encoder
-         - by updating hidden state for recurrent encoder
-        '''
-        num_z = self.num_z
-
-        # TODO this only works for single task (t == 1)
-        up_params = self.task_enc(in_) # task x batch x feat
-        if up_params.size(0) != 1:
-            raise Exception('incremental update for more than 1 task not supported')
-        if self.recurrent:
-            up_mu = up_params[..., :self.latent_dim]
-            up_ss = F.softplus(up_params[..., self.latent_dim:])
-            self.z_means = up_mu[None]
-            self.z_vars = up_ss[None]
-        else:
-            num_updates = up_params.size(1)
-            # only have one task here
-            up_params = up_params[0] # batch x feat
-            curr_mu = self.z_means[0]
-            curr_ss = self.z_vars[0]
-            if self.use_ib:
-                natural_z = torch.cat(_canonical_to_natural(curr_mu, curr_ss)) #feat
-                up_mu = up_params[..., :self.latent_dim]
-                up_ss = F.softplus(up_params[..., self.latent_dim:])
-                new_natural = torch.cat(_canonical_to_natural(up_mu, up_ss), dim=1) # batch x feat
-                new_natural = torch.sum(new_natural, dim=0)
-                natural_z += new_natural
-                m, s  = _natural_to_canonical(natural_z[:self.latent_dim], natural_z[self.latent_dim:]) # feat
-                self.z_means = m[None]
-                self.z_vars = s[None]
-            else:
-                for i in range(num_updates):
-                    num_z += 1
-                    curr_mu += (up_params[i] - curr_mu) / num_z
-                self.z_means = curr_mu[None]
 
     def get_action(self, obs, deterministic=False):
         ''' sample action from the policy, conditioned on the task embedding '''
