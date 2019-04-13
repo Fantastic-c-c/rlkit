@@ -13,7 +13,6 @@
         "max_path_length": 20,
         "reward_scale": 100.0,
         "kl_lambda": 0.1,
-        "train_embedding_source": "online_exploration_trajectories",
-        "eval_embedding_source": "online_exploration_trajectories"
+        "train_embedding_source": "online_exploration_trajectories"
     }
 }
