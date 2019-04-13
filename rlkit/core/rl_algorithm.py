@@ -455,9 +455,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         # save the final posterior
         self.agent.log_diagnostics(self.eval_statistics)
 
-        # TODO(KR) what does this do
-        #if hasattr(self.env, "log_diagnostics"):
-        #self.env.log_diagnostics(paths)
+        if hasattr(self.env, "log_diagnostics"):
+            self.env.log_diagnostics(paths)
 
         avg_train_return = np.mean(train_final_returns)
         avg_test_return = np.mean(test_final_returns)
