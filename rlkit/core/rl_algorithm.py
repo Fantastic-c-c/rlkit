@@ -242,7 +242,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         while num_transitions < num_samples:
             paths, n_samples = self.eval_sampler.obtain_samples(max_samples=num_samples - num_transitions,
                                                                 max_trajs=update_posterior_rate,
-                                                                update_context=False,
+                                                                accum_context=False,
                                                                 resample=resample_z_rate)
             num_transitions += n_samples
             self.replay_buffer.add_paths(self.task_idx, paths)
@@ -374,8 +374,14 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.env.reset_task(idx)
 
         self.reset_posterior()
-        paths, _ = self.eval_sampler.obtain_samples(max_samples=self.num_steps_per_eval, update_context=True,
+        paths = []
+        num_transitions = 0
+        while num_transitions < self.num_steps_per_eval:
+            path, num = self.eval_sampler.obtain_samples(max_samples=self.num_steps_per_eval - num_transitions, max_trajs=1, accum_context=True,
                                                     resample=self.resample_z, deterministic=deterministic)
+            self.agent.infer_posterior(self.agent.context)
+            paths += path
+            num_transitions += num
         if self.sparse_rewards:
             for p in paths:
                 p['rewards'] = self.env.sparsify_rewards(p['rewards'])
@@ -410,14 +416,12 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
         ### sample trajectories from prior for debugging / visualization
         if self.dump_eval_paths:
-            prior_paths = []
             # 100 arbitrarily chosen for visualizations of point_robot trajectories
-            for _ in range(100 // self.num_steps_per_eval):
-                # just want stochasticity of z, not the policy
-                paths, _ = self.eval_sampler.obtain_samples(deterministic=True, max_samples=self.num_steps_per_eval,
-                                                            update_context=True,
-                                                            resample=np.inf)
-                prior_paths += paths
+            # just want stochasticity of z, not the policy
+            self.agent.clear_z()
+            prior_paths, _ = self.eval_sampler.obtain_samples(deterministic=True, max_samples=self.max_path_length * 20,
+                                                        accum_context=False,
+                                                        resample=1)
             logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
 
         ### train tasks
@@ -430,12 +434,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.task_idx = idx
             self.env.reset_task(idx)
             paths = []
-            # TODO: put these lines into method evaluate_task(idx) that goes into sac.py?
-            # (AZ): should this be hardcoded?
-            for _ in range(10):
-                self.infer_posterior(idx)
-                p, _ = self.eval_sampler.obtain_samples(deterministic=True, max_samples=self.max_path_length,
-                                                        update_context=False,
+            for _ in range(self.num_steps_per_eval // self.max_path_length):
+                self.infer_posterior(idx, self.embedding_batch_size)
+                p, _ = self.eval_sampler.obtain_samples(max_samples=self.max_path_length,
+                                                        accum_context=False,
                                                         resample=np.inf)
                 paths += p
 
