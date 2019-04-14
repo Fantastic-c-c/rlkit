@@ -309,10 +309,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
         :return:
         """
-        return (
-            self.enc_replay_buffer.num_steps_can_sample(self.task_idx) >= self.embedding_batch_size
-            and self.replay_buffer.num_steps_can_sample(self.task_idx) >= self.batch_size
-        )
+        # eval collects its own context, so can eval any time
+        return True
 
     def _can_train(self):
         return all([self.replay_buffer.num_steps_can_sample(idx) >= self.batch_size for idx in self.train_tasks])
