@@ -90,6 +90,7 @@ class ProtoAgent(nn.Module):
         self.z_vars = var
         self.sample_z()
         self.task_enc.reset(num_tasks) # clear hidden state in recurrent case
+        self.context = None
 
     def detach_z(self):
         ''' disable backprop through z '''
