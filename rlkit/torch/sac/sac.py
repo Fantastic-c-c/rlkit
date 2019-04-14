@@ -73,7 +73,6 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         self.qf1, self.qf2, self.vf = nets[1:]
         self.target_vf = self.vf.copy()
 
-        # TODO consolidate optimizers! # I personally think it's nicer to have separate optimizers so it's easier to track when updates to each thing are happening
         self.policy_optimizer = optimizer_class(
             self.agent.policy.parameters(),
             lr=policy_lr,
@@ -131,7 +130,6 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
 
     def sample_data(self, indices, encoder=False):
         # sample from replay buffer for each task
-        # TODO(KR) this is ugly af
         obs, actions, rewards, next_obs, terms = [], [], [], [], []
         for idx in indices:
             if encoder:
@@ -178,7 +176,6 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         self.reset_posterior(num_tasks=len(indices))
 
         for i in range(num_updates):
-            # TODO(KR) argh so ugly
             mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
             obs_enc, act_enc, rewards_enc, _, _ = mini_batch
             self._take_step(indices, obs_enc, act_enc, rewards_enc)
@@ -284,11 +281,8 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         if self.eval_statistics is None:
             # eval should set this to None.
             # this way, these statistics are only computed for one batch.
-            # TODO this is kind of annoying and higher variance, why not just average
-            # across all the train steps?
             self.eval_statistics = OrderedDict()
             if self.use_information_bottleneck:
-                # TODO should average across tasks rather than tasking the first
                 z_mean = np.mean(np.abs(ptu.get_numpy(self.agent.z_means[0])))
                 z_sig = np.mean(ptu.get_numpy(self.agent.z_vars[0]))
                 self.eval_statistics['Z mean train'] = z_mean
