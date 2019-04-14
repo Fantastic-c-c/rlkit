@@ -242,7 +242,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         while num_transitions < num_samples:
             paths, n_samples = self.eval_sampler.obtain_samples(max_samples=num_samples - num_transitions,
                                                                 max_trajs=update_posterior_rate,
-                                                                update_context=False,
+                                                                accum_context=False,
                                                                 resample=resample_z_rate)
             num_transitions += n_samples
             self.replay_buffer.add_paths(self.task_idx, paths)
@@ -374,8 +374,14 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.env.reset_task(idx)
 
         self.reset_posterior()
-        paths, _ = self.eval_sampler.obtain_samples(max_samples=self.num_steps_per_eval, update_context=True,
+        paths = []
+        num_transitions = 0
+        while num_transitions < self.num_steps_per_eval:
+            path, num = self.eval_sampler.obtain_samples(max_samples=self.num_steps_per_eval - num_transitions, max_trajs=1, accum_context=True,
                                                     resample=self.resample_z)
+            self.agent.infer_posterior(self.agent.context)
+            paths.append(path)
+            num_transitions += num
         if self.sparse_rewards:
             for p in paths:
                 p['rewards'] = self.env.sparsify_rewards(p['rewards'])
