@@ -32,7 +32,6 @@ default_config = dict(
         context_lr=3e-4,
         reward_scale=5., # scale rewards before constructing Bellman update
         sparse_rewards=False, # whether to sparsify rewards as determined in env
-        reparameterize=True, # should always be True
         kl_lambda=.1, # weight on KL divergence term in encoder loss
         use_information_bottleneck=True, # False makes latent context deterministic
         # train embedding source choose from {'initial_pool', 'online_exploration_trajectories', 'online_on_policy_trajectories'}

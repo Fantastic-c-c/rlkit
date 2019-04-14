@@ -1,21 +1,16 @@
 from collections import OrderedDict
 import numpy as np
-import pickle
-from typing import Iterable
 
 import torch
 import torch.optim as optim
 from torch import nn as nn
-from torch.autograd import Variable
 
 import rlkit.torch.pytorch_util as ptu
-from rlkit.torch.core import PyTorchModule, np_ify, torch_ify
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.core.rl_algorithm import MetaRLAlgorithm
-from rlkit.torch.sac.proto import ProtoAgent
 
 
-class ProtoSoftActorCritic(MetaRLAlgorithm):
+class PEARLSoftActorCritic(MetaRLAlgorithm):
     def __init__(
             self,
             env,
@@ -33,7 +28,6 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
             policy_std_reg_weight=1e-3,
             policy_pre_activation_weight=0.,
             optimizer_class=optim.Adam,
-            reparameterize=True,
             recurrent=False,
             use_information_bottleneck=True,
             sparse_rewards=False,
@@ -66,14 +60,12 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         self.l2_reg_criterion = nn.MSELoss()
         self.kl_lambda = kl_lambda
 
-        self.reparameterize = reparameterize
         self.use_information_bottleneck = use_information_bottleneck
         self.sparse_rewards = sparse_rewards
 
         self.qf1, self.qf2, self.vf = nets[1:]
         self.target_vf = self.vf.copy()
 
-        # TODO consolidate optimizers! # I personally think it's nicer to have separate optimizers so it's easier to track when updates to each thing are happening
         self.policy_optimizer = optimizer_class(
             self.agent.policy.parameters(),
             lr=policy_lr,
@@ -91,7 +83,7 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
             lr=vf_lr,
         )
         self.context_optimizer = optimizer_class(
-            self.agent.task_enc.parameters(),
+            self.agent.context_encoder.parameters(),
             lr=context_lr,
         )
 
@@ -111,33 +103,15 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
             net.to(device)
 
     ##### Data handling #####
-    def get_batch(self, idx=None):
-        ''' get a batch from replay buffer for input into net '''
-        if idx is None:
-            idx = self.task_idx
-        batch = self.replay_buffer.random_batch(idx, self.batch_size)
-        return ptu.np_to_pytorch_batch(batch)
-
-    def get_encoding_batch(self, idx=None, batch_size=None):
-        ''' get a batch from the separate encoding replay buffer '''
-        if batch_size is None:
-            batch_size = self.embedding_batch_size
-        # if using sequence model for encoder, samples should be ordered
-        is_seq = self.recurrent
-        if idx is None:
-            idx = self.task_idx
-        batch = self.enc_replay_buffer.random_batch(idx, batch_size=batch_size, sequence=is_seq)
-        return ptu.np_to_pytorch_batch(batch)
-
     def sample_data(self, indices, encoder=False):
-        # sample from replay buffer for each task
-        # TODO(KR) this is ugly af
+        ''' sample data from replay buffers to construct a training meta-batch '''
+        # collect data from multiple tasks for the meta-batch
         obs, actions, rewards, next_obs, terms = [], [], [], [], []
         for idx in indices:
             if encoder:
-                batch = self.get_encoding_batch(idx=idx)
+                batch = ptu.np_to_pytorch_batch(self.enc_replay_buffer.random_batch(idx, batch_size=self.embedding_batch_size, sequence=self.recurrent))
             else:
-                batch = self.get_batch(idx=idx)
+                batch = ptu.np_to_pytorch_batch(self.replay_buffer.random_batch(idx, batch_size=self.batch_size))
             o = batch['observations'][None, ...]
             a = batch['actions'][None, ...]
             if encoder and self.sparse_rewards:
@@ -160,12 +134,20 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         return [obs, actions, rewards, next_obs, terms]
 
     def prepare_encoder_data(self, obs, act, rewards):
-        ''' prepare task data for encoding '''
+        ''' prepare context for encoding '''
         # for now we embed only observations and rewards
         # assume obs and rewards are (task, batch, feat)
         task_data = torch.cat([obs, act, rewards], dim=2)
         return task_data
 
+    def prepare_context(self, idx):
+        ''' sample context from replay buffer and prepare it '''
+        batch = ptu.np_to_pytorch_batch(self.enc_replay_buffer.random_batch(idx, batch_size=self.embedding_batch_size, sequence=self.recurrent))
+        obs = batch['observations'][None, ...]
+        act = batch['actions'][None, ...]
+        rewards = batch['rewards'][None, ...]
+        context = self.prepare_encoder_data(obs, act, rewards)
+        return context
 
     ##### Training #####
     def _do_training(self, indices):
@@ -175,13 +157,13 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         batch = self.sample_data(indices, encoder=True)
 
         # zero out context and hidden encoder state
-        self.reset_posterior(num_tasks=len(indices))
+        self.agent.clear_z(num_tasks=len(indices))
 
         for i in range(num_updates):
-            # TODO(KR) argh so ugly
             mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
             obs_enc, act_enc, rewards_enc, _, _ = mini_batch
-            self._take_step(indices, obs_enc, act_enc, rewards_enc)
+            context = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
+            self._take_step(indices, context)
 
             # stop backprop
             self.agent.detach_z()
@@ -195,16 +177,15 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
     def _update_target_network(self):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
 
-    def _take_step(self, indices, obs_enc, act_enc, rewards_enc):
+    def _take_step(self, indices, context):
 
         num_tasks = len(indices)
 
         # data is (task, batch, feat)
         obs, actions, rewards, next_obs, terms = self.sample_data(indices)
-        enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
 
         # run inference in networks
-        policy_outputs, task_z = self.agent(obs, enc_data)
+        policy_outputs, task_z = self.agent(obs, context)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         # flattens out the task dimension
@@ -258,14 +239,9 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         # n.b. policy update includes dQ/da
         log_policy_target = min_q_new_actions
 
-        if self.reparameterize:
-            policy_loss = (
-                    log_pi - log_policy_target
-            ).mean()
-        else:
-            policy_loss = (
-                log_pi * (log_pi - log_policy_target + v_pred).detach()
-            ).mean()
+        policy_loss = (
+                log_pi - log_policy_target
+        ).mean()
 
         mean_reg_loss = self.policy_mean_reg_weight * (policy_mean**2).mean()
         std_reg_loss = self.policy_std_reg_weight * (policy_log_std**2).mean()
@@ -284,11 +260,8 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         if self.eval_statistics is None:
             # eval should set this to None.
             # this way, these statistics are only computed for one batch.
-            # TODO this is kind of annoying and higher variance, why not just average
-            # across all the train steps?
             self.eval_statistics = OrderedDict()
             if self.use_information_bottleneck:
-                # TODO should average across tasks rather than tasking the first
                 z_mean = np.mean(np.abs(ptu.get_numpy(self.agent.z_means[0])))
                 z_sig = np.mean(ptu.get_numpy(self.agent.z_vars[0]))
                 self.eval_statistics['Z mean train'] = z_mean
@@ -322,24 +295,6 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
                 ptu.get_numpy(policy_log_std),
             ))
 
-    #####
-    def reset_posterior(self, num_tasks=1):
-        # reset to prior and sample z
-        self.agent.clear_z(num_tasks=num_tasks)
-
-    def infer_posterior(self, idx, batch_size=None):
-        # infer q(z | c) given context
-        if batch_size == None:
-            batch_size = self.embedding_batch_size
-        batch = self.get_encoding_batch(idx=idx, batch_size=batch_size)
-        obs = batch['observations'][None, ...]
-        act = batch['actions'][None, ...]
-        rewards = batch['rewards'][None, ...]
-        in_ = self.prepare_encoder_data(obs, act, rewards)
-        self.agent.infer_posterior(in_)
-        self.agent.sample_z()
-
-
     def get_epoch_snapshot(self, epoch):
         # NOTE: overriding parent method which also optionally saves the env
         snapshot = OrderedDict(
@@ -348,6 +303,6 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
             policy=self.agent.policy.state_dict(),
             vf=self.vf.state_dict(),
             target_vf=self.target_vf.state_dict(),
-            task_enc=self.agent.task_enc.state_dict(),
+            context_encoder=self.agent.context_encoder.state_dict(),
         )
         return snapshot

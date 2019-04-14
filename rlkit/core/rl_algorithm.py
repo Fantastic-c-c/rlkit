@@ -8,7 +8,6 @@ import numpy as np
 from rlkit.core import logger, eval_util
 from rlkit.data_management.env_replay_buffer import MultiTaskReplayBuffer
 from rlkit.data_management.path_builder import PathBuilder
-from rlkit.policies.base import ExplorationPolicy
 from rlkit.samplers.in_place import InPlacePathSampler
 from rlkit.torch import pytorch_util as ptu
 
@@ -109,8 +108,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.dump_eval_paths = dump_eval_paths
         self.plotter = plotter
 
-        # make this a generic sampler? or split it into train/eval. Not sure why we would need separate samplers for each.
-        self.eval_sampler = InPlacePathSampler(
+        self.sampler = InPlacePathSampler(
             env=env,
             policy=agent,
             max_path_length=self.max_path_length,
@@ -119,7 +117,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         # separate replay buffers for
         # - training RL update
         # - training encoder update
-        # - testing encoder
         self.replay_buffer = MultiTaskReplayBuffer(
                 self.replay_buffer_size,
                 env,
@@ -236,11 +233,11 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         :param add_to_enc_buffer: whether to add collected data to encoder replay buffer
         '''
         # start from the prior
-        self.reset_posterior()
+        self.agent.clear_z()
 
         num_transitions = 0
         while num_transitions < num_samples:
-            paths, n_samples = self.eval_sampler.obtain_samples(max_samples=num_samples - num_transitions,
+            paths, n_samples = self.sampler.obtain_samples(max_samples=num_samples - num_transitions,
                                                                 max_trajs=update_posterior_rate,
                                                                 accum_context=False,
                                                                 resample=resample_z_rate)
@@ -248,7 +245,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.replay_buffer.add_paths(self.task_idx, paths)
             if add_to_enc_buffer:
                 self.enc_replay_buffer.add_paths(self.task_idx, paths)
-            self.infer_posterior(self.task_idx, self.embedding_batch_size)
+            context = self.prepare_context(self.task_idx)
+            self.agent.infer_posterior(context)
+            self.agent.sample_z()
         self._n_env_steps_total += num_transitions
         gt.stamp('sample')
 
@@ -309,10 +308,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
         :return:
         """
-        return (
-            self.enc_replay_buffer.num_steps_can_sample(self.task_idx) >= self.embedding_batch_size
-            and self.replay_buffer.num_steps_can_sample(self.task_idx) >= self.batch_size
-        )
+        # eval collects its own context, so can eval any time
+        return True
 
     def _can_train(self):
         return all([self.replay_buffer.num_steps_can_sample(idx) >= self.batch_size for idx in self.train_tasks])
@@ -373,11 +370,11 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.task_idx = idx
         self.env.reset_task(idx)
 
-        self.reset_posterior()
+        self.agent.clear_z()
         paths = []
         num_transitions = 0
         while num_transitions < self.num_steps_per_eval:
-            path, num = self.eval_sampler.obtain_samples(max_samples=self.num_steps_per_eval - num_transitions, max_trajs=1, accum_context=True,
+            path, num = self.sampler.obtain_samples(max_samples=self.num_steps_per_eval - num_transitions, max_trajs=1, accum_context=True,
                                                     resample=self.resample_z, deterministic=deterministic)
             self.agent.infer_posterior(self.agent.context)
             paths += path
@@ -419,7 +416,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             # 100 arbitrarily chosen for visualizations of point_robot trajectories
             # just want stochasticity of z, not the policy
             self.agent.clear_z()
-            prior_paths, _ = self.eval_sampler.obtain_samples(deterministic=True, max_samples=self.max_path_length * 20,
+            prior_paths, _ = self.sampler.obtain_samples(deterministic=True, max_samples=self.max_path_length * 20,
                                                         accum_context=False,
                                                         resample=1)
             logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
@@ -435,8 +432,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.env.reset_task(idx)
             paths = []
             for _ in range(self.num_steps_per_eval // self.max_path_length):
-                self.infer_posterior(idx, self.embedding_batch_size)
-                p, _ = self.eval_sampler.obtain_samples(max_samples=self.max_path_length,
+                context = self.prepare_context(idx)
+                self.agent.infer_posterior(context)
+                self.agent.sample_z()
+                p, _ = self.sampler.obtain_samples(max_samples=self.max_path_length,
                                                         accum_context=False,
                                                         resample=np.inf)
                 paths += p
@@ -457,9 +456,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         # save the final posterior
         self.agent.log_diagnostics(self.eval_statistics)
 
-        # TODO(KR) what does this do
-        #if hasattr(self.env, "log_diagnostics"):
-        #self.env.log_diagnostics(paths)
+        if hasattr(self.env, "log_diagnostics"):
+            self.env.log_diagnostics(paths)
 
         avg_train_return = np.mean(train_final_returns)
         avg_test_return = np.mean(test_final_returns)

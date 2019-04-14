@@ -1,12 +1,10 @@
 import numpy as np
 
 import torch
-from torch import Tensor
 from torch import nn as nn
 import torch.nn.functional as F
 
 import rlkit.torch.pytorch_util as ptu
-from rlkit.torch.core import np_ify, torch_ify
 
 
 def _product_of_gaussians(mus, sigmas_squared):
@@ -42,45 +40,38 @@ def _canonical_to_natural(mu, sigma_squared):
     return n1, n2
 
 
-class ProtoAgent(nn.Module):
+class PEARLAgent(nn.Module):
 
     def __init__(self,
                  latent_dim,
-                 task_enc,
+                 context_encoder,
                  policy,
                  **kwargs
     ):
         super().__init__()
         self.latent_dim = latent_dim
 
-        self.task_enc = task_enc
+        self.context_encoder = context_encoder
         self.policy = policy
 
         self.recurrent = kwargs['recurrent']
-        self.reparam = kwargs['reparameterize']
         self.use_ib = kwargs['use_information_bottleneck']
         self.sparse_rewards = kwargs['sparse_rewards']
 
-        # experience collected so far in the current task
-        self.context = None
-        # initialize task embedding to zero
-        # (task, latent dim)
+        # initialize buffers for z dist and z
+        # use buffers so latent context can be saved along with model weights
         self.register_buffer('z', torch.zeros(1, latent_dim))
+        self.register_buffer('z_means', torch.zeros(1, latent_dim))
+        self.register_buffer('z_vars', torch.zeros(1, latent_dim))
 
-        # initialize posterior to the prior
-        mu = torch.zeros(1, latent_dim)
-        if self.use_ib:
-            sigma_squared = torch.ones(1, latent_dim)
-        else:
-            sigma_squared = torch.zeros(1, latent_dim)
-        self.register_buffer('z_means', mu)
-        self.register_buffer('z_vars', sigma_squared)
+        self.clear_z()
 
     def clear_z(self, num_tasks=1):
         '''
         reset q(z|c) to the prior
         sample a new z from the prior
         '''
+        # reset distribution over z to the prior
         mu = ptu.zeros(num_tasks, self.latent_dim)
         if self.use_ib:
             var = ptu.ones(num_tasks, self.latent_dim)
@@ -88,15 +79,18 @@ class ProtoAgent(nn.Module):
             var = ptu.zeros(num_tasks, self.latent_dim)
         self.z_means = mu
         self.z_vars = var
+        # sample a new z from the prior
         self.sample_z()
-        self.task_enc.reset(num_tasks) # clear hidden state in recurrent case
+        # reset the context collected so far
         self.context = None
+        # reset any hidden state in the encoder network (relevant for RNN)
+        self.context_encoder.reset(num_tasks)
 
     def detach_z(self):
         ''' disable backprop through z '''
         self.z = self.z.detach()
         if self.recurrent:
-            self.task_enc.hidden = self.task_enc.hidden.detach()
+            self.context_encoder.hidden = self.context_encoder.hidden.detach()
 
     def update_context(self, inputs):
         ''' append single transition to the current context '''
@@ -120,10 +114,10 @@ class ProtoAgent(nn.Module):
         kl_div_sum = torch.sum(torch.stack(kl_divs))
         return kl_div_sum
 
-    def infer_posterior(self, in_):
+    def infer_posterior(self, context):
         ''' compute q(z|c) as a function of input context '''
-        params = self.task_enc(in_)
-        params = params.view(in_.size(0), -1, self.task_enc.output_size)
+        params = self.context_encoder(context)
+        params = params.view(context.size(0), -1, self.context_encoder.output_size)
         # with probabilistic z, predict mean and variance of q(z | c)
         if self.use_ib:
             mu = params[..., :self.latent_dim]
@@ -153,17 +147,10 @@ class ProtoAgent(nn.Module):
     def set_num_steps_total(self, n):
         self.policy.set_num_steps_total(n)
 
-    def forward(self, obs, enc_data):
-        self.infer_posterior(enc_data)
+    def forward(self, obs, context):
+        ''' given context, get statistics under the current policy of a set of observations '''
+        self.infer_posterior(context)
         self.sample_z()
-        return self.infer_ac(obs)
-
-    def infer_ac(self, obs):
-        '''
-        compute predictions of SAC networks for update
-
-        regularize encoder with reward prediction from latent task embedding
-        '''
 
         task_z = self.z
 
@@ -174,10 +161,9 @@ class ProtoAgent(nn.Module):
 
         # run policy, get log probs and new actions
         in_ = torch.cat([obs, task_z.detach()], dim=1)
-        policy_outputs = self.policy(in_, reparameterize=self.reparam, return_log_prob=True)
+        policy_outputs = self.policy(in_, reparameterize=True, return_log_prob=True)
 
         return policy_outputs, task_z
-
 
     def log_diagnostics(self, eval_statistics):
         '''
@@ -190,7 +176,7 @@ class ProtoAgent(nn.Module):
 
     @property
     def networks(self):
-        return [self.task_enc, self.policy]
+        return [self.context_encoder, self.policy]
 
 
 
