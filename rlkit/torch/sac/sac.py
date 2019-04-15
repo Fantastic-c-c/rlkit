@@ -110,32 +110,15 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
             net.to(device)
 
     ##### Data handling #####
-    def get_batch(self, idx=None):
-        ''' get a batch from replay buffer for input into net '''
-        if idx is None:
-            idx = self.task_idx
-        batch = self.replay_buffer.random_batch(idx, self.batch_size)
-        return ptu.np_to_pytorch_batch(batch)
-
-    def get_encoding_batch(self, idx=None, batch_size=None):
-        ''' get a batch from the separate encoding replay buffer '''
-        if batch_size is None:
-            batch_size = self.embedding_batch_size
-        # if using sequence model for encoder, samples should be ordered
-        is_seq = self.recurrent
-        if idx is None:
-            idx = self.task_idx
-        batch = self.enc_replay_buffer.random_batch(idx, batch_size=batch_size, sequence=is_seq)
-        return ptu.np_to_pytorch_batch(batch)
-
     def sample_data(self, indices, encoder=False):
-        # sample from replay buffer for each task
+        ''' sample data from replay buffers to construct a training meta-batch '''
+        # collect data from multiple tasks for the meta-batch
         obs, actions, rewards, next_obs, terms = [], [], [], [], []
         for idx in indices:
             if encoder:
-                batch = self.get_encoding_batch(idx=idx)
+                batch = ptu.np_to_pytorch_batch(self.enc_replay_buffer.random_batch(idx, batch_size=self.embedding_batch_size, sequence=self.recurrent))
             else:
-                batch = self.get_batch(idx=idx)
+                batch = ptu.np_to_pytorch_batch(self.replay_buffer.random_batch(idx, batch_size=self.batch_size))
             o = batch['observations'][None, ...]
             a = batch['actions'][None, ...]
             if encoder and self.sparse_rewards:
@@ -158,12 +141,20 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         return [obs, actions, rewards, next_obs, terms]
 
     def prepare_encoder_data(self, obs, act, rewards):
-        ''' prepare task data for encoding '''
+        ''' prepare context for encoding '''
         # for now we embed only observations and rewards
         # assume obs and rewards are (task, batch, feat)
         task_data = torch.cat([obs, act, rewards], dim=2)
         return task_data
 
+    def prepare_context(self, idx):
+        ''' sample context from replay buffer and prepare it '''
+        batch = ptu.np_to_pytorch_batch(self.enc_replay_buffer.random_batch(idx, batch_size=self.embedding_batch_size, sequence=self.recurrent))
+        obs = batch['observations'][None, ...]
+        act = batch['actions'][None, ...]
+        rewards = batch['rewards'][None, ...]
+        context = self.prepare_encoder_data(obs, act, rewards)
+        return context
 
     ##### Training #####
     def _do_training(self, indices):
@@ -173,7 +164,7 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
         batch = self.sample_data(indices, encoder=True)
 
         # zero out context and hidden encoder state
-        self.reset_posterior(num_tasks=len(indices))
+        self.agent.clear_z(num_tasks=len(indices))
 
         for i in range(num_updates):
             mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
@@ -198,10 +189,10 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
 
         # data is (task, batch, feat)
         obs, actions, rewards, next_obs, terms = self.sample_data(indices)
-        enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
+        context = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
 
         # run inference in networks
-        policy_outputs, task_z = self.agent(obs, enc_data)
+        policy_outputs, task_z = self.agent(obs, context)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         # flattens out the task dimension
@@ -315,24 +306,6 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
                 'Policy log std',
                 ptu.get_numpy(policy_log_std),
             ))
-
-    #####
-    def reset_posterior(self, num_tasks=1):
-        # reset to prior and sample z
-        self.agent.clear_z(num_tasks=num_tasks)
-
-    def infer_posterior(self, idx, batch_size=None):
-        # infer q(z | c) given context
-        if batch_size == None:
-            batch_size = self.embedding_batch_size
-        batch = self.get_encoding_batch(idx=idx, batch_size=batch_size)
-        obs = batch['observations'][None, ...]
-        act = batch['actions'][None, ...]
-        rewards = batch['rewards'][None, ...]
-        in_ = self.prepare_encoder_data(obs, act, rewards)
-        self.agent.infer_posterior(in_)
-        self.agent.sample_z()
-
 
     def get_epoch_snapshot(self, epoch):
         # NOTE: overriding parent method which also optionally saves the env

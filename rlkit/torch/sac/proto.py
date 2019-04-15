@@ -153,17 +153,10 @@ class ProtoAgent(nn.Module):
     def set_num_steps_total(self, n):
         self.policy.set_num_steps_total(n)
 
-    def forward(self, obs, enc_data):
-        self.infer_posterior(enc_data)
+    def forward(self, obs, context):
+        ''' given context, get statistics under the current policy of a set of observations '''
+        self.infer_posterior(context)
         self.sample_z()
-        return self.infer_ac(obs)
-
-    def infer_ac(self, obs):
-        '''
-        compute predictions of SAC networks for update
-
-        regularize encoder with reward prediction from latent task embedding
-        '''
 
         task_z = self.z
 

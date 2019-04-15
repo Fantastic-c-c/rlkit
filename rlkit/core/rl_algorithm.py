@@ -236,7 +236,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         :param add_to_enc_buffer: whether to add collected data to encoder replay buffer
         '''
         # start from the prior
-        self.reset_posterior()
+        self.agent.clear_z()
 
         num_transitions = 0
         while num_transitions < num_samples:
@@ -248,7 +248,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.replay_buffer.add_paths(self.task_idx, paths)
             if add_to_enc_buffer:
                 self.enc_replay_buffer.add_paths(self.task_idx, paths)
-            self.infer_posterior(self.task_idx, self.embedding_batch_size)
+            context = self.prepare_context(self.task_idx)
+            self.agent.infer_posterior(context)
+            self.agent.sample_z()
         self._n_env_steps_total += num_transitions
         gt.stamp('sample')
 
@@ -371,7 +373,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.task_idx = idx
         self.env.reset_task(idx)
 
-        self.reset_posterior()
+        self.agent.clear_z()
         paths = []
         num_transitions = 0
         while num_transitions < self.num_steps_per_eval:
@@ -432,7 +434,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.env.reset_task(idx)
             paths = []
             for _ in range(self.num_steps_per_eval // self.max_path_length):
-                self.infer_posterior(idx, self.embedding_batch_size)
+                context = self.prepare_context(idx)
+                self.agent.infer_posterior(context)
+                self.agent.sample_z()
                 p, _ = self.eval_sampler.obtain_samples(max_samples=self.max_path_length,
                                                         accum_context=False,
                                                         resample=np.inf)
