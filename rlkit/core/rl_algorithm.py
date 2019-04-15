@@ -34,10 +34,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             discount=0.99,
             replay_buffer_size=1000000,
             reward_scale=1,
-            train_embedding_source='posterior_only',
-            resample_z='never',
-            resample_z_train=10,
-            update_post_train=10,
+            num_exp_steps_per_task=400,
+            num_exp_traj_eval=1,
+            update_post_train=1,
             eval_deterministic=True,
             render=False,
             save_replay_buffer=False,
@@ -93,10 +92,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.discount = discount
         self.replay_buffer_size = replay_buffer_size
         self.reward_scale = reward_scale
-        self.train_embedding_source = train_embedding_source
-        self.resample_z = resample_z
-        self.resample_z_train = resample_z_train
+        self.num_exp_steps_per_task = num_exp_steps_per_task
         self.update_post_train = update_post_train
+        self.num_exp_traj_eval = num_exp_traj_eval
         self.eval_deterministic = eval_deterministic
         self.render = render
         self.save_replay_buffer = save_replay_buffer
@@ -185,20 +183,17 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 idx = np.random.randint(len(self.train_tasks))
                 self.task_idx = idx
                 self.env.reset_task(idx)
+                self.enc_replay_buffer.task_buffers[idx].clear()
 
-                if self.train_embedding_source == 'online_exploration_trajectories':
-                    # embeddings are computed using only data collected using the prior
-                    # sample data from posterior to train RL algorithm
-                    self.enc_replay_buffer.task_buffers[idx].clear()
-                    self.collect_data(self.num_steps_per_task, self.resample_z_train, np.inf)
-                    self.collect_data(self.num_steps_per_task, self.resample_z_train,
-                                      self.update_post_train, add_to_enc_buffer=False)
-                elif self.train_embedding_source == 'online_on_policy_trajectories':
-                    # embeddings computed from both prior and posterior data
-                    self.enc_replay_buffer.task_buffers[idx].clear()
-                    self.collect_data(self.num_steps_per_task, self.resample_z_train, self.update_post_train)
+                # collect some trajectories with z ~ prior
+                if self.num_exp_steps_per_task > 0:
+                    self.collect_data(self.num_exp_steps_per_task, 1, np.inf)
+                # collect some trajectories with z ~ posterior
+                if self.num_steps_per_task > 0:
+                    self.collect_data(self.num_steps_per_task, 1, self.update_post_train)
+                # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
                 else:
-                    raise Exception("Invalid option for computing train embedding {}".format(self.train_embedding_source))
+                    self.collect_data(self.num_exp_steps_per_task, 1, self.update_post_train, add_to_enc_buffer=False)
 
             # Sample train tasks and compute gradient updates on parameters.
             for train_step in range(self.num_train_steps_per_itr):
@@ -245,9 +240,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.replay_buffer.add_paths(self.task_idx, paths)
             if add_to_enc_buffer:
                 self.enc_replay_buffer.add_paths(self.task_idx, paths)
-            context = self.prepare_context(self.task_idx)
-            self.agent.infer_posterior(context)
-            self.agent.sample_z()
+            if update_posterior_rate != np.inf:
+                context = self.prepare_context(self.task_idx)
+                self.agent.infer_posterior(context)
+                self.agent.sample_z()
         self._n_env_steps_total += num_transitions
         gt.stamp('sample')
 
@@ -373,12 +369,15 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.agent.clear_z()
         paths = []
         num_transitions = 0
+        num_trajs = 0
         while num_transitions < self.num_steps_per_eval:
-            path, num = self.sampler.obtain_samples(max_samples=self.num_steps_per_eval - num_transitions, max_trajs=1, accum_context=True,
-                                                    resample=self.resample_z, deterministic=deterministic)
-            self.agent.infer_posterior(self.agent.context)
+            path, num = self.sampler.obtain_samples(max_samples=self.num_steps_per_eval - num_transitions, max_trajs=1, accum_context=True, deterministic=deterministic)
             paths += path
             num_transitions += num
+            num_trajs += 1
+            if num_trajs >= self.num_exp_traj_eval:
+                self.agent.infer_posterior(self.agent.context)
+
         if self.sparse_rewards:
             for p in paths:
                 sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
@@ -438,6 +437,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 self.agent.sample_z()
                 p, _ = self.sampler.obtain_samples(max_samples=self.max_path_length,
                                                         accum_context=False,
+                                                        max_trajs=1,
                                                         resample=np.inf)
                 paths += p
 

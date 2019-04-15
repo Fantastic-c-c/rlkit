@@ -34,11 +34,9 @@ default_config = dict(
         sparse_rewards=False, # whether to sparsify rewards as determined in env
         kl_lambda=.1, # weight on KL divergence term in encoder loss
         use_information_bottleneck=True, # False makes latent context deterministic
-        # train embedding source choose from {'initial_pool', 'online_exploration_trajectories', 'online_on_policy_trajectories'}
-        train_embedding_source='online_exploration_trajectories',
-        resample_z=1, # how often to resample z at test-time (in trajectories)
-        resample_z_train=1, # how often to resample z at training time (in trajectories)
+        num_exp_steps_per_task=400, # how many exploration transitions to collect during each round of training data collection
         update_post_train=1, # how often to resample the context when collecting data during training (in trajectories)
+        num_exp_traj_eval=1, # how many exploration trajs to collect before beginning posterior sampling at test time
         recurrent=False, # recurrent or permutation-invariant encoder
         dump_eval_paths=False, # whether to save evaluation trajectories
     ),

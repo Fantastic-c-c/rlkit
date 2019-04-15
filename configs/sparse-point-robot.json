@@ -9,7 +9,7 @@
     "algo_params": {
         "num_initial_steps": 200,
         "num_tasks_sample": 10,
-        "num_steps_per_task": 200,
+        "num_steps_per_task": 900,
         "num_train_steps_per_itr": 1000,
         "num_steps_per_eval": 400,
         "embedding_batch_size": 1024,
@@ -19,6 +19,7 @@
         "reward_scale": 100.0,
         "sparse_rewards": 1,
         "kl_lambda": 1.0,
-        "train_embedding_source": "online_on_policy_trajectories"
+        "num_exp_steps_per_task": 100,
+        "num_exp_traj_eval": 5
     }
 }
