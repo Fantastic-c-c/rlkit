@@ -105,7 +105,7 @@ class PEARLAgent(nn.Module):
         if self.context is None:
             self.context = data
         else:
-            self.context = torch.cat([self.context, data], dim=0)
+            self.context = torch.cat([self.context, data], dim=1)
 
     def compute_kl_div(self):
         ''' compute KL( q(z|c) || r(z) ) '''
