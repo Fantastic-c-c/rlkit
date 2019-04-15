@@ -30,16 +30,16 @@ def experiment(variant):
 
     # instantiate networks
     latent_dim = variant['latent_size']
-    task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
+    context_encoder = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
     reward_dim = 1
     net_size = variant['net_size']
     recurrent = variant['algo_params']['recurrent']
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
 
-    task_enc = encoder_model(
+    context_encoder = encoder_model(
         hidden_sizes=[200, 200, 200],
         input_size=obs_dim + action_dim + reward_dim,
-        output_size=task_enc_output_dim,
+        output_size=context_encoder,
     )
     qf1 = FlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
@@ -64,7 +64,7 @@ def experiment(variant):
     )
     agent = ProtoAgent(
         latent_dim,
-        task_enc,
+        context_encoder,
         policy,
         **variant['algo_params']
     )
@@ -80,7 +80,7 @@ def experiment(variant):
     # optionally load pre-trained weights
     if variant['path_to_weights'] is not None:
         path = variant['path_to_weights']
-        task_enc.load_state_dict(torch.load(os.path.join(path, 'task_enc.pth')))
+        context_encoder.load_state_dict(torch.load(os.path.join(path, 'context_encoder.pth')))
         qf1.load_state_dict(torch.load(os.path.join(path, 'qf1.pth')))
         qf2.load_state_dict(torch.load(os.path.join(path, 'qf2.pth')))
         vf.load_state_dict(torch.load(os.path.join(path, 'vf.pth')))

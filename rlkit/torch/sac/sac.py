@@ -90,7 +90,7 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
             lr=vf_lr,
         )
         self.context_optimizer = optimizer_class(
-            self.agent.task_enc.parameters(),
+            self.agent.context_encoder.parameters(),
             lr=context_lr,
         )
 
@@ -315,6 +315,6 @@ class ProtoSoftActorCritic(MetaRLAlgorithm):
             policy=self.agent.policy.state_dict(),
             vf=self.vf.state_dict(),
             target_vf=self.target_vf.state_dict(),
-            task_enc=self.agent.task_enc.state_dict(),
+            context_encoder=self.agent.context_encoder.state_dict(),
         )
         return snapshot

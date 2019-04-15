@@ -46,14 +46,14 @@ class ProtoAgent(nn.Module):
 
     def __init__(self,
                  latent_dim,
-                 task_enc,
+                 context_encoder,
                  policy,
                  **kwargs
     ):
         super().__init__()
         self.latent_dim = latent_dim
 
-        self.task_enc = task_enc
+        self.context_encoder = context_encoder
         self.policy = policy
 
         self.recurrent = kwargs['recurrent']
@@ -89,14 +89,14 @@ class ProtoAgent(nn.Module):
         self.z_means = mu
         self.z_vars = var
         self.sample_z()
-        self.task_enc.reset(num_tasks) # clear hidden state in recurrent case
+        self.context_encoder.reset(num_tasks) # clear hidden state in recurrent case
         self.context = None
 
     def detach_z(self):
         ''' disable backprop through z '''
         self.z = self.z.detach()
         if self.recurrent:
-            self.task_enc.hidden = self.task_enc.hidden.detach()
+            self.context_encoder.hidden = self.context_encoder.hidden.detach()
 
     def update_context(self, inputs):
         ''' append single transition to the current context '''
@@ -122,8 +122,8 @@ class ProtoAgent(nn.Module):
 
     def infer_posterior(self, in_):
         ''' compute q(z|c) as a function of input context '''
-        params = self.task_enc(in_)
-        params = params.view(in_.size(0), -1, self.task_enc.output_size)
+        params = self.context_encoder(in_)
+        params = params.view(in_.size(0), -1, self.context_encoder.output_size)
         # with probabilistic z, predict mean and variance of q(z | c)
         if self.use_ib:
             mu = params[..., :self.latent_dim]
@@ -171,7 +171,6 @@ class ProtoAgent(nn.Module):
 
         return policy_outputs, task_z
 
-
     def log_diagnostics(self, eval_statistics):
         '''
         adds logging data about encodings to eval_statistics
@@ -183,7 +182,7 @@ class ProtoAgent(nn.Module):
 
     @property
     def networks(self):
-        return [self.task_enc, self.policy]
+        return [self.context_encoder, self.policy]
 
 
 
