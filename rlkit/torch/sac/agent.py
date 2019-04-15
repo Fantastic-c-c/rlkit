@@ -61,26 +61,20 @@ class PEARLAgent(nn.Module):
         self.use_ib = kwargs['use_information_bottleneck']
         self.sparse_rewards = kwargs['sparse_rewards']
 
-        # experience collected so far in the current task
-        self.context = None
+        # initialize buffers for z dist and z
+        # use buffers so latent context can be saved along with model weights
+        self.register_buffer('z', torch.zeros(1, latent_dim))
+        self.register_buffer('z_means', torch.zeros(1, latent_dim))
+        self.register_buffer('z_vars', torch.zeros(1, latent_dim))
 
-        # initialize latent context to zero
-        self.register_buffer('z', torch.zeros(1, latent_dim)) # (task, latent dim)
-
-        # initialize latent context distribution to unit Gaussian
-        mu = torch.zeros(1, latent_dim)
-        if self.use_ib:
-            sigma_squared = torch.ones(1, latent_dim)
-        else:
-            sigma_squared = torch.zeros(1, latent_dim)
-        self.register_buffer('z_means', mu)
-        self.register_buffer('z_vars', sigma_squared)
+        self.clear_z()
 
     def clear_z(self, num_tasks=1):
         '''
         reset q(z|c) to the prior
         sample a new z from the prior
         '''
+        # reset distribution over z to the prior
         mu = ptu.zeros(num_tasks, self.latent_dim)
         if self.use_ib:
             var = ptu.ones(num_tasks, self.latent_dim)
@@ -88,9 +82,12 @@ class PEARLAgent(nn.Module):
             var = ptu.zeros(num_tasks, self.latent_dim)
         self.z_means = mu
         self.z_vars = var
+        # sample a new z from the prior
         self.sample_z()
-        self.context_encoder.reset(num_tasks) # clear hidden state in recurrent case
+        # reset the context collected so far
         self.context = None
+        # reset any hidden state in the encoder network (relevant for RNN)
+        self.context_encoder.reset(num_tasks)
 
     def detach_z(self):
         ''' disable backprop through z '''
@@ -120,10 +117,10 @@ class PEARLAgent(nn.Module):
         kl_div_sum = torch.sum(torch.stack(kl_divs))
         return kl_div_sum
 
-    def infer_posterior(self, in_):
+    def infer_posterior(self, context):
         ''' compute q(z|c) as a function of input context '''
-        params = self.context_encoder(in_)
-        params = params.view(in_.size(0), -1, self.context_encoder.output_size)
+        params = self.context_encoder(context)
+        params = params.view(context.size(0), -1, self.context_encoder.output_size)
         # with probabilistic z, predict mean and variance of q(z | c)
         if self.use_ib:
             mu = params[..., :self.latent_dim]
