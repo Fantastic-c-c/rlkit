@@ -164,7 +164,8 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         for i in range(num_updates):
             mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
             obs_enc, act_enc, rewards_enc, _, _ = mini_batch
-            self._take_step(indices, obs_enc, act_enc, rewards_enc)
+            context = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
+            self._take_step(indices, context)
 
             # stop backprop
             self.agent.detach_z()
@@ -178,13 +179,12 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
     def _update_target_network(self):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
 
-    def _take_step(self, indices, obs_enc, act_enc, rewards_enc):
+    def _take_step(self, indices, context):
 
         num_tasks = len(indices)
 
         # data is (task, batch, feat)
         obs, actions, rewards, next_obs, terms = self.sample_data(indices)
-        context = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
 
         # run inference in networks
         policy_outputs, task_z = self.agent(obs, context)
