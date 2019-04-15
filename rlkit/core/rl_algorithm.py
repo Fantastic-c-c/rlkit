@@ -415,7 +415,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         if self.dump_eval_paths:
             # 100 arbitrarily chosen for visualizations of point_robot trajectories
             # just want stochasticity of z, not the policy
-            prior_paths, _ = self.sampler.obtain_samples(deterministic=True, max_samples=self.max_path_length * 100,
+            self.agent.clear_z()
+            prior_paths, _ = self.sampler.obtain_samples(deterministic=True, max_samples=self.max_path_length * 20,
                                                         accum_context=False,
                                                         resample=1)
             logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
