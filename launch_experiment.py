@@ -13,8 +13,8 @@ from rlkit.envs import ENVS
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.torch.sac.policies import TanhGaussianPolicy
 from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
-from rlkit.torch.sac.sac import ProtoSoftActorCritic
-from rlkit.torch.sac.proto import ProtoAgent
+from rlkit.torch.sac.sac import PEARLSoftActorCritic
+from rlkit.torch.sac.agent import PEARLAgent
 from rlkit.launchers.launcher_util import setup_logger
 import rlkit.torch.pytorch_util as ptu
 from configs.default import default_config
@@ -62,13 +62,13 @@ def experiment(variant):
         latent_dim=latent_dim,
         action_dim=action_dim,
     )
-    agent = ProtoAgent(
+    agent = PEARLAgent(
         latent_dim,
         context_encoder,
         policy,
         **variant['algo_params']
     )
-    algorithm = ProtoSoftActorCritic(
+    algorithm = PEARLSoftActorCritic(
         env=env,
         train_tasks=list(tasks[:variant['n_train_tasks']]),
         eval_tasks=list(tasks[-variant['n_eval_tasks']:]),

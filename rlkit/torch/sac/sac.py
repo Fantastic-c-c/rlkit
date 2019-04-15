@@ -12,10 +12,10 @@ import rlkit.torch.pytorch_util as ptu
 from rlkit.torch.core import PyTorchModule, np_ify, torch_ify
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.core.rl_algorithm import MetaRLAlgorithm
-from rlkit.torch.sac.proto import ProtoAgent
+from rlkit.torch.sac.agent import PEARLAgent
 
 
-class ProtoSoftActorCritic(MetaRLAlgorithm):
+class PEARLSoftActorCritic(MetaRLAlgorithm):
     def __init__(
             self,
             env,

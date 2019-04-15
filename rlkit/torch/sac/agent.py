@@ -42,7 +42,7 @@ def _canonical_to_natural(mu, sigma_squared):
     return n1, n2
 
 
-class ProtoAgent(nn.Module):
+class PEARLAgent(nn.Module):
 
     def __init__(self,
                  latent_dim,
@@ -63,11 +63,11 @@ class ProtoAgent(nn.Module):
 
         # experience collected so far in the current task
         self.context = None
-        # initialize task embedding to zero
-        # (task, latent dim)
-        self.register_buffer('z', torch.zeros(1, latent_dim))
 
-        # initialize posterior to the prior
+        # initialize latent context to zero
+        self.register_buffer('z', torch.zeros(1, latent_dim)) # (task, latent dim)
+
+        # initialize latent context distribution to unit Gaussian
         mu = torch.zeros(1, latent_dim)
         if self.use_ib:
             sigma_squared = torch.ones(1, latent_dim)
