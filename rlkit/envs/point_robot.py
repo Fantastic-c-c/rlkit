@@ -86,13 +86,13 @@ class SparsePointEnv(PointEnv):
      the algorithm should call `sparsify_rewards()` to get the sparse rewards
      '''
     def __init__(self, randomize_tasks=False, n_tasks=2, goal_radius=0.2):
-        super.__init__(randomize_tasks, n_tasks)
+        super().__init__(randomize_tasks, n_tasks)
         self.goal_radius = goal_radius
 
         if randomize_tasks:
             np.random.seed(1337)
             radius = 1.0
-            angles = np.linspace(0, np.pi, num=len(directions))
+            angles = np.linspace(0, np.pi, num=n_tasks)
             xs = radius * np.cos(angles)
             ys = radius * np.sin(angles)
             goals = np.stack([xs, ys], axis=1)
@@ -104,7 +104,7 @@ class SparsePointEnv(PointEnv):
 
     def sparsify_rewards(self, r):
         ''' zero out rewards when outside the goal radius '''
-        mask = (r > -self.goal_radius).astype(np.float32)
+        mask = (r >= -self.goal_radius).astype(np.float32)
         r = r * mask
         return r
 
@@ -113,9 +113,10 @@ class SparsePointEnv(PointEnv):
         return self._get_obs()
 
     def step(self, action):
-        ob, reward, done, d = super.step(action)
+        ob, reward, done, d = super().step(action)
         sparse_reward = self.sparsify_rewards(reward)
         # make sparse rewards positive
-        if reward > -self.goal_radius:
+        if reward >= -self.goal_radius:
             sparse_reward += 1
-        return ob, reward, done, d.update({'sparse_reward': sparse_reward})
+        d.update({'sparse_reward': sparse_reward})
+        return ob, reward, done, d
