@@ -400,7 +400,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             runs, all_rets = [], []
             for r in range(self.num_evals):
                 paths = self.collect_paths(idx, epoch, r)
-                all_rets.append([eval_util.get_average_returns([p], sparse=self.sparse_rewards) for p in paths])
+                all_rets.append([eval_util.get_average_returns([p]) for p in paths])
                 runs.append(paths)
             all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
             final_returns.append(all_rets[-1])
@@ -439,7 +439,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                                                         resample=np.inf)
                 paths += p
 
-            train_returns.append(eval_util.get_average_returns(paths, sparse=self.sparse_rewards))
+            if self.sparse_rewards:
+                for p in paths:
+                    p['rewards'] = self.env.sparsify_rewards(p['rewards'])
+            train_returns.append(eval_util.get_average_returns(paths))
         train_returns = np.mean(train_returns)
         ### eval train tasks with on-policy data to match eval of test tasks
         train_final_returns, train_online_returns = self._do_eval(indices, epoch)
