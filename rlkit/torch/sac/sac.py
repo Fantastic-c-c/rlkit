@@ -1,18 +1,13 @@
 from collections import OrderedDict
 import numpy as np
-import pickle
-from typing import Iterable
 
 import torch
 import torch.optim as optim
 from torch import nn as nn
-from torch.autograd import Variable
 
 import rlkit.torch.pytorch_util as ptu
-from rlkit.torch.core import PyTorchModule, np_ify, torch_ify
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.core.rl_algorithm import MetaRLAlgorithm
-from rlkit.torch.sac.agent import PEARLAgent
 
 
 class PEARLSoftActorCritic(MetaRLAlgorithm):

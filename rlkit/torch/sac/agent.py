@@ -1,12 +1,10 @@
 import numpy as np
 
 import torch
-from torch import Tensor
 from torch import nn as nn
 import torch.nn.functional as F
 
 import rlkit.torch.pytorch_util as ptu
-from rlkit.torch.core import np_ify, torch_ify
 
 
 def _product_of_gaussians(mus, sigmas_squared):
