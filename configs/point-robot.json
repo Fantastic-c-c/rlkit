@@ -8,11 +8,12 @@
     ,
     "algo_params": {
         "num_initial_steps": 200,
-        "num_steps_per_task": 200,
-        "num_steps_per_eval": 200,
+        "num_steps_per_task": 0,
+        "num_exp_steps_per_task": 200,
+        "num_train_steps_per_itr": 1000,
+        "num_steps_per_eval": 60,
         "max_path_length": 20,
         "reward_scale": 100.0,
-        "kl_lambda": 0.1,
-        "train_embedding_source": "online_exploration_trajectories"
+        "kl_lambda": 0.1
     }
 }
