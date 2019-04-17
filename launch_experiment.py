@@ -106,7 +106,6 @@ def experiment(variant):
     if variant['algo_params']['dump_eval_paths']:
         pickle_dir = experiment_log_dir + '/eval_trajectories'
         pathlib.Path(pickle_dir).mkdir(parents=True, exist_ok=True)
-        # TODO what is output_dir in eval code?
 
     # run the algorithm
     algorithm.train()
@@ -133,7 +132,7 @@ def main(config, gpu, docker, debug):
         with open(os.path.join(config)) as f:
             exp_params = json.load(f)
         variant = deep_update_dict(exp_params, variant)
-    variant.update({'gpu': gpu})
+    variant['util_params']['gpu_id'] = gpu
 
     experiment(variant)
 
