@@ -193,7 +193,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     self.collect_data(self.num_steps_per_task, 1, self.update_post_train)
                 # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
                 else:
-                    self.collect_data(self.num_exp_steps_per_task, 1, self.update_post_train, add_to_enc_buffer=False)
+                    self.collect_data(self.num_exp_steps_per_task + self.max_path_length, 1, self.update_post_train, add_to_enc_buffer=False)
 
             # Sample train tasks and compute gradient updates on parameters.
             for train_step in range(self.num_train_steps_per_itr):
