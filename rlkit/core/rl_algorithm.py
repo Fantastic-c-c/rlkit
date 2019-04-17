@@ -377,6 +377,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             num_trajs += 1
             if num_trajs >= self.num_exp_traj_eval:
                 self.agent.infer_posterior(self.agent.context)
+                self.agent.sample_z()
 
         if self.sparse_rewards:
             for p in paths:
