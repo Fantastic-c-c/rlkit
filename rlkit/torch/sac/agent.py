@@ -115,7 +115,7 @@ class PEARLAgent(nn.Module):
         return kl_div_sum
 
     def infer_posterior(self, context):
-        ''' compute q(z|c) as a function of input context '''
+        ''' compute q(z|c) as a function of input context and sample new z from it'''
         params = self.context_encoder(context)
         params = params.view(context.size(0), -1, self.context_encoder.output_size)
         # with probabilistic z, predict mean and variance of q(z | c)
@@ -128,6 +128,7 @@ class PEARLAgent(nn.Module):
         # sum rather than product of gaussians structure
         else:
             self.z_means = torch.mean(params, dim=1)
+        self.sample_z()
 
     def sample_z(self):
         if self.use_ib:
