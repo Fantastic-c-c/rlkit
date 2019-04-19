@@ -243,7 +243,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             if update_posterior_rate != np.inf:
                 context = self.prepare_context(self.task_idx)
                 self.agent.infer_posterior(context)
-                self.agent.sample_z()
         self._n_env_steps_total += num_transitions
         gt.stamp('sample')
 
@@ -377,7 +376,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             num_trajs += 1
             if num_trajs >= self.num_exp_traj_eval:
                 self.agent.infer_posterior(self.agent.context)
-                self.agent.sample_z()
 
         if self.sparse_rewards:
             for p in paths:
@@ -435,7 +433,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             for _ in range(self.num_steps_per_eval // self.max_path_length):
                 context = self.prepare_context(idx)
                 self.agent.infer_posterior(context)
-                self.agent.sample_z()
                 p, _ = self.sampler.obtain_samples(deterministic=self.eval_deterministic, max_samples=self.max_path_length,
                                                         accum_context=False,
                                                         max_trajs=1,
