@@ -369,13 +369,13 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             data_to_save['algorithm'] = self
         return data_to_save
 
-    def collect_paths(self, idx, epoch, run):
+    def collect_paths(self, idx, epoch, run, deterministic=False):
         self.task_idx = idx
         self.env.reset_task(idx)
 
         self.reset_posterior()
         paths, _ = self.eval_sampler.obtain_samples(max_samples=self.num_steps_per_eval, update_context=True,
-                                                    resample=self.resample_z)
+                                                    resample=self.resample_z, deterministic=deterministic)
         if self.sparse_rewards:
             for p in paths:
                 p['rewards'] = self.env.sparsify_rewards(p['rewards'])
@@ -396,7 +396,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         for idx in indices:
             runs, all_rets = [], []
             for r in range(self.num_evals):
-                paths = self.collect_paths(idx, epoch, r)
+                paths = self.collect_paths(idx, epoch, r, deterministic=True)
                 all_rets.append([eval_util.get_average_returns([p], sparse=self.sparse_rewards) for p in paths])
                 runs.append(paths)
             all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
