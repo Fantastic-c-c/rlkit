@@ -55,7 +55,6 @@ class PEARLAgent(nn.Module):
         self.policy = policy
 
         self.recurrent = kwargs['recurrent']
-        self.reparam = kwargs['reparameterize']
         self.use_ib = kwargs['use_information_bottleneck']
         self.sparse_rewards = kwargs['sparse_rewards']
 
@@ -163,7 +162,7 @@ class PEARLAgent(nn.Module):
 
         # run policy, get log probs and new actions
         in_ = torch.cat([obs, task_z.detach()], dim=1)
-        policy_outputs = self.policy(in_, reparameterize=self.reparam, return_log_prob=True)
+        policy_outputs = self.policy(in_, reparameterize=True, return_log_prob=True)
 
         return policy_outputs, task_z
 

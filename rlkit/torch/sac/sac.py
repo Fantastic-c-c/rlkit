@@ -28,7 +28,6 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             policy_std_reg_weight=1e-3,
             policy_pre_activation_weight=0.,
             optimizer_class=optim.Adam,
-            reparameterize=True,
             recurrent=False,
             use_information_bottleneck=True,
             sparse_rewards=False,
@@ -61,7 +60,6 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         self.l2_reg_criterion = nn.MSELoss()
         self.kl_lambda = kl_lambda
 
-        self.reparameterize = reparameterize
         self.use_information_bottleneck = use_information_bottleneck
         self.sparse_rewards = sparse_rewards
 
@@ -241,14 +239,9 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         # n.b. policy update includes dQ/da
         log_policy_target = min_q_new_actions
 
-        if self.reparameterize:
-            policy_loss = (
-                    log_pi - log_policy_target
-            ).mean()
-        else:
-            policy_loss = (
-                log_pi * (log_pi - log_policy_target + v_pred).detach()
-            ).mean()
+        policy_loss = (
+                log_pi - log_policy_target
+        ).mean()
 
         mean_reg_loss = self.policy_mean_reg_weight * (policy_mean**2).mean()
         std_reg_loss = self.policy_std_reg_weight * (policy_log_std**2).mean()
