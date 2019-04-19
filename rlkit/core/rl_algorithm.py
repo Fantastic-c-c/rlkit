@@ -362,7 +362,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             data_to_save['algorithm'] = self
         return data_to_save
 
-    def collect_paths(self, idx, epoch, run, deterministic=False):
+    def collect_paths(self, idx, epoch, run):
         self.task_idx = idx
         self.env.reset_task(idx)
 
@@ -371,7 +371,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         num_transitions = 0
         num_trajs = 0
         while num_transitions < self.num_steps_per_eval:
-            path, num = self.sampler.obtain_samples(max_samples=self.num_steps_per_eval - num_transitions, max_trajs=1, accum_context=True, deterministic=deterministic)
+            path, num = self.sampler.obtain_samples(deterministic=self.eval_deterministic, max_samples=self.num_steps_per_eval - num_transitions, max_trajs=1, accum_context=True)
             paths += path
             num_transitions += num
             num_trajs += 1
@@ -399,7 +399,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         for idx in indices:
             runs, all_rets = [], []
             for r in range(self.num_evals):
-                paths = self.collect_paths(idx, epoch, r, deterministic=True)
+                paths = self.collect_paths(idx, epoch, r)
                 all_rets.append([eval_util.get_average_returns([p]) for p in paths])
                 runs.append(paths)
             all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
@@ -416,7 +416,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             # 100 arbitrarily chosen for visualizations of point_robot trajectories
             # just want stochasticity of z, not the policy
             self.agent.clear_z()
-            prior_paths, _ = self.sampler.obtain_samples(deterministic=True, max_samples=self.max_path_length * 20,
+            prior_paths, _ = self.sampler.obtain_samples(deterministic=self.eval_deterministic, max_samples=self.max_path_length * 20,
                                                         accum_context=False,
                                                         resample=1)
             logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
@@ -435,7 +435,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 context = self.prepare_context(idx)
                 self.agent.infer_posterior(context)
                 self.agent.sample_z()
-                p, _ = self.sampler.obtain_samples(max_samples=self.max_path_length,
+                p, _ = self.sampler.obtain_samples(deterministic=self.eval_deterministic, max_samples=self.max_path_length,
                                                         accum_context=False,
                                                         max_trajs=1,
                                                         resample=np.inf)
