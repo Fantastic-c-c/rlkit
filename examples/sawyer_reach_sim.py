@@ -8,7 +8,8 @@ import click
 import datetime
 import pathlib
 
-from rlkit.envs.sawyer_xyreach_sim_env import PearlSawyerReachXYEnv
+# from rlkit.envs.sawyer_xyreach_sim_env import PearlSawyerReachXYEnv
+from rlkit.envs.sawyer_xyzreach_sim_env import PearlSawyerReachXYZEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
 from rlkit.torch.sac.policies import TanhGaussianPolicy
@@ -19,15 +20,20 @@ import rlkit.torch.pytorch_util as ptu
 
 
 
-NUM_TASKS = 100
-RENDER = True
+NUM_TASKS = 40
+RENDER = False
+MAX_PATH_LENGTH = 150
+INITIAL_STEPS = MAX_PATH_LENGTH * 5
+NUM_TASKS_SAMPLE = 8
+META_BATCH = 8
+STEPS_PER_TASK = 2 * MAX_PATH_LENGTH # 5 * MAX_PATH
 
 def datetimestamp(divider=''):
     now = datetime.datetime.now()
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
 def experiment(variant):
-    env = NormalizedBoxEnv(PearlSawyerReachXYEnv(**variant['task_params']))
+    env = NormalizedBoxEnv(PearlSawyerReachXYZEnv(**variant['task_params']))
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
     tasks = env.get_all_task_idx()
@@ -91,7 +97,7 @@ def experiment(variant):
 @click.argument('gpu', default=0)
 @click.option('--docker', default=0)
 def main(gpu, docker):
-    max_path_length = 150
+    max_path_length = MAX_PATH_LENGTH
     # noinspection PyTypeChecker
     variant = dict(
         task_params=dict(
@@ -99,13 +105,15 @@ def main(gpu, docker):
             randomize_tasks=True,
         ),
         algo_params=dict(
+            num_initial_steps=INITIAL_STEPS,
+
             meta_batch=16,
             num_iterations=10000,
-            num_tasks_sample=5,
-            num_steps_per_task=10 * max_path_length,
+            num_tasks_sample=NUM_TASKS_SAMPLE,
+            num_steps_per_task=STEPS_PER_TASK,
             num_train_steps_per_itr=1000,
-            num_evals=5, # number of evals with separate task encodings
-            num_steps_per_eval=3 * max_path_length,  # num transitions to eval on
+            num_evals=1,  # number of evals with separate task encodings
+            num_steps_per_eval=2 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
             embedding_batch_size=64,
             embedding_mini_batch_size=64,
@@ -125,7 +133,7 @@ def main(gpu, docker):
             # embedding_source should be chosen from
             # {'initial_pool', 'online_exploration_trajectories', 'online_on_policy_trajectories'}
             eval_embedding_source='online_exploration_trajectories',
-            recurrent=False, # recurrent or averaging encoder
+            recurrent=False,  # recurrent or averaging encoder
             dump_eval_paths=False,
         ),
         net_size=300,

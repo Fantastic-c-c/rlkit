@@ -13,6 +13,8 @@ from multiworld.envs.env_util import get_stat_in_paths, \
 from multiworld.core.multitask_env import MultitaskEnv
 from multiworld.envs.mujoco.sawyer_xyz.base import SawyerXYZEnv
 
+import time
+
 
 class SawyerReachXYZEnv(SawyerXYZEnv, MultitaskEnv):
     def __init__(
@@ -224,76 +226,37 @@ class SawyerReachXYZEnv(SawyerXYZEnv, MultitaskEnv):
         self._state_goal = goal
         self._set_goal_marker(goal)
 
-
-class SawyerReachXYEnv(SawyerReachXYZEnv):
-    def __init__(self, *args,
-                 fixed_goal=(0.15, 0.6),
-                 hand_z_position=0.055, **kwargs):
+class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
+    def __init__(self, *args, randomize_tasks=True, n_tasks=5,
+                 reward_type='hand_distance',
+                 action_scale=0.02,
+                 hand_low=(-0.3, 0.415, 0.2), # NOTE: these coords are different from physical sawyer (x, y) flipped
+                 hand_high=(0.3, 0.8, 0.5),
+                 **kwargs):
         self.quick_init(locals())
         SawyerReachXYZEnv.__init__(
             self,
             *args,
-            fixed_goal=(fixed_goal[0], fixed_goal[1], hand_z_position),
-            **kwargs
-        )
-        self.hand_z_position = hand_z_position
-        self.action_space = Box(np.array([-1, -1]), np.array([1, 1]), dtype=np.float32)
-        self.hand_space = Box(
-            np.hstack((self.hand_space.low[:2], self.hand_z_position)),
-            np.hstack((self.hand_space.high[:2], self.hand_z_position)),
-            dtype=np.float32
-        )
-        self.observation_space = Dict([
-            ('observation', self.hand_space),
-            ('desired_goal', self.hand_space),
-            ('achieved_goal', self.hand_space),
-            ('state_observation', self.hand_space),
-            ('state_desired_goal', self.hand_space),
-            ('state_achieved_goal', self.hand_space),
-            ('proprio_observation', self.hand_space),
-            ('proprio_desired_goal', self.hand_space),
-            ('proprio_achieved_goal', self.hand_space),
-        ])
-
-    def step(self, action):
-        delta_z = self.hand_z_position - self.data.mocap_pos[0, 2]
-        action = np.hstack((action, delta_z))
-        return super().step(action)
-
-
-class PearlSawyerReachXYEnv(SawyerReachXYEnv):
-    def __init__(self, *args, randomize_tasks=True, n_tasks=5,
-                 hand_z_position=0.055,
-                 reward_type='hand_distance',
-                 **kwargs):
-
-        self.quick_init(locals())
-        SawyerReachXYEnv.__init__(
-            self,
-            *args,
+            action_scale=action_scale,
+            hand_low=hand_low,
+            hand_high=hand_high,
             **kwargs
         )
         self.observation_space = self.hand_space # now we just care about hand
+
+        # self.goal_low=np.array([0.45, -0.3, 0.2])
+        # self.goal_high=np.array([0.65, 0.3, 0.4])
+        # self.goal_space = Box(self.goal_low, self.goal_high, dtype=np.float32)
         init_task_idx = 0
 
         directions = list(range(n_tasks))
         if randomize_tasks:
             goals = self.sample_goals(n_tasks)['state_desired_goal']
-            goals = [[g[0], g[1], hand_z_position] for g in goals]
             # goals = [1 * np.random.uniform(-1., 1., 2) for _ in directions]
         else:
             # add more goals in n_tasks > 7
-            goals = [np.array([10, -10]),
-                     np.array([10, 10]),
-                     np.array([-10, 10]),
-                     np.array([-10, -10]),
-                     np.array([0, 0]),
-
-                     np.array([7, 2]),
-                     np.array([0, 4]),
-                     np.array([-6, 9])
+            goals = [
                      ]
-            goals = [[g[0], g[1], hand_z_position] for g in goals]
             if (n_tasks > len(goals)):
                 raise NotImplementedError("We don't have enough goals defined")
         self.goals = np.asarray(goals)
@@ -307,6 +270,23 @@ class PearlSawyerReachXYEnv(SawyerReachXYEnv):
     # def _get_obs(self): # Redefine to just return state for PEARL algorithm
     #     flat_obs = self.get_endeff_pos()
     #     return flat_obs
+    # def sample_goals(self, batch_size):
+    #     if self.fix_goal:
+    #         goals = np.repeat(
+    #             self.fixed_goal.copy()[None],
+    #             batch_size,
+    #             0
+    #         )
+    #     else:
+    #         goals = np.random.uniform(
+    #             self.goal_space.low,
+    #             self.goal_space.high,
+    #             size=(batch_size, self.goal_space.low.size),
+    #         )
+    #     return {
+    #         'desired_goal': goals,
+    #         'state_desired_goal': goals,
+    #     }
 
 
     def get_all_task_idx(self):
@@ -342,10 +322,11 @@ class PearlSawyerReachXYEnv(SawyerReachXYEnv):
         return self._get_obs()['observation'] # Redefine to just return state
 
 if __name__ == '__main__':
-    env = PearlSawyerReachXYEnv()#num_resets_before_puck_reset=int(1e6))
+    env = PearlSawyerReachXYZEnv(frame_skip=1)#num_resets_before_puck_reset=int(1e6))
     for i in range(1000):
-        if i % 100 == 0:
+        if i % 150 == 0:
             env.reset_task(np.random.randint(0, 5))
-            # env.reset()
-        env.step([0, 2])
+            env.reset()
+        env.step(np.asarray([0, 1, 0]))
         env.render()
+        time.sleep(0.01)
