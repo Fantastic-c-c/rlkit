@@ -24,7 +24,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             num_train_steps_per_itr=1000,
             num_initial_steps=100,
             num_tasks_sample=100,
-            num_steps_per_task=100,
+            num_steps_prior=100,
+            num_steps_posterior=100,
+            num_extra_rl_steps_posterior=100,
             num_evals=10,
             num_steps_per_eval=1000,
             batch_size=1024,
@@ -34,7 +36,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             discount=0.99,
             replay_buffer_size=1000000,
             reward_scale=1,
-            num_exp_steps_per_task=400,
             num_exp_traj_eval=1,
             update_post_train=1,
             eval_deterministic=True,
@@ -47,30 +48,12 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             plotter=None,
     ):
         """
-        Base class for Meta RL Algorithms
         :param env: training env
         :param agent: agent that is conditioned on a latent variable z that rl_algorithm is responsible for feeding in
         :param train_tasks: list of tasks used for training
         :param eval_tasks: list of tasks used for eval
-        :param meta_batch: number of tasks used for meta-update
-        :param num_iterations: number of meta-updates taken
-        :param num_train_steps_per_itr: number of meta-updates performed per iteration
-        :param num_initial_steps: number of transitions to collect per task before training starts
-        :param num_tasks_sample: number of train tasks to sample to collect data for
-        :param num_steps_per_task: number of transitions to collect per task
-        :param num_evals: number of independent evaluation runs, with separate task encodings
-        :param num_steps_per_eval: number of transitions to sample for evaluation
-        :param batch_size: size of batches used to compute RL update
-        :param embedding_batch_size: size of batches used to compute embedding
-        :param embedding_mini_batch_size: size of batch used for encoder update
-        :param max_path_length: max episode length
-        :param discount:
-        :param replay_buffer_size: max replay buffer size
-        :param reward_scale:
-        :param render:
-        :param save_replay_buffer:
-        :param save_algorithm:
-        :param save_environment:
+
+        see default experiment config file for descriptions of the rest of the arguments
         """
         self.env = env
         self.agent = agent
@@ -82,7 +65,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.num_train_steps_per_itr = num_train_steps_per_itr
         self.num_initial_steps = num_initial_steps
         self.num_tasks_sample = num_tasks_sample
-        self.num_steps_per_task = num_steps_per_task
+        self.num_steps_prior = num_steps_prior
+        self.num_steps_posterior = num_steps_posterior
+        self.num_extra_rl_steps_posterior = num_extra_rl_steps_posterior
         self.num_evals = num_evals
         self.num_steps_per_eval = num_steps_per_eval
         self.batch_size = batch_size
@@ -92,7 +77,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.discount = discount
         self.replay_buffer_size = replay_buffer_size
         self.reward_scale = reward_scale
-        self.num_exp_steps_per_task = num_exp_steps_per_task
         self.update_post_train = update_post_train
         self.num_exp_traj_eval = num_exp_traj_eval
         self.eval_deterministic = eval_deterministic
@@ -186,14 +170,14 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 self.enc_replay_buffer.task_buffers[idx].clear()
 
                 # collect some trajectories with z ~ prior
-                if self.num_exp_steps_per_task > 0:
-                    self.collect_data(self.num_exp_steps_per_task, 1, np.inf)
+                if self.num_steps_prior > 0:
+                    self.collect_data(self.num_steps_prior, 1, np.inf)
                 # collect some trajectories with z ~ posterior
-                if self.num_steps_per_task > 0:
+                if self.num_steps_posterior > 0:
                     self.collect_data(self.num_steps_per_task, 1, self.update_post_train)
                 # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
-                else:
-                    self.collect_data(self.num_exp_steps_per_task + self.max_path_length, 1, self.update_post_train, add_to_enc_buffer=False)
+                if self.num_extra_rl_steps_posterior > 0:
+                    self.collect_data(self.num_extra_rl_steps_posterior, 1, self.update_post_train, add_to_enc_buffer=False)
 
             # Sample train tasks and compute gradient updates on parameters.
             for train_step in range(self.num_train_steps_per_itr):
