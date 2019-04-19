@@ -167,15 +167,20 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
         ### train tasks
         dprint('evaluating on {} train tasks'.format(len(self.train_tasks)))
+        print("EVALUATING ON {} train tasks".format(len(self.train_tasks)))
         train_avg_returns = []
+        train_final_returns = []
         for idx in self.train_tasks:
             dprint('task {} encoder RB size'.format(idx), self.enc_replay_buffer.task_buffers[idx]._size)
             paths = self.collect_paths(idx, epoch, eval_task=False)
             train_avg_returns.append(eval_util.get_average_returns(paths))
+            train_final_returns.append(eval_util.get_final_return(paths))
 
         ### test tasks
         dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
+        print("EVALUATING ON {} test tasks".format(len(self.eval_tasks)))
         test_avg_returns = []
+        test_final_returns = []
         # This is calculating the embedding online, because every iteration
         # we clear the encoding buffer for the test tasks.
         for idx in self.eval_tasks:
@@ -204,6 +209,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             test_paths = self.collect_paths(idx, epoch, eval_task=True)
 
             test_avg_returns.append(eval_util.get_average_returns(test_paths))
+            test_final_returns.append(eval_util.get_final_return(test_paths))
 
             if self.use_information_bottleneck:
                 z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_dists[0].mean)))
@@ -220,6 +226,11 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         avg_test_return = np.mean(test_avg_returns)
         self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
         self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
+
+        avg_final_train_return = np.mean(train_final_returns)
+        avg_final_test_return = np.mean(test_final_returns)
+        self.eval_statistics['AverageFinalReturn_all_train_tasks'] = avg_final_train_return
+        self.eval_statistics['AverageFinalReturn_all_test_tasks'] = avg_final_test_return
 
         for key, value in self.eval_statistics.items():
             logger.record_tabular(key, value)

@@ -1,4 +1,0 @@
-X: 0.3 (closest robot can move to comfortably) to 0.7 (door) 
-Y: -0.4 (right bar of 80-20 holding the door) to 0.4 (left bar of 80-20 holding the door)
-Z: 0.05 (robot bottom) to 0.65 (top of the door box)
-

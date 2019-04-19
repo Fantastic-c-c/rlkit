@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-
 """
 Run Prototypical Soft Actor Critic on real-world sawyer robot.
 
@@ -20,12 +19,17 @@ from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
 
 
+RANDOMIZE_TASKS = True
 
-NUM_TASKS = 10
+NUM_TASKS = 40
 ROBOT_CONFIG = 'pearl_lordi_config'
 ACTION_MODE = 'position'  # position or torque - NOTE: torque safety box has not been tested
-MAX_SPEED = 0.1
+MAX_SPEED = 0.15
 MAX_PATH_LENGTH = 10
+INITIAL_STEPS = 50
+NUM_TASKS_SAMPLE = 8
+META_BATCH = 8
+STEPS_PER_TASK = 2 * MAX_PATH_LENGTH # 5 * MAX_PATH
 
 def datetimestamp(divider=''):
     now = datetime.datetime.now()
@@ -35,6 +39,12 @@ def experiment(variant):
     env = NormalizedBoxEnv(PearlSawyerReachXYZEnv(config_name = ROBOT_CONFIG,
                                                   action_mode = ACTION_MODE,
                                                   max_speed = MAX_SPEED,
+                                                  position_action_scale = 1/7,
+                                                  height_2d=None,
+
+                                                  reward_type='hand_distance',
+                                                  goal_low=np.array([0.45, -0.3, 0.2]),
+                                                  goal_high=np.array([0.65, 0.3, 0.4]),
                                                   **variant['task_params']))
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
@@ -104,16 +114,19 @@ def main(gpu, docker):
     variant = dict(
         task_params=dict(
             n_tasks=NUM_TASKS,
-            randomize_tasks=True,
+            randomize_tasks=RANDOMIZE_TASKS,
         ),
         algo_params=dict(
+            num_initial_steps=INITIAL_STEPS,
+            initial_data_path='initial_data40-3d.pkl',
+
             meta_batch=16,
             num_iterations=10000,
-            num_tasks_sample=5,
-            num_steps_per_task=10 * max_path_length,
+            num_tasks_sample=NUM_TASKS_SAMPLE,
+            num_steps_per_task=STEPS_PER_TASK,
             num_train_steps_per_itr=1000,
-            num_evals=5, # number of evals with separate task encodings
-            num_steps_per_eval=3 * max_path_length,  # num transitions to eval on
+            num_evals=1, # number of evals with separate task encodings
+            num_steps_per_eval=2 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
             embedding_batch_size=64,
             embedding_mini_batch_size=64,
@@ -141,8 +154,8 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_id = 'sawyer-reach-real'
-    exp_name = 'proto-sac-' + exp_id
+    exp_id = 'sawyer-real-reach'
+    exp_name = 'proto-sac-' + exp_id + datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id=exp_id, base_log_dir=log_dir)

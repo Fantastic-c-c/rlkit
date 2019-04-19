@@ -1,34 +1,36 @@
-import sys
-sys.path.append('/home/justin/ros_ws/src/sawyer_control/src/')
-
 from sawyer_control.envs.sawyer_reaching import SawyerReachXYZEnv
+from sawyer_control.core.serializable import Serializable
 import numpy as np
 
 
 class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
     def __init__(self, *args, randomize_tasks=True, n_tasks=5,
-                 reward_type='hand_distance',
+                 height_2d=None,
+                 goal_thresh=-0.05,
                  **kwargs):
+        Serializable.quick_init(self, locals())
         SawyerReachXYZEnv.__init__(
             self,
             *args,
-            reward_type,
+            height_2d=height_2d,
             **kwargs
         )
+        self.goal_thresh = goal_thresh
         # self.observation_space = self.hand_space
         init_task_idx = 0
         self._task = None  # This is set by reset_task down below
 
-        # hand_z_position = 0.055  # TODO: Remove this to go 3-dimensions
-
         directions = list(range(n_tasks))
         if randomize_tasks:
             goals = self.sample_goals(n_tasks)
-            # goals = [[g[0], g[1], hand_z_position] for g in goals]
+            if height_2d:
+                goals = [[g[0], g[1], height_2d] for g in goals]
             # goals = [1 * np.random.uniform(-1., 1., 2) for _ in directions]
         else:
             # add more goals if we want non-randomized tasks
             goals = [
+                [0.6, 0.2, 0.25],
+                [0.6, -0.2, 0.25]
                      ]
             # goals = [[g[0], g[1], hand_z_position] for g in goals]
             if (n_tasks > len(goals)):
@@ -40,7 +42,13 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
         self.reset_task(init_task_idx)
 
         self.reset()
-        print("GOALS: " + str(goals))
+
+    def step(self, action):
+        observation, reward, _, info = super().step(action)
+        done = reward > self.goal_thresh  # threshold is negative
+        if done:
+            print("Close enough to goal - done!")
+        return observation, reward, done, info
 
     def get_all_task_idx(self):
         return range(len(self.tasks))
@@ -51,6 +59,7 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
     def reset_task(self, idx):
         self._task = self.tasks[idx]
         self.set_goal(self.reset_goal(self._task['direction']))
+        self._goal = self._task['direction']  # TODO: Is this necessary?
         self.reset()
 
     def reset(self):
@@ -58,6 +67,7 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
 
     def reset_model(self):
         # We have redefined this not to reset the goal (as this is handled in reset_task)
+        old_goal = self.get_goal()
         self._reset_robot()
         return self._get_obs()  # Redefine to just return state
 
