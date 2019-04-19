@@ -1,5 +1,6 @@
 import abc
 import time
+import pickle
 
 import gtimer as gt
 import numpy as np
@@ -41,6 +42,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             save_replay_buffer=False,
             save_algorithm=False,
             save_environment=False,
+            initial_data_path=None,
     ):
         """
         Base class for Meta RL Algorithms
@@ -134,6 +136,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self._current_path_builder = PathBuilder()
         self._exploration_paths = []
 
+        self.initial_data_path = initial_data_path
+
     def make_exploration_policy(self, policy):
          return policy
 
@@ -170,20 +174,32 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self._start_epoch(it_)
             self.training_mode(True)
             if it_ == 0:
-                print('collecting initial pool of data for train and eval')
-                # temp for evaluating
-                for idx in self.train_tasks:
-                    self.task_idx = idx
-                    self.env.reset_task(idx)
-                    self.collect_data_sampling_from_prior(num_samples=self.num_initial_steps,
-                                                          resample_z_every_n=self.max_path_length,
-                                                          eval_task=False)
+                if not self.initial_data_path:
+                    print('collecting initial pool of data for train and eval')
+                    # temp for evaluating
+                    for idx in self.train_tasks:
+                        print("Collecting data for: {} {}".format(idx, self.env.get_goal()))
+                        self.task_idx = idx
+                        self.env.reset_task(idx)
+                        self.collect_data_sampling_from_prior(num_samples=self.num_initial_steps,
+                                                              resample_z_every_n=self.max_path_length,
+                                                              eval_task=False)
+
+                    # DUMP ENCODING BUFFER AS PICKLE
+                    print("Saving initial buffer")
+                    pickle.dump(self.replay_buffer, open("initial_data_replay.pkl", "wb"))
+                else:
+                    print("Loading from: {}".format(self.initial_data_path))
+                    self.replay_buffer = pickle.load(open(self.initial_data_path, "rb"))
+                    self.enc_replay_buffer = pickle.load(open(self.initial_data_path, "rb"))
+                    print("Done loading - goals: {}".format(self.env.goals))
 
             # Sample data from train tasks.
             for i in range(self.num_tasks_sample):
                 idx = np.random.randint(len(self.train_tasks))
                 self.task_idx = idx
                 self.env.reset_task(idx)
+                print("Sampling data: {} {}".format(idx, self.env.get_goal()))
 
                 # TODO: there may be more permutations of sampling/adding to encoding buffer we may wish to try
                 if self.train_embedding_source == 'initial_pool':
@@ -216,6 +232,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                                              add_to_enc_buffer=True)
                 else:
                     raise Exception("Invalid option for computing train embedding {}".format(self.train_embedding_source))
+            print("Done sampling data from training tasks.")
 
             # Sample train tasks and compute gradient updates on parameters.
             for train_step in range(self.num_train_steps_per_itr):
@@ -227,7 +244,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             #self.training_mode(False)
 
             # eval
-            self._try_to_eval(it_)
+            if (it_% 10 == 0):
+                self._try_to_eval(it_)
+
             gt.stamp('eval')
 
             self._end_epoch()

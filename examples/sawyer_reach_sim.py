@@ -133,7 +133,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_id = 'sawyer-reach'
+    exp_id = 'sawyer-sim-reach'
     exp_name = 'proto-sac-' + exp_id
 
     log_dir = '/mounts/output' if docker == 1 else 'output'

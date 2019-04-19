@@ -27,7 +27,7 @@ class SawyerReachXYZEnv(SawyerXYZEnv, MultitaskEnv):
 
             **kwargs
     ):
-        # self.quick_init(locals())
+        self.quick_init(locals())
         MultitaskEnv.__init__(self)
         SawyerXYZEnv.__init__(self, model_name=self.model_name, **kwargs)
 

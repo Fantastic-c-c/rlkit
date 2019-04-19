@@ -1,6 +1,0 @@
-Current bounds found
-
-X: 0.4 (closest robot can move to comfortably) to 0.85 (far bar) 
-Y: -0.3 (right bar of 80-20 holding the door) to 0.3 (left bar of 80-20 holding the door)
-Z: 0.15 (robot bottom) to 0.4 (around top of kinect)
-

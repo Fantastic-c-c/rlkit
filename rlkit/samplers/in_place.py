@@ -31,13 +31,14 @@ class InPlacePathSampler(object):
         pass
 
     def obtain_samples(self, deterministic=False, num_samples=None, is_online=False):
+        print("OBTAINING SAMPLES FOR: {}, nsteps: {}".format(self.env.get_goal(), self.max_samples))
         policy = MakeDeterministic(self.policy) if deterministic else self.policy
         paths = []
         n_steps_total = 0
         max_samp = self.max_samples
         if num_samples is not None:
             max_samp = num_samples
-        while n_steps_total + self.max_path_length < max_samp:
+        while n_steps_total + self.max_path_length <= max_samp:
             path = rollout(
                 self.env, policy, max_path_length=self.max_path_length, is_online=is_online)
             paths.append(path)

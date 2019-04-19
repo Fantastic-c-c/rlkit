@@ -51,7 +51,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, is_online=False)
         o = next_o
         if animated:
             env.render()
-
+    print("Path length: {}".format(path_length))
     actions = np.array(actions)
     if len(actions.shape) == 1:
         actions = np.expand_dims(actions, 1)
