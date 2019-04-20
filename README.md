@@ -1,94 +1,51 @@
-README last updated on: 02/19/2018
+# PEARL: Efficient Off-policy Meta-learning via Probabilistic Context Variables
 
-# rlkit
-Reinforcement learning framework and algorithms implemented in PyTorch.
+on arxiv: http://arxiv.org/abs/1903.08254
 
-Some implemented algorithms:
- - Temporal Difference Models (TDMs)
-    - [example script](examples/tdm/cheetah.py)
-    - [TDM paper](https://arxiv.org/abs/1802.09081)
-    - [Details on implementation](rlkit/torch/tdm/TDMs.md)
- - Deep Deterministic Policy Gradient (DDPG)
-    - [example script](examples/ddpg.py)
-    - [DDPG paper](https://arxiv.org/pdf/1509.02971.pdf)
- - (Double) Deep Q-Network (DQN)
-    - [example script](examples/dqn_and_double_dqn.py)
-    - [DQN paper](https://arxiv.org/pdf/1509.06461.pdf)
-    - [Double Q-learning paper](https://arxiv.org/pdf/1509.06461.pdf)
- - Soft Actor Critic (SAC)
-    - [example script](examples/sac.py)
-    - [SAC paper](https://arxiv.org/abs/1801.01290)
-    - [TensorFlow implementation from author](https://github.com/haarnoja/sac)
- - Twin Dueling Deep Determinstic Policy Gradient (TD3)
-    - [example script](examples/td3.py)
-    - [TD3 paper](https://arxiv.org/abs/1802.09477)
+by Kate Rakelly*, Aurick Zhou*, Deirdre Quillen, Chelsea Finn, and Sergey Levine (UC Berkeley)
 
-To get started, checkout the example scripts, linked above.
+> Deep reinforcement learning algorithms require large amounts of experience to learn an individual
+task. While in principle meta-reinforcement learning (meta-RL) algorithms enable agents to learn
+new skills from small amounts of experience, several major challenges preclude their practicality.
+Current methods rely heavily on on-policy experience, limiting their sample efficiency. They also
+lack mechanisms to reason about task uncertainty when adapting to new tasks, limiting their effectiveness
+in sparse reward problems. In this paper, we address these challenges by developing an offpolicy meta-RL
+algorithm that disentangles task inference and control. In our approach, we perform online probabilistic
+filtering of latent task variables to infer how to solve a new task from small amounts of experience.
+This probabilistic interpretation enables posterior sampling for structured and efficient exploration.
+We demonstrate how to integrate these task variables with off-policy RL algorithms to achieve both metatraining
+and adaptation efficiency. Our method outperforms prior algorithms in sample efficiency by 20-100X as well as
+in asymptotic performance on several meta-RL benchmarks.
 
-## Installation
-Install and use the included Ananconda environment
-```
-$ conda env create -f docker/rlkit/rlkit-env.yml
-$ source activate rlkit
-(rlkit) $ python examples/ddpg.py
-```
+This is the reference implementation of the algorithm; however, some scripts for reproducing a few of the experiments from the paper are missing.
 
-There is also a GPU-version in `docker/rlkit-gpu`
-```
-$ conda env create -f docker/rlkit_gpu/rlkit-env.yml
-$ source activate rlkit-gpu
-(rlkit-gpu) $ python examples/ddpg.py
-```
+This repository is based on rlkit: https://github.com/vitchyr/rlkit
 
-NOTE: these Anaconda environments use MuJoCo 1.5 and gym 0.10.5, unlike previous versions.
+#### TODO (where is my tiny fork?)
+- [ ] add Walker2D and ablation experiment scripts
+- [ ] add jupyter notebook to visualize sparse point robot
+- [ ] submodule `viskit` for a self-contained codebase
 
-For an even more portable solution, try using the docker image provided in `docker/rlkit_gpu`.
-The Anaconda env should be enough, but this docker image addresses some of the rendering issues that may arise when using MuJoCo 1.5 and GPUs.
-To use the GPU docker image, you will need a GPU and [nvidia-docker installed](https://github.com/nvidia/nvidia-docker/wiki/Installation-(version-2.0)).
-Note that you'll need to [get your own MuJoCo key](https://www.roboti.us/license.html) if you want to use MuJoCo.
+--------------------------------------
 
-## Visualizing a policy and seeing results
-During training, the results will be saved to a file called under
-```
-LOCAL_LOG_DIR/<exp_prefix>/<foldername>
-```
- - `LOCAL_LOG_DIR` is the directory set by `rlkit.launchers.config.LOCAL_LOG_DIR`. Default name is 'output'.
- - `<exp_prefix>` is given either to `setup_logger`.
- - `<foldername>` is auto-generated and based off of `exp_prefix`.
- - inside this folder, you should see a file called `params.pkl`. To visualize a policy, run
+#### Some bare-bones instructions (just a squeeze of lemon):
 
-```
-(rlkit) $ python scripts/sim_policy.py LOCAL_LOG_DIR/<exp_prefix>/<foldername>/params.pkl
-```
+We recommend using anaconda - create our environment with `conda env create -f environment.yml`
 
-If you have rllab installed, you can also visualize the results
-using `rllab`'s viskit, described at
-the bottom of [this page](http://rllab.readthedocs.io/en/latest/user/cluster.html)
+Experiments are configured via `json` configuration files located in `./configs`. To reproduce an experiment, run:
+`python launch_experiment.py ./configs/[EXP].json`
 
-tl;dr run
+By default the code will use the GPU - to use CPU instead, set `use_gpu=False` in the appropriate config file.
 
-```bash
-python rllab/viskit/frontend.py LOCAL_LOG_DIR/<exp_prefix>/
-```
+Output files will be written to `./output/[ENV]/[EXP NAME]` where the experiment name is uniquely generated based on the date.
 
-Alternatively, if you don't want to clone all of `rllab`, a repository containing only viskit can be found [here](https://github.com/vitchyr/viskit).
-Then you can similarly visualize results with.
-```bash
-python viskit/viskit/frontend.py LOCAL_LOG_DIR/<exp_prefix>/
-```
+The file `progress.csv` contains statistics logged over the course of training.
 
-## Visualizing a TDM policy
-To visualize a TDM policy, run
-```
-(rlkit) $ python scripts/sim_tdm_policy.py LOCAL_LOG_DIR/<exp_prefix>/<foldername>/params.pkl
-```
+We recommend `viskit` for visualizing learning curves: https://github.com/vitchyr/viskit
 
-## Algorithm-Specific Comments
-### SAC
-The SAC implementation provided here only uses Gaussian policy, rather than a Gaussian mixture model, as described in the original SAC paper.
+--------------------------------------
+#### Communication (slurp!)
 
-## Credits
-A lot of the coding infrastructure is based on [rllab](https://github.com/rll/rllab).
-The serialization and logger code are basically a carbon copy of the rllab versions.
+If you spot a bug or have a problem running the code, please open an issue.
 
-The Dockerfile is based on the [OpenAI mujoco-py Dockerfile](https://github.com/openai/mujoco-py/blob/master/Dockerfile).
+Please direct other correspondence to Kate Rakelly: rakelly@eecs.berkeley.edu
