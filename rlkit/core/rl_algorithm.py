@@ -186,9 +186,11 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     env.reset()
                     # env = envs
                     print(env)
+                    idx_one_hot = np.zeros(len(tasks))
+                    idx_one_hot[idx] = 1
                     self.collect_data_sampling_from_prior(env=env, num_samples=self.max_path_length * 1,
                                                           resample_z_every_n=self.max_path_length,
-                                                          eval_task=False)
+                                                          eval_task=False, idx=idx_one_hot)
                 """
                 for idx in self.eval_tasks:
                     self.task_idx = idx
@@ -209,45 +211,45 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 env = self.train_tasks[idx]
                 env.reset()
 
-                # TODO: there may be more permutations of sampling/adding to encoding buffer we may wish to try
-                if self.train_embedding_source == 'initial_pool':
-                    # embeddings are computed using only the initial pool of data
-                    # sample data from posterior to train RL algorithm
-                    self.collect_data_from_task_posterior(env=env, idx=idx,
-                                                          num_samples=self.num_steps_per_task,
-                                                          add_to_enc_buffer=False)
-                elif self.train_embedding_source == 'posterior_only':
-                    self.collect_data_from_task_posterior(env=env, idx=idx, num_samples=self.num_steps_per_task, eval_task=False,
-                                                          add_to_enc_buffer=True)
-                elif self.train_embedding_source == 'online_exploration_trajectories':
-                    # embeddings are computed using only data collected using the prior
-                    # sample data from posterior to train RL algorithm
+                # # TODO: there may be more permutations of sampling/adding to encoding buffer we may wish to try
+                # if self.train_embedding_source == 'initial_pool':
+                #     # embeddings are computed using only the initial pool of data
+                #     # sample data from posterior to train RL algorithm
+                #     self.collect_data_from_task_posterior(env=env, idx=idx,
+                #                                           num_samples=self.num_steps_per_task,
+                #                                           add_to_enc_buffer=False)
+                # elif self.train_embedding_source == 'posterior_only':
+                #     self.collect_data_from_task_posterior(env=env, idx=idx, num_samples=self.num_steps_per_task, eval_task=False,
+                #                                           add_to_enc_buffer=True)
+                # elif self.train_embedding_source == 'online_exploration_trajectories':
+                #     # embeddings are computed using only data collected using the prior
+                #     # sample data from posterior to train RL algorithm
 
 
-                    self.enc_replay_buffer.task_buffers[idx].clear()
-                    # resamples using current policy, conditioned on prior
-                    self.collect_data_sampling_from_prior(env=env, num_samples=self.num_steps_per_task,
-                                                          resample_z_every_n=self.max_path_length,
-                                                          add_to_enc_buffer=True)
+                #     self.enc_replay_buffer.task_buffers[idx].clear()
+                #     # resamples using current policy, conditioned on prior
+                #     self.collect_data_sampling_from_prior(env=env, num_samples=self.num_steps_per_task,
+                #                                           resample_z_every_n=self.max_path_length,
+                #                                           add_to_enc_buffer=True)
 
-                    print('Collecting data from task posterior')
-                    if idx == self.task_idx_for_render:
-                        self.collect_data_from_task_posterior(env=env, idx=idx,
-                                                              num_samples=self.num_steps_per_task,
-                                                              add_to_enc_buffer=False, render=True)
-                    else:
-                        self.collect_data_from_task_posterior(env=env, idx=idx,
-                                                              num_samples=self.num_steps_per_task,
-                                                              add_to_enc_buffer=False)
-                elif self.train_embedding_source == 'online_on_policy_trajectories':
-                    # sample from prior, then sample more from the posterior
-                    # embeddings computed from both prior and posterior data
-                    self.enc_replay_buffer.task_buffers[idx].clear()
-                    self.collect_data_online(env=env, idx=idx,
-                                             num_samples=self.num_steps_per_task,
-                                             add_to_enc_buffer=True)
-                else:
-                    raise Exception("Invalid option for computing train embedding {}".format(self.train_embedding_source))
+                #     print('Collecting data from task posterior')
+                #     if idx == self.task_idx_for_render:
+                #         self.collect_data_from_task_posterior(env=env, idx=idx,
+                #                                               num_samples=self.num_steps_per_task,
+                #                                               add_to_enc_buffer=False, render=True)
+                #     else:
+                #         self.collect_data_from_task_posterior(env=env, idx=idx,
+                #                                               num_samples=self.num_steps_per_task,
+                #                                               add_to_enc_buffer=False)
+                # elif self.train_embedding_source == 'online_on_policy_trajectories':
+                #     # sample from prior, then sample more from the posterior
+                #     # embeddings computed from both prior and posterior data
+                #     self.enc_replay_buffer.task_buffers[idx].clear()
+                #     self.collect_data_online(env=env, idx=idx,
+                #                              num_samples=self.num_steps_per_task,
+                #                              add_to_enc_buffer=True)
+                # else:
+                #     raise Exception("Invalid option for computing train embedding {}".format(self.train_embedding_source))
 
             # Sample train tasks and compute gradient updates on parameters.
             for train_step in range(self.num_train_steps_per_itr):
@@ -290,19 +292,19 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
     # TODO: maybe find a better name for resample_z_every_n?
     def collect_data_sampling_from_prior(self, env, num_samples=1, resample_z_every_n=None, eval_task=False,
-                                         add_to_enc_buffer=True, render=False):
+                                         add_to_enc_buffer=True, render=False, idx=None):
         # do not resample z if resample_z_every_n is None
         if resample_z_every_n is None:
             self.policy.clear_z()
             self.collect_data(env=env, agent=self.policy, num_samples=num_samples, eval_task=eval_task,
-                              add_to_enc_buffer=add_to_enc_buffer, render=render)
+                              add_to_enc_buffer=add_to_enc_buffer, render=render, idx=idx)
         else:
             # collects more data in batches of resample_z_every_n until done
             while num_samples > 0:
                 self.collect_data_sampling_from_prior(env=env, num_samples=min(resample_z_every_n, num_samples),
                                                       resample_z_every_n=None,
                                                       eval_task=eval_task,
-                                                      add_to_enc_buffer=add_to_enc_buffer, render=render)
+                                                      add_to_enc_buffer=add_to_enc_buffer, render=render, idx=idx)
                 num_samples -= resample_z_every_n
 
     def collect_data_from_task_posterior(self, env, idx, num_samples=1, resample_z_every_n=None, eval_task=False,
@@ -340,13 +342,13 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     # TODO: since switching tasks now resets the environment, we are not correctly handling episodes terminating
     # correctly. We also aren't using the episodes anywhere, but we should probably change this to make it gather paths
     # until we have more samples than num_samples, to make sure every episode cleanly terminates when intended.
-    def collect_data(self, env, agent, num_samples=1, eval_task=False, add_to_enc_buffer=True, render=False):
+    def collect_data(self, env, agent, num_samples=1, eval_task=False, add_to_enc_buffer=True, render=False, idx=None):
         '''
         collect data from current env in batch mode
         with given policy
         '''
         for _ in range(num_samples):
-            action, agent_info = self._get_action_and_info(agent, self.train_obs)
+            action, agent_info = self._get_action_and_info(agent, self.train_obs, idx)
             if render:
                 env.render()
             next_ob, raw_reward, terminal, env_info = (
@@ -444,14 +446,14 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def _can_train(self):
         return all([self.replay_buffer.num_steps_can_sample(idx) >= self.batch_size for idx in self.train_idx])
 
-    def _get_action_and_info(self, agent, observation):
+    def _get_action_and_info(self, agent, observation, idx):
         """
         Get an action to take in the environment.
         :param observation:
         :return:
         """
         agent.set_num_steps_total(self._n_env_steps_total)
-        return agent.get_action(observation,)
+        return agent.get_action(observation, idx)
 
     def _start_epoch(self, epoch):
         self._epoch_start_time = time.time()
