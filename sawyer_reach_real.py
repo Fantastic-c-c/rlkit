@@ -21,7 +21,7 @@ import rlkit.torch.pytorch_util as ptu
 
 RANDOMIZE_TASKS = True
 
-NUM_TASKS = 40
+NUM_TASKS = 60
 ROBOT_CONFIG = 'pearl_lordi_config'
 ACTION_MODE = 'position'  # position or torque - NOTE: torque safety box has not been tested
 MAX_SPEED = 0.15
@@ -118,7 +118,7 @@ def main(gpu, docker):
         ),
         algo_params=dict(
             num_initial_steps=INITIAL_STEPS,
-            initial_data_path='initial_data40-3d.pkl',
+            # initial_data_path='initial_data40-3d.pkl', # comment this out if want to collect new data
 
             meta_batch=16,
             num_iterations=10000,
