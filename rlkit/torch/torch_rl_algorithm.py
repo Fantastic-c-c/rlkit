@@ -222,15 +222,15 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
                 self.env.log_diagnostics(test_paths)
 
 
-        avg_train_return = np.mean(train_avg_returns)
-        avg_test_return = np.mean(test_avg_returns)
-        self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
-        self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
+        self.eval_statistics['AverageReturn_all_train_tasks'] = np.mean(train_avg_returns)
+        self.eval_statistics['AverageReturn_all_test_tasks'] = np.mean(test_avg_returns)
+        self.eval_statistics['Stddev_AverageReturn_all_train_tasks'] = np.std(train_avg_returns)
+        self.eval_statistics['Stddev_AverageReturn_all_test_tasks'] = np.std(test_avg_returns)
 
-        avg_final_train_return = np.mean(train_final_returns)
-        avg_final_test_return = np.mean(test_final_returns)
-        self.eval_statistics['AverageFinalReturn_all_train_tasks'] = avg_final_train_return
-        self.eval_statistics['AverageFinalReturn_all_test_tasks'] = avg_final_test_return
+        self.eval_statistics['AverageFinalReturn_all_train_tasks'] = np.mean(train_final_returns)
+        self.eval_statistics['AverageFinalReturn_all_test_tasks'] = np.mean(test_final_returns)
+        self.eval_statistics['Stddev_AverageFinalReturn_all_train_tasks'] = np.std(train_final_returns)
+        self.eval_statistics['Stddev_AverageFinalReturn_all_test_tasks'] = np.std(train_final_returns)
 
         for key, value in self.eval_statistics.items():
             logger.record_tabular(key, value)

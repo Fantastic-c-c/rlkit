@@ -240,6 +240,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 self._do_training(indices)
                 self._n_train_steps_total += 1
             gt.stamp('train')
+            print("Finished computing gradients")
 
             #self.training_mode(False)
 
