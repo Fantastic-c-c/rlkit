@@ -40,34 +40,13 @@ class PathReplayBuffer:
 
 
     def sample_data(self, indices):
-        return dict(
-            observations=self._observations[indices],
-            actions=self._actions[indices],
-            rewards=self._rewards[indices],
-            terminals=self._terminals[indices],
-            next_observations=self._next_obs[indices],
-            sparse_rewards=self._sparse_rewards[indices],
-        )
+        raise NotImplementedError
 
     def random_batch(self, batch_size):
-        ''' batch of unordered transitions '''
-        indices = np.random.randint(0, self._size, batch_size)
-        return self.sample_data(indices)
+        raise NotImplementedError
 
     def random_sequence(self, batch_size):
-        ''' batch of trajectories '''
-        # take random trajectories until we have enough
-        i = 0
-        indices = []
-        while len(indices) < batch_size:
-            # TODO hack to not deal with wrapping episodes, just don't take the last one
-            start = np.random.choice(self.episode_starts[:-1])
-            pos_idx = self._episode_starts.index(start)
-            indices += list(range(start, self._episode_starts[pos_idx + 1]))
-            i += 1
-        # cut off the last traj if needed to respect batch size
-        indices = indices[:batch_size]
-        return self.sample_data(indices)
+        raise NotImplementedError
 
     def num_steps_can_sample(self):
         return self._size
