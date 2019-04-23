@@ -58,6 +58,9 @@ class PointEnv(Env):
     def _get_obs(self):
         return np.copy(self._state)
 
+    def _get_xpos(self):
+        return np.copy(self._state)
+
     def step(self, action):
         self._state = self._state + action
         x, y = self._state
@@ -120,3 +123,4 @@ class SparsePointEnv(PointEnv):
             sparse_reward += 1
         d.update({'sparse_reward': sparse_reward})
         return ob, reward, done, d
+
