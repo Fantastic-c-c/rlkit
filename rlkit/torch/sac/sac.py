@@ -163,7 +163,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             finals[key] = np.stack([path[key][final_index] for path in paths]) # check shape here
 
         # 
-        return ptu.np_to_pytorch_batch(context_batch), ptu.np_to_pytorch_batcH(finals)
+        return ptu.np_to_pytorch_batch(context_batch), ptu.np_to_pytorch_batch(finals)
 
 
     ##### Training #####
