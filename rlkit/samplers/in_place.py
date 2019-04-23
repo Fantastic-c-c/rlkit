@@ -46,8 +46,7 @@ class InPlacePathSampler(object):
             paths.append(path)
             n_steps_total += len(path['observations'])
             n_trajs += 1
-            # don't we also want the option to resample z ever transition?
-            if n_trajs % resample == 0:
-                policy.sample_z()
+            # clears context at end of each trajectory
+            policy.clear_z()
         return paths, n_steps_total
 

@@ -163,12 +163,15 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     self.env.reset_task(idx)
                     self.collect_data(self.num_initial_steps, 1, np.inf)
             # Sample data from train tasks.
+            # use only one train task?
             for i in range(self.num_tasks_sample):
                 idx = np.random.randint(len(self.train_tasks))
                 self.task_idx = idx
                 self.env.reset_task(idx)
                 self.enc_replay_buffer.task_buffers[idx].clear()
 
+                self.collect_data(num_samples=self.num_steps_posterior) # just use this param for now
+                """
                 # collect some trajectories with z ~ prior
                 if self.num_steps_prior > 0:
                     self.collect_data(self.num_steps_prior, 1, np.inf)
@@ -178,6 +181,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
                 if self.num_extra_rl_steps_posterior > 0:
                     self.collect_data(self.num_extra_rl_steps_posterior, 1, self.update_post_train, add_to_enc_buffer=False)
+                """
 
             # Sample train tasks and compute gradient updates on parameters.
             for train_step in range(self.num_train_steps_per_itr):
@@ -214,6 +218,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         # start from the prior
         self.agent.clear_z()
 
+        """
         num_transitions = 0
         while num_transitions < num_samples:
             paths, n_samples = self.sampler.obtain_samples(max_samples=num_samples - num_transitions,
@@ -222,11 +227,13 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                                                                 resample=resample_z_rate)
             num_transitions += n_samples
             self.replay_buffer.add_paths(self.task_idx, paths)
-            if add_to_enc_buffer:
-                self.enc_replay_buffer.add_paths(self.task_idx, paths)
             if update_posterior_rate != np.inf:
                 context = self.prepare_context(self.task_idx)
                 self.agent.infer_posterior(context)
+        """
+        paths, num_transitions = self.sampler.obtain_samples(max_samples=num_samples,
+                                                             accum_context=True,
+                                                             resample=1)
         self._n_env_steps_total += num_transitions
         gt.stamp('sample')
 

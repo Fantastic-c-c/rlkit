@@ -140,6 +140,8 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         task_data = torch.cat([obs, act, rewards], dim=2)
         return task_data
 
+    # use prepare_batch instead
+    """
     def prepare_context(self, idx):
         ''' sample context from replay buffer and prepare it '''
         batch = ptu.np_to_pytorch_batch(self.enc_replay_buffer.random_batch(idx, batch_size=self.embedding_batch_size, sequence=self.recurrent))
@@ -148,13 +150,31 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         rewards = batch['rewards'][None, ...]
         context = self.prepare_encoder_data(obs, act, rewards)
         return context
+    """
+
+    # context_batch will contain timesteps [1:t)
+    # finals includes timestep t, so we compute embeddings based on context batch for an update on time t
+    def prepare_batch(self, paths, final_index):
+        context_batch = dict()
+        finals = dict()
+        for key in paths[0]:
+            # shape should be [n_paths x n_timesteps x dim]
+            context_batch[key] = np.stack([path[key][:final_index] for path in paths])
+            finals[key] = np.stack([path[key][final_index] for path in paths]) # check shape here
+
+        # 
+        return ptu.np_to_pytorch_batch(context_batch), ptu.np_to_pytorch_batcH(finals)
+
 
     ##### Training #####
     def _do_training(self, indices):
         mb_size = self.embedding_mini_batch_size
         num_updates = self.embedding_batch_size // mb_size
 
-        batch = self.sample_data(indices, encoder=True)
+        # batch = self.sample_data(indices, encoder=True)
+
+
+        ### feed context batch into encoders to get vector of contexts, then use those to update for the train batch
 
         # zero out context and hidden encoder state
         self.agent.clear_z(num_tasks=len(indices))
@@ -178,9 +198,11 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
 
     def _take_step(self, indices, context):
+        paths_batch = self.replay_buffer.sample_paths(self.batch_size)
+        # randomly updates for a timestep along the paths
+        context_batch, train_batch = self.prepare_batch(paths_batch, np.random.uniform(self.max_path_length))
 
-        num_tasks = len(indices)
-
+        # MODIFY THIS LINE TO TRANSOFMR BATCH INTO INDIVIDUAL TENSORS
         # data is (task, batch, feat)
         obs, actions, rewards, next_obs, terms = self.sample_data(indices)
 
