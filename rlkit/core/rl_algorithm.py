@@ -21,12 +21,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             eval_tasks,
             meta_batch=64,
             num_iterations=100,
+            num_env_steps_per_itr=1000,
             num_train_steps_per_itr=1000,
-            num_initial_steps=100,
-            num_tasks_sample=100,
-            num_steps_prior=100,
-            num_steps_posterior=100,
-            num_extra_rl_steps_posterior=100,
             num_evals=10,
             num_steps_per_eval=1000,
             batch_size=1024,
@@ -62,12 +58,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.eval_tasks = eval_tasks
         self.meta_batch = meta_batch
         self.num_iterations = num_iterations
+        self.num_env_steps_per_itr = num_env_steps_per_itr
         self.num_train_steps_per_itr = num_train_steps_per_itr
-        self.num_initial_steps = num_initial_steps
-        self.num_tasks_sample = num_tasks_sample
-        self.num_steps_prior = num_steps_prior
-        self.num_steps_posterior = num_steps_posterior
-        self.num_extra_rl_steps_posterior = num_extra_rl_steps_posterior
         self.num_evals = num_evals
         self.num_steps_per_eval = num_steps_per_eval
         self.batch_size = batch_size
@@ -155,33 +147,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         ):
             self._start_epoch(it_)
             self.training_mode(True)
-            if it_ == 0:
-                print('collecting initial pool of data for train and eval')
-                # temp for evaluating
-                for idx in self.train_tasks:
-                    self.task_idx = idx
-                    self.env.reset_task(idx)
-                    self.collect_data(self.num_initial_steps, 1, np.inf)
-            # Sample data from train tasks.
-            # use only one train task?
-            for i in range(self.num_tasks_sample):
-                idx = np.random.randint(len(self.train_tasks))
-                self.task_idx = idx
-                self.env.reset_task(idx)
-                self.enc_replay_buffer.task_buffers[idx].clear()
-
-                self.collect_data(num_samples=self.num_steps_posterior) # just use this param for now
-                """
-                # collect some trajectories with z ~ prior
-                if self.num_steps_prior > 0:
-                    self.collect_data(self.num_steps_prior, 1, np.inf)
-                # collect some trajectories with z ~ posterior
-                if self.num_steps_posterior > 0:
-                    self.collect_data(self.num_steps_per_task, 1, self.update_post_train)
-                # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
-                if self.num_extra_rl_steps_posterior > 0:
-                    self.collect_data(self.num_extra_rl_steps_posterior, 1, self.update_post_train, add_to_enc_buffer=False)
-                """
+            self.env.reset()
+            self.collect_data(num_samples=self.num_env_steps_per_itr) # just use this param for now
 
             # Sample train tasks and compute gradient updates on parameters.
             for train_step in range(self.num_train_steps_per_itr):
@@ -204,7 +171,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         """
         pass
 
-    def collect_data(self, num_samples, resample_z_rate, update_posterior_rate, add_to_enc_buffer=True):
+    def collect_data(self, num_samples):
         '''
         get trajectories from current env in batch mode with given policy
         collect complete trajectories until the number of collected transitions >= num_samples
@@ -218,23 +185,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         # start from the prior
         self.agent.clear_z()
 
-        """
-        num_transitions = 0
-        while num_transitions < num_samples:
-            paths, n_samples = self.sampler.obtain_samples(max_samples=num_samples - num_transitions,
-                                                                max_trajs=update_posterior_rate,
-                                                                accum_context=False,
-                                                                resample=resample_z_rate)
-            num_transitions += n_samples
-            self.replay_buffer.add_paths(self.task_idx, paths)
-            if update_posterior_rate != np.inf:
-                context = self.prepare_context(self.task_idx)
-                self.agent.infer_posterior(context)
-        """
-        paths, num_transitions = self.sampler.obtain_samples(max_samples=num_samples,
-                                                             accum_context=True,
-                                                             resample=1)
+        paths, num_transitions = self.sampler.obtain_samples(max_samples=num_samples)
         self._n_env_steps_total += num_transitions
+        self.replay_buffer.add_paths(paths)
         gt.stamp('sample')
 
     def _try_to_eval(self, epoch):
@@ -298,7 +251,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         return True
 
     def _can_train(self):
-        return all([self.replay_buffer.num_steps_can_sample(idx) >= self.batch_size for idx in self.train_tasks])
+        return self.replay_buffer.num_steps_can_sample() >= self.batch_size
 
     def _get_action_and_info(self, agent, observation):
         """
@@ -406,9 +359,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             # 100 arbitrarily chosen for visualizations of point_robot trajectories
             # just want stochasticity of z, not the policy
             self.agent.clear_z()
-            prior_paths, _ = self.sampler.obtain_samples(deterministic=self.eval_deterministic, max_samples=self.max_path_length * 20,
-                                                        accum_context=False,
-                                                        resample=1)
+            prior_paths, _ = self.sampler.obtain_samples(deterministic=self.eval_deterministic, max_samples=self.max_path_length * 20)
             logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
 
         ### train tasks
@@ -424,10 +375,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             for _ in range(self.num_steps_per_eval // self.max_path_length):
                 context = self.prepare_context(idx)
                 self.agent.infer_posterior(context)
-                p, _ = self.sampler.obtain_samples(deterministic=self.eval_deterministic, max_samples=self.max_path_length,
-                                                        accum_context=False,
-                                                        max_trajs=1,
-                                                        resample=np.inf)
+                p, _ = self.sampler.obtain_samples(deterministic=self.eval_deterministic, max_trajs=1)
                 paths += p
 
             if self.sparse_rewards:

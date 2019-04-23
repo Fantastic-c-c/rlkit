@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def rollout(env, agent, max_path_length=np.inf, accum_context=True, resample_z=False, animated=False):
+def rollout(env, agent, max_path_length=np.inf, animated=False):
     """
     The following value for the following keys will be a 2D array, with the
     first dimension corresponding to the time dimension.
@@ -38,10 +38,9 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, resample_z=F
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
         # update the agent's current context
-        if accum_context:
-            # modified to update context, infer posterior and resample z
-            agent.update_context([o, a, r, next_o, d, env_info])
-            agent.infer_posterior() # also resamples latent
+        agent.update_context([o, a, r, next_o, d, env_info])
+        agent.infer_posterior()  # also resamples latent
+
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
