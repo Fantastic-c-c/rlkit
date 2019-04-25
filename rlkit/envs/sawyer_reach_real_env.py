@@ -50,6 +50,9 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
             print("Close enough to goal - done!")
         return observation, reward, done, info
 
+    def get_goal_at(self, idx):
+        return self.goals[idx]
+
     def get_all_task_idx(self):
         return range(len(self.tasks))
 

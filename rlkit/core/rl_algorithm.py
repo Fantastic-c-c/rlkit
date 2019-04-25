@@ -210,7 +210,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.training_mode(False)
 
             # eval
-            if (it_% 10 == 0):
+            if (it_% 5 == 0):
                 self._try_to_eval(it_)
 
             gt.stamp('eval')

@@ -155,7 +155,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         )) # something is wrong with these exploration paths i'm pretty sure...
         average_returns = eval_util.get_average_returns(paths)
         self.eval_statistics['AverageReturn_{}_task{}'.format(split, self.task_idx)] = average_returns
-        goal = self.env._goal
+        goal = self.env.get_goal()  # TODO: Fix for other environments
         dprint('GoalPosition_{}_task'.format(split))
         dprint(goal)
         self.eval_statistics['GoalPosition_{}_task{}'.format(split, self.task_idx)] = goal
@@ -230,17 +230,30 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         self.eval_statistics['AverageFinalReturn_all_train_tasks'] = np.mean(train_final_returns)
         self.eval_statistics['AverageFinalReturn_all_test_tasks'] = np.mean(test_final_returns)
         self.eval_statistics['Stddev_AverageFinalReturn_all_train_tasks'] = np.std(train_final_returns)
-        self.eval_statistics['Stddev_AverageFinalReturn_all_test_tasks'] = np.std(train_final_returns)
+        self.eval_statistics['Stddev_AverageFinalReturn_all_test_tasks'] = np.std(test_final_returns)
+
+
+        # TODO: Make this work with other envs
+        self.eval_statistics["BestTrainGoalFinalReturn"] = self.env.get_goal_at(np.argmax(train_final_returns))
+        self.eval_statistics["WorstTrainGoalFinalReturn"] = self.env.get_goal_at(np.argmin(train_final_returns))
+        self.eval_statistics["BestTrainGoalAvgReturn"] = self.env.get_goal_at(np.argmax(train_avg_returns))
+        self.eval_statistics["WorstTrainGoalAvgReturn"] = self.env.get_goal_at(np.argmin(train_avg_returns))
+
+        self.eval_statistics["BestTestGoalFinalReturn"] = self.env.get_goal_at(np.argmax(test_final_returns))
+        self.eval_statistics["WorstTestGoalFinalReturn"] = self.env.get_goal_at(np.argmin(test_final_returns))
+        self.eval_statistics["BestTestGoalAvgReturn"] = self.env.get_goal_at(np.argmax(test_avg_returns))
+        self.eval_statistics["WorstTestGoalAvgReturn"] = self.env.get_goal_at(np.argmin(test_avg_returns))
+
 
         for key, value in self.eval_statistics.items():
             logger.record_tabular(key, value)
-        self.eval_statistics = None
+            self.eval_statistics = None
 
-        if self.render_eval_paths:
-            self.env.render_paths(test_paths)
+            if self.render_eval_paths:
+                self.env.render_paths(test_paths)
 
-        if self.plotter:
-            self.plotter.draw()
+            if self.plotter:
+                self.plotter.draw()
 
 def _elem_or_tuple_to_variable(elem_or_tuple):
     if isinstance(elem_or_tuple, tuple):
