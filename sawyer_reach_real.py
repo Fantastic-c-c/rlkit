@@ -36,15 +36,15 @@ def datetimestamp(divider=''):
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
 def experiment(variant):
-    env = NormalizedBoxEnv(PearlSawyerReachXYZEnv(config_name = ROBOT_CONFIG,
-                                                  action_mode = ACTION_MODE,
-                                                  max_speed = MAX_SPEED,
-                                                  position_action_scale = 1/7,
+    env = NormalizedBoxEnv(PearlSawyerReachXYZEnv(config_name=ROBOT_CONFIG,
+                                                  action_mode=ACTION_MODE,
+                                                  max_speed=MAX_SPEED,
+                                                  position_action_scale=1/7,
                                                   height_2d=None,
 
                                                   reward_type='hand_distance',
-                                                  goal_low=np.array([0.45, -0.3, 0.2]),
-                                                  goal_high=np.array([0.65, 0.3, 0.4]),
+                                                  goal_low=np.array([0.5, -0.25, 0.25]),
+                                                  goal_high=np.array([0.65, 0.25, 0.45]),
                                                   **variant['task_params']))
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
@@ -118,7 +118,7 @@ def main(gpu, docker):
         ),
         algo_params=dict(
             num_initial_steps=INITIAL_STEPS,
-            # initial_data_path='initial_data40-3d.pkl', # comment this out if want to collect new data
+            initial_data_path='initial_data60-3d.pkl', # comment this out if want to collect new data
 
             meta_batch=16,
             num_iterations=10000,
