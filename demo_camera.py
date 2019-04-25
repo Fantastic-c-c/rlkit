@@ -12,7 +12,6 @@ out = cv2.VideoWriter(video_path, fourcc, fps, (1920, 1080))
 while(cap.isOpened()):
     ret, frame = cap.read()
     if ret == True:
-        # write the flipped frame
         out.write(frame)
 
         cv2.imshow('frame',frame)
