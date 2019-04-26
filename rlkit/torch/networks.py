@@ -132,7 +132,10 @@ class MlpEncoder(FlattenMlp):
     encode context via MLP
     '''
 
-    def reset(self, num_tasks=1):
+    def reset_memory(self, num_tasks=1):
+        pass
+
+    def detach_memory(self):
         pass
 
 
@@ -178,8 +181,11 @@ class RecurrentEncoder(FlattenMlp):
         else:
             return output
 
-    def reset(self, num_tasks=1):
+    def reset_memory(self, num_tasks=1):
         self.hidden = self.hidden.new_full((1, num_tasks, self.hidden_dim), 0)
+
+    def detach_memory(self):
+        self.hidden = self.hidden.detach()
 
 
 

@@ -54,7 +54,6 @@ class PEARLAgent(nn.Module):
         self.context_encoder = context_encoder
         self.policy = policy
 
-        self.recurrent = kwargs['recurrent']
         self.use_ib = kwargs['use_information_bottleneck']
         self.sparse_rewards = kwargs['sparse_rewards']
 
@@ -84,13 +83,13 @@ class PEARLAgent(nn.Module):
         # reset the context collected so far
         self.context = None
         # reset any hidden state in the encoder network (relevant for RNN)
-        self.context_encoder.reset(num_tasks)
+        self.context_encoder.reset_memory(num_tasks)
 
     def detach_z(self):
         ''' disable backprop through z '''
         self.z = self.z.detach()
-        if self.recurrent:
-            self.context_encoder.hidden = self.context_encoder.hidden.detach()
+        # only the RNN encoder has memory
+        self.context_encoder.detach_memory()
 
     def update_context(self, inputs):
         ''' append single transition to the current context '''

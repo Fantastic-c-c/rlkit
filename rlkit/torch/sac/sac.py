@@ -48,7 +48,6 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         self.plotter = plotter
         self.render_eval_paths = render_eval_paths
 
-        self.recurrent = recurrent
         self.latent_dim = latent_dim
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
