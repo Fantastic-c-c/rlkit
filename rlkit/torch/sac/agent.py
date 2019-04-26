@@ -54,6 +54,7 @@ class PEARLAgent(nn.Module):
         self.context_encoder = context_encoder
         self.policy = policy
 
+        self.recurrent = kwargs['recurrent']
         self.use_ib = kwargs['use_information_bottleneck']
         self.sparse_rewards = kwargs['sparse_rewards']
 
@@ -123,9 +124,14 @@ class PEARLAgent(nn.Module):
         if self.use_ib:
             mu = params[..., :self.latent_dim]
             sigma_squared = F.softplus(params[..., self.latent_dim:])
-            z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
-            self.z_means = torch.stack([p[0] for p in z_params])
-            self.z_vars = torch.stack([p[1] for p in z_params])
+            if self.recurrent:
+                # hidden state IS the mean and variance
+                self.z_means = torch.stack(torch.unbind(torch.squeeze(mu)))
+                self.z_vars = torch.stack(torch.unbind(torch.squeeze(sigma_squared)))
+            else:
+                z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
+                self.z_means = torch.stack([p[0] for p in z_params])
+                self.z_vars = torch.stack([p[1] for p in z_params])
         # sum rather than product of gaussians structure
         else:
             self.z_means = torch.mean(params, dim=1)
