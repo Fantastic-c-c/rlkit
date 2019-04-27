@@ -16,7 +16,6 @@ from multiworld.envs.mujoco.sawyer_xyz.base import SawyerXYZEnv
 
 import time
 
-@register_env('sawyer-reach-sim-3d')
 class SawyerReachXYZEnv(SawyerXYZEnv, MultitaskEnv):
     def __init__(
             self,
@@ -227,6 +226,7 @@ class SawyerReachXYZEnv(SawyerXYZEnv, MultitaskEnv):
         self._state_goal = goal
         self._set_goal_marker(goal)
 
+@register_env('sawyer-reach-sim-3d')
 class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
     def __init__(self, *args, randomize_tasks=True, n_tasks=5,
                  reward_type='hand_distance',
