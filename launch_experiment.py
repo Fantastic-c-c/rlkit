@@ -21,9 +21,24 @@ from configs.default import default_config
 
 
 def experiment(variant):
-
     # create multi-task environment and sample tasks
-    env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
+    if ("sawyer_reach_real" in variant['env_name']):  # We need a separate import because this can only be done when on a ROS computer
+        from rlkit.envs.sawyer_reach_real_env import PearlSawyerReachXYZEnv
+        ROBOT_CONFIG = 'pearl_lordi_config'
+        ACTION_MODE = 'position'  # position or torque - NOTE: torque safety box has not been tested
+        MAX_SPEED = 0.15
+        env = NormalizedBoxEnv(PearlSawyerReachXYZEnv(config_name=ROBOT_CONFIG,
+                                                      action_mode=ACTION_MODE,
+                                                      max_speed=MAX_SPEED,
+                                                      position_action_scale=1 / 7,
+                                                      height_2d=None,
+
+                                                      reward_type='hand_distance',
+                                                      goal_low=np.array([0.5, -0.25, 0.25]),
+                                                      goal_high=np.array([0.65, 0.25, 0.45]),
+                                                      **variant['env_params']))
+    else:
+        env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
     tasks = env.get_all_task_idx()
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -100,7 +115,8 @@ def experiment(variant):
     # create logging directory
     # TODO support Docker
     exp_id = 'debug' if DEBUG else None
-    experiment_log_dir = setup_logger(variant['env_name'], variant=variant, exp_id=exp_id, base_log_dir=variant['util_params']['base_log_dir'])
+    experiment_log_dir = setup_logger(variant['env_name'], variant=variant, exp_id=exp_id,
+                                      base_log_dir=variant['util_params']['base_log_dir'])
 
     # optionally save eval trajectories as pkl files
     if variant['algo_params']['dump_eval_paths']:
@@ -109,6 +125,7 @@ def experiment(variant):
 
     # run the algorithm
     algorithm.train()
+
 
 def deep_update_dict(fr, to):
     ''' update dict of dicts with new values '''
@@ -120,13 +137,13 @@ def deep_update_dict(fr, to):
             to[k] = v
     return to
 
+
 @click.command()
 @click.argument('config', default=None)
 @click.option('--gpu', default=0)
 @click.option('--docker', is_flag=True, default=False)
 @click.option('--debug', is_flag=True, default=False)
 def main(config, gpu, docker, debug):
-
     variant = default_config
     if config:
         with open(os.path.join(config)) as f:
@@ -136,6 +153,6 @@ def main(config, gpu, docker, debug):
 
     experiment(variant)
 
+
 if __name__ == "__main__":
     main()
-

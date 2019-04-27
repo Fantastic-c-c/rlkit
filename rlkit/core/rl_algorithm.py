@@ -210,7 +210,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.training_mode(False)
 
             # eval
-            if (it_% 5 == 0):
+            if (it_% 1 == 0):
                 self._try_to_eval(it_)
 
             gt.stamp('eval')
@@ -470,13 +470,33 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         if hasattr(self.env, "log_diagnostics"):
             self.env.log_diagnostics(paths)
 
-        avg_train_return = np.mean(train_final_returns)
-        avg_test_return = np.mean(test_final_returns)
         avg_train_online_return = np.mean(np.stack(train_online_returns), axis=0)
         avg_test_online_return = np.mean(np.stack(test_online_returns), axis=0)
         self.eval_statistics['AverageTrainReturn_all_train_tasks'] = train_returns
-        self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
-        self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
+
+        self.eval_statistics['AverageReturn_all_train_tasks'] = np.mean(train_online_returns)
+        self.eval_statistics['AverageReturn_all_test_tasks'] = np.mean(test_online_returns)
+        self.eval_statistics['Stddev_AverageReturn_all_train_tasks'] = np.std(train_online_returns)
+        self.eval_statistics['Stddev_AverageReturn_all_test_tasks'] = np.std(test_online_returns)
+
+        self.eval_statistics['AverageFinalReturn_all_train_tasks'] = np.mean(train_final_returns)
+        self.eval_statistics['AverageFinalReturn_all_test_tasks'] = np.mean(test_final_returns)
+        self.eval_statistics['Stddev_AverageFinalReturn_all_train_tasks'] = np.std(train_final_returns)
+        self.eval_statistics['Stddev_AverageFinalReturn_all_test_tasks'] = np.std(test_final_returns)
+
+        # TODO: Make this work with other envs
+        self.eval_statistics["TrainFinalReturns"] = train_final_returns
+        self.eval_statistics["TestFinalReturns"] = test_final_returns
+        # self.eval_statistics["BestTrainGoalFinalReturn"] = self.env.get_goal_at(np.argmax(train_final_returns))
+        # self.eval_statistics["WorstTrainGoalFinalReturn"] = self.env.get_goal_at(np.argmin(train_final_returns))
+        # self.eval_statistics["BestTrainGoalAvgReturn"] = self.env.get_goal_at(np.argmax(train_online_returns))
+        # self.eval_statistics["WorstTrainGoalAvgReturn"] = self.env.get_goal_at(np.argmin(train_online_returns))
+        #
+        # self.eval_statistics["BestTestGoalFinalReturn"] = self.env.get_goal_at(np.argmax(test_final_returns))
+        # self.eval_statistics["WorstTestGoalFinalReturn"] = self.env.get_goal_at(np.argmin(test_final_returns))
+        # self.eval_statistics["BestTestGoalAvgReturn"] = self.env.get_goal_at(np.argmax(test_online_returns))
+        # self.eval_statistics["WorstTestGoalAvgReturn"] = self.env.get_goal_at(np.argmin(test_online_returns))
+
         logger.save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
         logger.save_extra_data(avg_test_online_return, path='online-test-epoch{}'.format(epoch))
 

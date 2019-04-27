@@ -15,6 +15,7 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
             height_2d=height_2d,
             **kwargs
         )
+
         self.goal_thresh = goal_thresh
         # self.observation_space = self.hand_space
         init_task_idx = 0
@@ -23,7 +24,7 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
         directions = list(range(n_tasks))
         if randomize_tasks:
             goals = self.sample_goals(n_tasks)
-            if height_2d:
+            if height_2d and height_2d >= 0:
                 goals = [[g[0], g[1], height_2d] for g in goals]
             # goals = [1 * np.random.uniform(-1., 1., 2) for _ in directions]
         else:

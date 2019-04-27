@@ -29,13 +29,12 @@ class PolicyRunner:
                                                   goal_low=np.array([0.45, -0.3, 0.2]),
                                                   goal_high=np.array([0.65, 0.3, 0.4]),
                                                   ))
-        self.policy =
+        self.agent =
         self.cap = Webcam(video_path)
         self.eval_sampler = InPlacePathSampler(
-                env=self.env,
-                policy=self.policy,
-                max_samples=num_steps_per_eval,
-                max_path_length=max_path_length,
+            env=self.env,
+            policy=self.agent,
+            max_path_length=self.max_path_length,
             )
 
     def mark_policy(self, target_goal):

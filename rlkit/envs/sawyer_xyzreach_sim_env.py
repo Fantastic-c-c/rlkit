@@ -2,6 +2,7 @@
 import numpy as np
 from gym import spaces
 from gym import Env
+from . import register_env
 
 # Multiworld / Mujoco imports
 from collections import OrderedDict
@@ -15,7 +16,7 @@ from multiworld.envs.mujoco.sawyer_xyz.base import SawyerXYZEnv
 
 import time
 
-
+@register_env('sawyer-reach-sim-3d')
 class SawyerReachXYZEnv(SawyerXYZEnv, MultitaskEnv):
     def __init__(
             self,
