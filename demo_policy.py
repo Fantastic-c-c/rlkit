@@ -29,6 +29,7 @@ class PolicyRunner:
                                                   goal_low=np.array([0.45, -0.3, 0.2]),
                                                   goal_high=np.array([0.65, 0.3, 0.4]),
                                                   ))
+
         self.agent =
         self.cap = Webcam(video_path)
         self.eval_sampler = InPlacePathSampler(

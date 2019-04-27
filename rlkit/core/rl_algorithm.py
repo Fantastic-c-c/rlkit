@@ -171,7 +171,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                         # self.collect_data_sampling_from_prior(num_samples=self.num_initial_steps,
                         #                                       resample_z_every_n=self.max_path_length,
                         #                                       eval_task=False)
-
                     # DUMP ENCODING BUFFER AS PICKLE
                     print("Saving initial buffer")
                     pickle.dump(self.replay_buffer, open("initial_data_replay.pkl", "wb"))
@@ -199,6 +198,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 if self.num_extra_rl_steps_posterior > 0:
                     self.collect_data(self.num_extra_rl_steps_posterior, 1, self.update_post_train, add_to_enc_buffer=False)
 
+
             # Sample train tasks and compute gradient updates on parameters.
             for train_step in range(self.num_train_steps_per_itr):
                 indices = np.random.choice(self.train_tasks, self.meta_batch)
@@ -210,7 +210,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.training_mode(False)
 
             # eval
-            if (it_% 1 == 0):
+            if (it_% 5 == 0):
                 self._try_to_eval(it_)
 
             gt.stamp('eval')

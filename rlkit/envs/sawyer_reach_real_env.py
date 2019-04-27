@@ -15,7 +15,6 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
             height_2d=height_2d,
             **kwargs
         )
-
         self.goal_thresh = goal_thresh
         # self.observation_space = self.hand_space
         init_task_idx = 0
