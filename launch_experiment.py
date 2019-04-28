@@ -17,7 +17,7 @@ from rlkit.torch.sac.sac import PEARLSoftActorCritic
 from rlkit.torch.sac.agent import PEARLAgent
 from rlkit.launchers.launcher_util import setup_logger
 import rlkit.torch.pytorch_util as ptu
-from configs.default import default_config
+from configs.default import default_config, default_pomdp_config
 
 
 def experiment(variant):
@@ -70,8 +70,6 @@ def experiment(variant):
     )
     algorithm = PEARLSoftActorCritic(
         env=env,
-        train_tasks=list(tasks[:variant['n_train_tasks']]),
-        eval_tasks=list(tasks[-variant['n_eval_tasks']:]),
         nets=[agent, qf1, qf2, vf],
         latent_dim=latent_dim,
         **variant['algo_params']
@@ -127,7 +125,7 @@ def deep_update_dict(fr, to):
 @click.option('--debug', is_flag=True, default=False)
 def main(config, gpu, docker, debug):
 
-    variant = default_config
+    variant = default_pomdp_config
     if config:
         with open(os.path.join(config)) as f:
             exp_params = json.load(f)

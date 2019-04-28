@@ -10,4 +10,5 @@ class LightDarkPointEnv(LightDarkEnv):
     def __init__(self):
         wrapped_env = PointEnv()
         super(LightDarkPointEnv, self).__init__(wrapped_env,
-                                          noise_fun=no_obs)
+                                                # dark_cond=lambda x: False,
+                                                noise_fun=no_obs)

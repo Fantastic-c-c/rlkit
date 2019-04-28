@@ -130,7 +130,8 @@ class PEARLAgent(nn.Module):
         # sum rather than product of gaussians structure
         else:
             self.z_means = torch.mean(params, dim=1)
-        self.sample_z()
+        # return torch.zeros(5)
+        return self.sample_z()
 
     def sample_z(self):
         if self.use_ib:
@@ -139,6 +140,8 @@ class PEARLAgent(nn.Module):
             self.z = torch.stack(z)
         else:
             self.z = self.z_means
+        # return self.z
+        return torch.zeros_like(self.z)
 
     def get_action(self, obs, deterministic=False):
         ''' sample action from the policy, conditioned on the task embedding '''
@@ -152,15 +155,7 @@ class PEARLAgent(nn.Module):
 
     def forward(self, obs, context):
         ''' given context, get statistics under the current policy of a set of observations '''
-        self.infer_posterior(context)
-        self.sample_z()
-
-        task_z = self.z
-
-        t, b, _ = obs.size()
-        obs = obs.view(t * b, -1)
-        task_z = [z.repeat(b, 1) for z in task_z]
-        task_z = torch.cat(task_z, dim=0)
+        task_z = self.infer_posterior(context)
 
         # run policy, get log probs and new actions
         in_ = torch.cat([obs, task_z.detach()], dim=1)

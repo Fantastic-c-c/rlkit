@@ -14,8 +14,6 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
     def __init__(
             self,
             env,
-            train_tasks,
-            eval_tasks,
             latent_dim,
             nets,
 
@@ -40,8 +38,6 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         super().__init__(
             env=env,
             agent=nets[0],
-            train_tasks=train_tasks,
-            eval_tasks=eval_tasks,
             **kwargs
         )
 
@@ -103,7 +99,14 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             net.to(device)
 
     ##### Data handling #####
-    def sample_data(self, indices, encoder=False):
+    def sample_data(self, batch):
+        obs = batch['observations']
+        actions = batch['actions']
+        rewards = batch['rewards']
+        next_obs = batch['next_observations']
+        terms = batch['terminals']
+        return obs, actions, rewards, next_obs, terms
+        """
         ''' sample data from replay buffers to construct a training meta-batch '''
         # collect data from multiple tasks for the meta-batch
         obs, actions, rewards, next_obs, terms = [], [], [], [], []
@@ -132,42 +135,41 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         next_obs = torch.cat(next_obs, dim=0)
         terms = torch.cat(terms, dim=0)
         return [obs, actions, rewards, next_obs, terms]
+        """
 
     def prepare_encoder_data(self, obs, act, rewards):
         ''' prepare context for encoding '''
         # for now we embed only observations and rewards
         # assume obs and rewards are (task, batch, feat)
-        task_data = torch.cat([obs, act, rewards], dim=2)
+        task_data = torch.cat([obs, act, rewards], dim=-1)
         return task_data
 
-    # use prepare_batch instead
-    """
-    def prepare_context(self, idx):
+    def prepare_context(self, batch):
         ''' sample context from replay buffer and prepare it '''
-        batch = ptu.np_to_pytorch_batch(self.enc_replay_buffer.random_batch(idx, batch_size=self.embedding_batch_size, sequence=self.recurrent))
-        obs = batch['observations'][None, ...]
-        act = batch['actions'][None, ...]
-        rewards = batch['rewards'][None, ...]
+        obs = batch['observations']
+        act = batch['actions']
+        rewards = batch['rewards']
         context = self.prepare_encoder_data(obs, act, rewards)
         return context
-    """
 
     # context_batch will contain timesteps [1:t)
     # finals includes timestep t, so we compute embeddings based on context batch for an update on time t
     def prepare_batch(self, paths, final_index):
         context_batch = dict()
         finals = dict()
-        for key in paths[0]:
+        keys = ['observations', 'actions', 'rewards', 'next_observations', 'terminals']
+        for key in keys:
             # shape should be [n_paths x n_timesteps x dim]
             context_batch[key] = np.stack([path[key][:final_index] for path in paths])
             finals[key] = np.stack([path[key][final_index] for path in paths]) # check shape here
 
-        # 
         return ptu.np_to_pytorch_batch(context_batch), ptu.np_to_pytorch_batch(finals)
 
 
     ##### Training #####
-    def _do_training(self, indices):
+    def _do_training(self):
+        self._take_step()
+        """
         mb_size = self.embedding_mini_batch_size
         num_updates = self.embedding_batch_size // mb_size
 
@@ -177,16 +179,17 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         ### feed context batch into encoders to get vector of contexts, then use those to update for the train batch
 
         # zero out context and hidden encoder state
-        self.agent.clear_z(num_tasks=len(indices))
+        self.agent.clear_z()
 
         for i in range(num_updates):
             mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
             obs_enc, act_enc, rewards_enc, _, _ = mini_batch
             context = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
-            self._take_step(indices, context)
+            self._take_step(context)
 
             # stop backprop
             self.agent.detach_z()
+        """
 
     def _min_q(self, obs, actions, task_z):
         q1 = self.qf1(obs, actions, task_z.detach())
@@ -197,24 +200,19 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
     def _update_target_network(self):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
 
-    def _take_step(self, indices, context):
+    def _take_step(self):
         paths_batch = self.replay_buffer.sample_paths(self.batch_size)
         # randomly updates for a timestep along the paths
-        context_batch, train_batch = self.prepare_batch(paths_batch, np.random.uniform(self.max_path_length))
+        context_batch, train_batch = self.prepare_batch(paths_batch, 1+np.random.randint(self.max_path_length-1))
 
-        # MODIFY THIS LINE TO TRANSOFMR BATCH INTO INDIVIDUAL TENSORS
-        # data is (task, batch, feat)
-        obs, actions, rewards, next_obs, terms = self.sample_data(indices)
+        context = self.prepare_context(context_batch)
+        obs, actions, rewards, next_obs, terms = self.sample_data(train_batch)
 
         # run inference in networks
         policy_outputs, task_z = self.agent(obs, context)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
-        # flattens out the task dimension
-        t, b, _ = obs.size()
-        obs = obs.view(t * b, -1)
-        actions = actions.view(t * b, -1)
-        next_obs = next_obs.view(t * b, -1)
+        # task_z = torch.zeros((256,5)).cuda()
 
         # Q and V networks
         # encoder will only get gradients from Q nets
@@ -235,16 +233,12 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         # qf and encoder update (note encoder does not get grads from policy or vf)
         self.qf1_optimizer.zero_grad()
         self.qf2_optimizer.zero_grad()
-        rewards_flat = rewards.view(self.batch_size * num_tasks, -1)
-        # scale rewards for Bellman update
-        rewards_flat = rewards_flat * self.reward_scale
-        terms_flat = terms.view(self.batch_size * num_tasks, -1)
-        q_target = rewards_flat + (1. - terms_flat) * self.discount * target_v_values
+        q_target = rewards + (1. - terms) * self.discount * target_v_values
         qf_loss = torch.mean((q1_pred - q_target) ** 2) + torch.mean((q2_pred - q_target) ** 2)
         qf_loss.backward()
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
-        self.context_optimizer.step()
+        # self.context_optimizer.step()
 
         # compute min Q on the new actions
         min_q_new_actions = self._min_q(obs, new_actions, task_z)

@@ -49,7 +49,8 @@ class PointEnv(Env):
 
     def reset_model(self):
         # reset to a random location on the unit square
-        self._state = np.random.uniform(-1., 1., size=(2,))
+        # self._state = np.random.uniform(-1., 1., size=(2,))
+        self._state = np.zeros(2)
         return self._get_obs()
 
     def reset(self):

@@ -24,6 +24,10 @@ class PathReplayBuffer:
         self._paths += [path]
         self._size += len(path['observations'])
 
+    def add_paths(self, paths):
+        for path in paths:
+            self.add_path(path)
+
     def terminate_episode(self):
         raise NotImplementedError
 

@@ -52,24 +52,17 @@ default_config = dict(
 
 default_pomdp_config = dict(
     env_name='cheetah-dir', # light dark?
-    n_train_tasks=1,
-    n_eval_tasks=1,
     latent_size=5, # dimension of the latent context vector
     net_size=300, # number of units per FC layer in each network
     path_to_weights=None, # path to pre-trained weights to load into networks
     env_params=dict(
-        n_tasks=1, # number of distinct tasks in this domain, shoudl equal sum of train and eval tasks
-        randomize_tasks=True, # shuffle the tasks after creating them
     ),
     # TODO: rework algo params?
     algo_params=dict(
-        meta_batch=1, # number of tasks to average the gradient across
         num_iterations=500, # number of data sampling / training iterates
-        num_initial_steps=0, # number of transitions collected per task before training
-        num_tasks_sample=1, # number of randomly sampled tasks to collect data for each iteration
         num_env_steps_per_itr=200, # number of environment steps to take per iteration
-        num_train_steps_per_itr=2000, # number of gradient steps taken per iteration
-        num_evals=2, # number of independent evals
+        num_train_steps_per_itr=20, # number of gradient steps taken per iteration
+        num_evals=10, # number of independent evals
         num_steps_per_eval=600,  # nuumber of transitions to eval on
         batch_size=256, # number of transitions in the RL batch
         embedding_batch_size=64, # number of transitions in the context batch
@@ -84,7 +77,7 @@ default_pomdp_config = dict(
         reward_scale=5., # scale rewards before constructing Bellman update, effectively controls weight on the entropy of the policy
         sparse_rewards=False, # whether to sparsify rewards as determined in env
         kl_lambda=.1, # weight on KL divergence term in encoder loss
-        use_information_bottleneck=True, # False makes latent context deterministic
+        use_information_bottleneck=False, # False makes latent context deterministic
         update_post_train=1, # how often to resample the context when collecting data during training (in trajectories)
         num_exp_traj_eval=1, # how many exploration trajs to collect before beginning posterior sampling at test time
         recurrent=False, # recurrent or permutation-invariant encoder
