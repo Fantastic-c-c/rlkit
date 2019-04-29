@@ -130,7 +130,6 @@ class PEARLAgent(nn.Module):
         # sum rather than product of gaussians structure
         else:
             self.z_means = torch.mean(params, dim=1)
-        # return torch.zeros(5)
         return self.sample_z()
 
     def sample_z(self):
@@ -140,8 +139,7 @@ class PEARLAgent(nn.Module):
             self.z = torch.stack(z)
         else:
             self.z = self.z_means
-        # return self.z
-        return torch.zeros_like(self.z)
+        return self.z
 
     def get_action(self, obs, deterministic=False):
         ''' sample action from the policy, conditioned on the task embedding '''

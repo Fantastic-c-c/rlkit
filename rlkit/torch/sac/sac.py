@@ -238,7 +238,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         qf_loss.backward()
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
-        # self.context_optimizer.step()
+        self.context_optimizer.step()
 
         # compute min Q on the new actions
         min_q_new_actions = self._min_q(obs, new_actions, task_z)
