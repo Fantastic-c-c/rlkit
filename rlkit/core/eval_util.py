@@ -43,7 +43,7 @@ def get_average_returns(paths):
     returns = [sum(path["rewards"]) for path in paths]
     return np.mean(returns)
 
-def get_final_return(paths):
+def get_final_returns(paths):
     returns = [path["rewards"][-1] for path in paths]
     return np.mean(returns)
 

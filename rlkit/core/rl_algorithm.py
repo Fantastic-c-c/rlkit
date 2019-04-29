@@ -401,17 +401,22 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
     def _do_eval(self, indices, epoch):
         final_returns = []
-        online_returns = []
+        # online_returns = []
+        avg_returns = []
         for idx in indices:
-            runs, all_rets = [], []
+            runs, avg_rets, final_rets = [], [], []
             for r in range(self.num_evals):
                 paths = self.collect_paths(idx, epoch, r)
-                all_rets.append([eval_util.get_average_returns([p]) for p in paths])
+                avg_rets.append(eval_util.get_average_returns(paths))
+                final_rets.append(eval_util.get_final_returns(paths))
                 runs.append(paths)
-            all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
-            final_returns.append(all_rets[-1])
-            online_returns.append(all_rets)
-        return final_returns, online_returns
+            avg_ret = np.mean(np.stack(avg_rets))
+            avg_returns.append(avg_ret)
+            final_ret = np.mean(final_rets)
+            final_returns.append(final_ret)
+            # final_returns.append(all_rets[-1])
+            # online_returns.append(all_rets)
+        return final_returns, avg_returns
 
     def evaluate(self, epoch):
         if self.eval_statistics is None:
@@ -454,15 +459,15 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             train_returns.append(eval_util.get_average_returns(paths))
         train_returns = np.mean(train_returns)
         ### eval train tasks with on-policy data to match eval of test tasks
-        train_final_returns, train_online_returns = self._do_eval(indices, epoch)
+        train_final_returns, train_avg_returns = self._do_eval(indices, epoch)
         eval_util.dprint('train online returns')
-        eval_util.dprint(train_online_returns)
+        eval_util.dprint(train_avg_returns)
 
         ### test tasks
         eval_util.dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
-        test_final_returns, test_online_returns = self._do_eval(self.eval_tasks, epoch)
+        test_final_returns, test_avg_returns = self._do_eval(self.eval_tasks, epoch)
         eval_util.dprint('test online returns')
-        eval_util.dprint(test_online_returns)
+        eval_util.dprint(test_avg_returns)
 
         # save the final posterior
         self.agent.log_diagnostics(self.eval_statistics)
@@ -470,14 +475,14 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         if hasattr(self.env, "log_diagnostics"):
             self.env.log_diagnostics(paths)
 
-        avg_train_online_return = np.mean(np.stack(train_online_returns), axis=0)
-        avg_test_online_return = np.mean(np.stack(test_online_returns), axis=0)
+        avg_train_online_return = np.mean(np.stack(train_avg_returns), axis=0)
+        avg_test_online_return = np.mean(np.stack(test_avg_returns), axis=0)
         self.eval_statistics['AverageTrainReturn_all_train_tasks'] = train_returns
 
-        self.eval_statistics['AverageReturn_all_train_tasks'] = np.mean(train_online_returns)
-        self.eval_statistics['AverageReturn_all_test_tasks'] = np.mean(test_online_returns)
-        self.eval_statistics['Stddev_AverageReturn_all_train_tasks'] = np.std(train_online_returns)
-        self.eval_statistics['Stddev_AverageReturn_all_test_tasks'] = np.std(test_online_returns)
+        self.eval_statistics['AverageReturn_all_train_tasks'] = np.mean(train_avg_returns)
+        self.eval_statistics['AverageReturn_all_test_tasks'] = np.mean(test_avg_returns)
+        self.eval_statistics['Stddev_AverageReturn_all_train_tasks'] = np.std(train_avg_returns)
+        self.eval_statistics['Stddev_AverageReturn_all_test_tasks'] = np.std(test_avg_returns)
 
         self.eval_statistics['AverageFinalReturn_all_train_tasks'] = np.mean(train_final_returns)
         self.eval_statistics['AverageFinalReturn_all_test_tasks'] = np.mean(test_final_returns)
@@ -491,13 +496,13 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.eval_statistics["TestIndices"] = self.eval_tasks
         # self.eval_statistics["BestTrainGoalFinalReturn"] = self.env.get_goal_at(np.argmax(train_final_returns))
         # self.eval_statistics["WorstTrainGoalFinalReturn"] = self.env.get_goal_at(np.argmin(train_final_returns))
-        # self.eval_statistics["BestTrainGoalAvgReturn"] = self.env.get_goal_at(np.argmax(train_online_returns))
-        # self.eval_statistics["WorstTrainGoalAvgReturn"] = self.env.get_goal_at(np.argmin(train_online_returns))
+        # self.eval_statistics["BestTrainGoalAvgReturn"] = self.env.get_goal_at(np.argmax(train_avg_returns))
+        # self.eval_statistics["WorstTrainGoalAvgReturn"] = self.env.get_goal_at(np.argmin(train_avg_returns))
         #
         # self.eval_statistics["BestTestGoalFinalReturn"] = self.env.get_goal_at(np.argmax(test_final_returns))
         # self.eval_statistics["WorstTestGoalFinalReturn"] = self.env.get_goal_at(np.argmin(test_final_returns))
-        # self.eval_statistics["BestTestGoalAvgReturn"] = self.env.get_goal_at(np.argmax(test_online_returns))
-        # self.eval_statistics["WorstTestGoalAvgReturn"] = self.env.get_goal_at(np.argmin(test_online_returns))
+        # self.eval_statistics["BestTestGoalAvgReturn"] = self.env.get_goal_at(np.argmax(test_avg_returns))
+        # self.eval_statistics["WorstTestGoalAvgReturn"] = self.env.get_goal_at(np.argmin(test_avg_returns))
 
         logger.save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
         logger.save_extra_data(avg_test_online_return, path='online-test-epoch{}'.format(epoch))
