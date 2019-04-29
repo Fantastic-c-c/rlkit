@@ -66,7 +66,7 @@ class PEARLAgent(nn.Module):
 
         self.clear_z()
 
-    def clear_z(self, num_tasks=1):
+    def clear_z(self, num_tasks=1, batch_size=1):
         '''
         reset q(z|c) to the prior
         sample a new z from the prior
@@ -84,7 +84,7 @@ class PEARLAgent(nn.Module):
         # reset the context collected so far
         self.context = None
         # reset any hidden state in the encoder network (relevant for RNN)
-        self.context_encoder.reset_memory(num_tasks)
+        self.context_encoder.reset_memory(batch_size)
 
     def detach_z(self):
         ''' disable backprop through z '''

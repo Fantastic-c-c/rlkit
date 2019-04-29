@@ -168,7 +168,7 @@ class RecurrentEncoder(FlattenMlp):
             out = self.hidden_activation(out)
 
         out = out.view(task, seq, -1)
-        out, (hn, cn) = self.lstm(out, (self.hidden, torch.zeros(self.hidden.size()).to(ptu.device)))
+        out, (hn, cn) = self.lstm(out, (self.hidden, torch.zeros_like(self.hidden)))
         self.hidden = hn
         # take the last hidden state to predict z
         out = out[:, -1, :]
@@ -181,8 +181,8 @@ class RecurrentEncoder(FlattenMlp):
         else:
             return output
 
-    def reset_memory(self, num_tasks=1):
-        self.hidden = self.hidden.new_full((1, num_tasks, self.hidden_dim), 0)
+    def reset_memory(self, batch_size=1):
+        self.hidden = self.hidden.new_full((1, batch_size, self.hidden_dim), 0)
 
     def detach_memory(self):
         self.hidden = self.hidden.detach()

@@ -208,6 +208,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         obs, actions, rewards, next_obs, terms = self.sample_data(train_batch)
 
         # run inference in networks
+        self.agent.clear_z(batch_size=self.batch_size)
         policy_outputs, task_z = self.agent(obs, context)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
