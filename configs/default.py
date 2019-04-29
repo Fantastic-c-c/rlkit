@@ -1,5 +1,5 @@
 default_config = dict(
-    env_name='cheetah-dir', # light dark?
+    env_name='light-dark-point-robot',
     latent_size=5, # dimension of the latent context vector
     net_size=300, # number of units per FC layer in each network
     path_to_weights=None, # path to pre-trained weights to load into networks
@@ -28,7 +28,7 @@ default_config = dict(
         use_information_bottleneck=False, # False makes latent context deterministic
         update_post_train=1, # how often to resample the context when collecting data during training (in trajectories)
         num_exp_traj_eval=1, # how many exploration trajs to collect before beginning posterior sampling at test time
-        recurrent=False, # recurrent or permutation-invariant encoder
+        recurrent=True, # recurrent or permutation-invariant encoder
         dump_eval_paths=False, # whether to save evaluation trajectories
     ),
     util_params=dict(
