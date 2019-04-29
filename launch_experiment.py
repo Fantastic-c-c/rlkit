@@ -17,7 +17,7 @@ from rlkit.torch.sac.sac import PEARLSoftActorCritic
 from rlkit.torch.sac.agent import PEARLAgent
 from rlkit.launchers.launcher_util import setup_logger
 import rlkit.torch.pytorch_util as ptu
-from configs.default import default_config, default_pomdp_config
+from configs.default import default_config
 
 
 def experiment(variant):
@@ -124,7 +124,7 @@ def deep_update_dict(fr, to):
 @click.option('--debug', is_flag=True, default=False)
 def main(config, gpu, docker, debug):
 
-    variant = default_pomdp_config
+    variant = default_config
     if config:
         with open(os.path.join(config)) as f:
             exp_params = json.load(f)
