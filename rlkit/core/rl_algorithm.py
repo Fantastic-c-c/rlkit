@@ -307,7 +307,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
         # save the paths for visualization, only useful for point mass
         if self.dump_eval_paths:
-            logger.save_extra_data(paths, path='eval_trajectories/task{}-epoch{}-run{}'.format(idx, epoch, run))
+            logger.save_extra_data(paths, path='eval_trajectories/epoch{}'.format(epoch))
 
         return paths
 
@@ -327,13 +327,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def evaluate(self, epoch):
         if self.eval_statistics is None:
             self.eval_statistics = OrderedDict()
-
-        ### sample trajectories from prior for debugging / visualization
-        if self.dump_eval_paths:
-            # 100 arbitrarily chosen for visualizations of point_robot trajectories
-            # just want stochasticity of z, not the policy
-            prior_paths, _ = self.sampler.obtain_samples(deterministic=self.eval_deterministic, max_samples=self.max_path_length * 20)
-            logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
 
         ### train tasks
         # eval on a subset of train tasks for speed
