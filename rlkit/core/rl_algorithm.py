@@ -159,9 +159,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         :param update_posterior_rate: how often to update q(z | c) from which z is sampled (in units of trajectories)
         :param add_to_enc_buffer: whether to add collected data to encoder replay buffer
         '''
-        # start from the prior
-        self.agent.clear_z()
-
         paths, num_transitions = self.sampler.obtain_samples(max_samples=num_samples)
         self._n_env_steps_total += num_transitions
         self.replay_buffer.add_paths(paths)
@@ -285,7 +282,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def collect_paths(self, epoch):
         self.env.reset()
 
-        self.agent.clear_z()
         paths = []
         num_transitions = 0
         num_trajs = 0
@@ -336,7 +332,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         if self.dump_eval_paths:
             # 100 arbitrarily chosen for visualizations of point_robot trajectories
             # just want stochasticity of z, not the policy
-            self.agent.clear_z()
             prior_paths, _ = self.sampler.obtain_samples(deterministic=self.eval_deterministic, max_samples=self.max_path_length * 20)
             logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
 

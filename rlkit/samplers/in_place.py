@@ -39,6 +39,8 @@ class InPlacePathSampler(object):
         n_steps_total = 0
         n_trajs = 0
         while n_steps_total < max_samples and n_trajs < max_trajs:
+            # context is collected only over a trajectory
+            policy.clear_z()
             path = rollout(
                 self.env, policy, max_path_length=self.max_path_length)
             # save the latent context that generated this trajectory
@@ -46,7 +48,5 @@ class InPlacePathSampler(object):
             paths.append(path)
             n_steps_total += len(path['observations'])
             n_trajs += 1
-            # clears context at end of each trajectory
-            policy.clear_z()
         return paths, n_steps_total
 
