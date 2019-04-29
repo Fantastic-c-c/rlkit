@@ -1,5 +1,8 @@
 import numpy as np
 from gym.envs.classic_control import PendulumEnv
+from rlkit.envs.light_dark_wrapper import LightDarkEnv, no_obs, gaussian_noise
+
+from . import register_env
 
 @register_env('no-velocity-pendulum')
 class NoVelocityPendulum(LightDarkEnv):

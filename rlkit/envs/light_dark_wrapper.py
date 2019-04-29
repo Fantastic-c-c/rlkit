@@ -25,8 +25,12 @@ class LightDarkEnv(ProxyEnv):
 
         return getattr(self._wrapped_env, item)
 
+    def step(self, action):
+        ob, reward, done, d = super().step(action)
+        new_ob = self._get_obs()
+        return new_ob, reward, done, d
+
     def _get_obs(self):
-        import ipdb; ipdb.set_trace()
         obs = self._wrapped_env._get_obs()
         xpos = obs[self._xpos_indices] # gets xy as numpy array
         if self._dark_cond(xpos):
