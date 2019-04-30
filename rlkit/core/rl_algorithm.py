@@ -296,7 +296,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             num_trajs += 1
 
         for p in paths:
-            states = np.stack(e['state'] for e in p['env_infos']).reshape(-1, 1)
+            states = np.stack(e['state'] for e in p['env_infos'])
             p['states'] = states
             if self.sparse_rewards:
                 sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
