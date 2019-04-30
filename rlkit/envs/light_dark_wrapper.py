@@ -28,6 +28,8 @@ class LightDarkEnv(ProxyEnv):
     def step(self, action):
         ob, reward, done, d = super().step(action)
         new_ob = self._get_obs()
+        # assumes wrapped env's obs is the true state
+        d['state'] = self._wrapped_env._get_obs()
         return new_ob, reward, done, d
 
     def _get_obs(self):
