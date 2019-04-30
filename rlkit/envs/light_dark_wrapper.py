@@ -27,15 +27,14 @@ class LightDarkEnv(ProxyEnv):
 
     def step(self, action):
         ob, reward, done, d = super().step(action)
-        new_ob = self._get_obs()
+        masked_ob = self._mask_obs()
         # assumes wrapped env's obs is the true state
-        d['state'] = self._wrapped_env._get_obs()
-        return new_ob, reward, done, d
+        d['state'] = ob
+        return masked_ob, reward, done, d
 
-    def _get_obs(self):
-        obs = self._wrapped_env._get_obs()
-        xpos = obs[self._xpos_indices] # gets xy as numpy array
+    def _mask_obs(self, ob):
+        xpos = ob[self._xpos_indices] # gets xy as numpy array
         if self._dark_cond(xpos):
-            obs_xpos = self._noise_fun(xpos)
-            obs[self._xpos_indices] = obs_xpos
-        return obs
+            ob_xpos = self._noise_fun(xpos)
+            ob[self._xpos_indices] = ob_xpos
+        return ob
