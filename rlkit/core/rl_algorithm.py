@@ -295,14 +295,19 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             num_transitions += num
             num_trajs += 1
 
-        if self.sparse_rewards:
-            for p in paths:
+        for p in paths:
+            states = np.stack(e['state'] for e in p['env_infos']).reshape(-1, 1)
+            p['states'] = states
+            if self.sparse_rewards:
                 sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
                 p['rewards'] = sparse_rewards
 
-        # goal = self.env._goal
-        # for path in paths:
-        #     path['goal'] = goal # goal
+        try:
+            goal = self.env._goal
+            for path in paths:
+                path['goal'] = goal
+        except:
+            pass
 
         # save the paths for visualization, only useful for point mass
         if self.dump_eval_paths:
