@@ -1,13 +1,14 @@
 {
-  "env_name": "light-dark-point-robot",
-  "env_params": {
-  }
-,
-  "algo_params": {
-    "num_train_steps_per_itr": 200,
-    "num_steps_per_eval": 60,
-    "max_path_length": 40,
-    "reward_scale": 100.0,
-    "kl_lambda": 0.1
-  }
+    "env_name": "light-dark-point-robot",
+    "algo_params": {
+        "num_env_steps_per_itr": 2000,
+        "num_train_steps_per_itr": 1000,
+        "num_steps_per_eval": 60,
+        "batch_size": 64,
+        "max_path_length": 20,
+        "reward_scale": 100.0,
+        "kl_lambda": 0.1,
+        "dump_eval_paths": 1,
+        "eval_deterministic": 0
+    }
 }
