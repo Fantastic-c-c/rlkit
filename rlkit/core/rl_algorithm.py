@@ -408,7 +408,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             for r in range(self.num_evals):
                 paths = self.collect_paths(idx, epoch, r)
                 avg_rets.append(eval_util.get_average_returns(paths))
-                final_rets.append(eval_util.get_final_returns(paths))
+                final_rets.append(eval_util.get_final_return(paths))
                 runs.append(paths)
             avg_ret = np.mean(np.stack(avg_rets))
             avg_returns.append(avg_ret)
@@ -491,7 +491,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
         # TODO: Make this work with other envs
         self.eval_statistics["TrainFinalReturns"] = train_final_returns
-        self.eval_statistics["TrainIndices"] = indices
+        self.eval_statistics["TrainIndices"] = list(indices)
         self.eval_statistics["TestFinalReturns"] = test_final_returns
         self.eval_statistics["TestIndices"] = self.eval_tasks
         # self.eval_statistics["BestTrainGoalFinalReturn"] = self.env.get_goal_at(np.argmax(train_final_returns))
