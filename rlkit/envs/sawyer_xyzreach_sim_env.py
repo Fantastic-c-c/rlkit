@@ -231,8 +231,8 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
     def __init__(self, *args, randomize_tasks=True, n_tasks=5,
                  reward_type='hand_distance',
                  action_scale=0.02,
-                 hand_low=(-0.3, 0.415, 0.2), # NOTE: these coords are different from physical sawyer (x, y) flipped
-                 hand_high=(0.3, 0.8, 0.5),
+                 hand_low=(-0.17, 0.46, 0.18), # NOTE: these coords are different from physical sawyer as (x, y) coords flipped
+                 hand_high=(0.17, 0.8, 0.52),
                  **kwargs):
         self.quick_init(locals())
         SawyerReachXYZEnv.__init__(
@@ -245,14 +245,14 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
         )
         self.observation_space = self.hand_space # now we just care about hand
 
-        # self.goal_low=np.array([0.45, -0.3, 0.2])
-        # self.goal_high=np.array([0.65, 0.3, 0.4])
-        # self.goal_space = Box(self.goal_low, self.goal_high, dtype=np.float32)
+        self.goal_low = np.array([-0.15, 0.48, 0.20])
+        self.goal_high = np.array([0.15, 0.78, 0.50])
+        self.goal_space = Box(self.goal_low, self.goal_high, dtype=np.float32)
         init_task_idx = 0
 
         directions = list(range(n_tasks))
         if randomize_tasks:
-            goals = self.sample_goals(n_tasks)['state_desired_goal']
+            goals = self.sample_goals(n_tasks)
             # goals = [1 * np.random.uniform(-1., 1., 2) for _ in directions]
         else:
             # add more goals in n_tasks > 7
@@ -289,6 +289,16 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
     #         'state_desired_goal': goals,
     #     }
 
+    def sample_goals(self, n_tasks):
+        # Taken from: https://stackoverflow.com/questions/33976911/generate-a-random-sample-of-points-distributed-on-the-surface-of-a-unit-sphere
+        vec = np.random.randn(3, n_tasks)  # 3 dimensional sphere
+        vec /= np.linalg.norm(vec, axis=0)
+        vec = vec.T
+        widths = (self.goal_space.high - self.goal_space.low) / 2.0
+        center = self.goal_space.low + widths
+        scaled_vec = vec * widths
+        goals = scaled_vec + center
+        return goals
 
     def get_all_task_idx(self):
         return range(len(self.tasks))
@@ -296,6 +306,9 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
     def step(self, action):
         ob, reward, done, info = super().step(action)
         ob = ob['observation'] # just return the state
+        print("OB: " + str(ob))
+        print("GOAL: " + str(self.get_goal()))
+        print("~~~~~~~~~~~~~~~~~~~")
         return ob, reward, done, info
 
     def reset_goal(self, direction):
@@ -311,6 +324,17 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
 
     def reset(self):
         return self.reset_model()
+
+    def _reset_hand(self):
+        if hasattr(self, "goal_space"):
+            widths = (self.goal_space.high - self.goal_space.low) / 2.0
+            center = self.goal_space.low + widths
+        else:
+            center = np.array([0, 0.5, 0.02])
+        for _ in range(10):
+            self.data.set_mocap_pos('mocap', center)
+            self.data.set_mocap_quat('mocap', np.array([1, 0, 0, 0]))
+            self.do_simulation(None, self.frame_skip)
 
     def reset_model(self):
         velocities = self.data.qvel.copy()

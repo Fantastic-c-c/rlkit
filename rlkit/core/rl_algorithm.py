@@ -44,6 +44,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             save_replay_buffer=False,
             save_algorithm=False,
             save_environment=False,
+            save_goals=True,
             render_eval_paths=False,
             dump_eval_paths=False,
             plotter=None,
@@ -86,6 +87,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
         self.save_environment = save_environment
+        self.save_goals = save_goals
 
         self.eval_statistics = None
         self.render_eval_paths = render_eval_paths
@@ -96,6 +98,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             env=env,
             policy=agent,
             max_path_length=self.max_path_length,
+            animated=self.render,
         )
 
         # separate replay buffers for
@@ -360,6 +363,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         data_to_save = dict(
             epoch=epoch,
         )
+        if self.save_goals:
+            data_to_save['goals'] = self.env.get_all_goals()  # TODO: make this work with other envs
         if self.save_environment:
             data_to_save['env'] = self.training_env
         if self.save_replay_buffer:

@@ -30,11 +30,11 @@ STEPS_PER_EVAL = 2 * MAX_PATH_LENGTH # 5 * MAX_PATH
 config = default_config
 
 class PolicyRunner:
-    def __init__(self, num_steps_per_eval, max_path_length):
+    def __init__(self, num_steps_per_eval, max_path_length, use_webcam=True):
         self.env = NormalizedBoxEnv(PearlSawyerReachXYZEnv(config_name=ROBOT_CONFIG,
                                                   action_mode=ACTION_MODE,
                                                   max_speed=MAX_SPEED,
-                                                  position_action_scale=1/20,
+                                                  position_action_scale=1/7, # 1/30
                                                   height_2d=None,
 
                                                   reward_type='hand_distance',  # no_y
@@ -74,7 +74,11 @@ class PolicyRunner:
         policy.load_state_dict(torch.load(os.path.join(model_path, 'policy.pth')))
         context_encoder.load_state_dict(torch.load(os.path.join(model_path, 'context_encoder.pth')))
 
-        self.cap = Webcam(video_path, image_folder, cap_num=1)
+        if use_webcam:
+            self.cap = Webcam(video_path, image_folder, cap_num=1)
+        else:
+            self.cap = None
+
         self.eval_sampler = InPlacePathSampler(
             env=self.env,
             policy=self.agent,
@@ -84,23 +88,26 @@ class PolicyRunner:
     def mark_policy(self, target_goal):
         self.env.move_to_pos(target_goal)
         # TAKE A PICTURE
-        self.cap.take_picture()
-        self.env.reset()
+        if self.cap:
+            self.cap.take_picture()
+        # self.env.reset()
 
     def eval_policy(self, target_goal):
         self.env.reset()
         self.env.set_goal(target_goal)  # TODO: confirm this works
         print("GOAL: " + str(self.env.get_goal()))
 
-        self.cap.start_record()
+        if self.cap:
+            self.cap.start_record()
 
         paths = self.collect_paths()
         # paths = self.eval_sampler.obtain_samples(deterministic=True, max_samples=MAX_PATH_LENGTH, accum_context=True)
         print("Avg return: {}".format(eval_util.get_average_returns(paths)))
         print("Final return: {}".format(eval_util.get_final_return(paths)))
 
-        self.cap.stop_record()
-        self.cap.close()
+        if self.cap:
+            self.cap.stop_record()
+            self.cap.close()
 
     def collect_paths(self):
         paths = []
@@ -128,14 +135,14 @@ def main():
     # POSITION_SAFETY_BOX_LOWS = np.array([0.45, -0.3, 0.22])
     # POSITION_SAFETY_BOX_HIGHS = np.array([0.7, 0.3, 0.5])
     print("Please close any webcam viewers")
-    policyRunner = PolicyRunner(STEPS_PER_EVAL, MAX_PATH_LENGTH)
-    # policyRunner.env._act(np.asarray([1, 1, 1]))
-    # print("Initial position: " + str(policyRunner.env._get_obs()))
-    #
+    policyRunner = PolicyRunner(STEPS_PER_EVAL, MAX_PATH_LENGTH, use_webcam=False)
+    # policyRunner.env._act(np.asarray([0, 0, 1]))
+    print("Initial position: " + str(policyRunner.env._get_obs()))
+
     print("MARKING GOAL")
-    target_goal = np.asarray([0.7, 0.15, 0.25])
+    target_goal = np.asarray([0.8, -0.17, 0.52])
     policyRunner.mark_policy(target_goal)
-    #
+
     # print("EVAL POLICY")
     # policyRunner.eval_policy(target_goal)
     # print("Final position: " + str(policyRunner.env._get_obs()))

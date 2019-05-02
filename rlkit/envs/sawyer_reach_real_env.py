@@ -15,6 +15,7 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
             height_2d=height_2d,
             **kwargs
         )
+
         self.goal_thresh = goal_thresh
         # self.observation_space = self.hand_space
         init_task_idx = 0
@@ -43,12 +44,26 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
 
         self.reset()
 
+    def sample_goals(self, n_tasks):
+        # Taken from: https://stackoverflow.com/questions/33976911/generate-a-random-sample-of-points-distributed-on-the-surface-of-a-unit-sphere
+        vec = np.random.randn(3, n_tasks)  # 3 dimensional sphere
+        vec /= np.linalg.norm(vec, axis=0)
+        vec = vec.T
+        widths = (self.goal_space.high - self.goal_space.low) / 2.0
+        center = self.goal_space.low + widths
+        scaled_vec = vec * widths
+        goals = scaled_vec + center
+        return goals
+
     def step(self, action):
         observation, reward, _, info = super().step(action)
         done = reward > self.goal_thresh  # threshold is negative
         if done:
             print("Close enough to goal - done!")
         return observation, reward, done, info
+
+    def get_all_goals(self):
+        return self.goals
 
     def get_goal_at(self, idx):
         return self.goals[idx]

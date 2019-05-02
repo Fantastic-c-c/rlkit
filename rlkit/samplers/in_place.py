@@ -15,11 +15,12 @@ class InPlacePathSampler(object):
     sampler.obtain_samples  # this has side-effects: env will change!
     ```
     """
-    def __init__(self, env, policy, max_path_length):
+    def __init__(self, env, policy, max_path_length, animated=False):
         self.env = env
         self.policy = policy
 
         self.max_path_length = max_path_length
+        self.animated = animated
 
     def start_worker(self):
         pass
@@ -42,7 +43,7 @@ class InPlacePathSampler(object):
         n_trajs = 0
         while n_steps_total < max_samples and n_trajs < max_trajs:
             path = rollout(
-                self.env, policy, max_path_length=self.max_path_length, accum_context=accum_context)
+                self.env, policy, max_path_length=self.max_path_length, accum_context=accum_context, animated=self.animated)
             # save the latent context that generated this trajectory
             path['context'] = policy.z.detach().cpu().numpy()
             paths.append(path)

@@ -30,12 +30,12 @@ def experiment(variant):
         env = NormalizedBoxEnv(PearlSawyerReachXYZEnv(config_name=ROBOT_CONFIG,
                                                       action_mode=ACTION_MODE,
                                                       max_speed=MAX_SPEED,
-                                                      position_action_scale=1 / 7,
+                                                      position_action_scale=1.0 / 30,
                                                       height_2d=None,
 
                                                       reward_type='hand_distance',
-                                                      goal_low=np.array([0.5, -0.25, 0.25]),
-                                                      goal_high=np.array([0.65, 0.25, 0.45]),
+                                                      goal_low = np.array([0.48, -0.15, 0.20]),
+                                                      goal_high = np.array([0.78, 0.15, 0.50]),
                                                       **variant['env_params']))
     else:
         env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
