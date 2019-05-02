@@ -32,6 +32,7 @@ class AntGoalEnv(MultitaskAntEnv):
         )
 
     def sample_tasks(self, num_tasks):
+        np.random.seed(1337)
         a = np.random.random(num_tasks) * 2 * np.pi
         r = 3 * np.random.random(num_tasks) ** 0.5
         goals = np.stack((r * np.cos(a), r * np.sin(a)), axis=-1)

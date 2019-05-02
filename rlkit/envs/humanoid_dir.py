@@ -55,7 +55,7 @@ class HumanoidDirEnv(HumanoidEnv):
         self._goal = self._task['goal'] # assume parameterization of task by single vector
 
     def sample_tasks(self, num_tasks):
-        # velocities = np.random.uniform(0., 1.0 * np.pi, size=(num_tasks,))
+        np.random.seed(1337)
         directions = np.random.uniform(0., 2.0 * np.pi, size=(num_tasks,))
         tasks = [{'goal': d} for d in directions]
         return tasks
