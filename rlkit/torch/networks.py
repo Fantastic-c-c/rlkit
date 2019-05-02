@@ -159,7 +159,7 @@ class PopArtFlattenMlp(PyTorchModule):
         if normalized:
             return normalized_output
 
-        return self.popart_layers[task_idx].infer(h)
+        return self.popart_layers[task_idx](normalized_output)
 
 
 

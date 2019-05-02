@@ -151,8 +151,6 @@ class ProtoAgent(nn.Module):
         else:
             z = torch.tensor([idx], dtype=torch.float32, device=torch.device('cpu'))
 
-        # pdb.set_trace()
-
         obs = ptu.from_numpy(obs[None])
         in_ = torch.cat([obs, z], dim=1)
         return self.policy.get_action(in_, deterministic=deterministic)
@@ -181,7 +179,6 @@ class ProtoAgent(nn.Module):
         else:
             task_z = torch.tensor(task_idx_one_hots, dtype=torch.float32, device=torch.device('cpu'))
 
-        # pdb.set_trace()
 
 
         # auxiliary reward regression
@@ -189,11 +186,9 @@ class ProtoAgent(nn.Module):
         rf_z = torch.cat(rf_z, dim=0)
 
 
-        # pdb.set_trace()
-        # r = self.rf(obs_enc.contiguous().view(obs_enc.size(0) * obs_enc.size(1), -1), 
-        #         act_enc.contiguous().view(act_enc.size(0) * act_enc.size(1), -1), 
-        #         rf_z)
-        r = None
+        r = self.rf(obs_enc.contiguous().view(obs_enc.size(0) * obs_enc.size(1), -1), 
+                act_enc.contiguous().view(act_enc.size(0) * act_enc.size(1), -1), 
+                rf_z)
 
         t, b, _ = obs.size()
         obs = obs.view(t * b, -1)
@@ -206,7 +201,6 @@ class ProtoAgent(nn.Module):
         # Q and V networks
         # Encoder is getting no gradients from the networks
         in_ = torch.cat([obs, actions, task_z.detach()], dim=1)
-        # pdb.set_trace()
         q1 = self.qf1(in_, normalized=True)
         q2 = self.qf2(in_, normalized=True)
 

@@ -152,20 +152,16 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         num_updates = self.embedding_batch_size // mb_size
 
         for task_idx in indices:
-            batch = self.sample_data([task_idx], encoder=True)
-            task_idx_one_hots = batch[-1]
+            obs_enc, act_enc, rewards_enc, _, _, task_idx_one_hots = self.sample_data([task_idx], encoder=True)
             # zero out context and hidden encoder state
             self.policy.clear_z(num_tasks=len(indices))
 
-            for i in range(num_updates):
-                # TODO(KR) argh so ugly
 
-                mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch[:-1]]
-                obs_enc, act_enc, rewards_enc, _, _ = mini_batch
-                self._take_step([task_idx], obs_enc, act_enc, rewards_enc, task_idx_one_hots)
+            # print('calling training')
+            self._take_step([task_idx], obs_enc, act_enc, rewards_enc, task_idx_one_hots)
 
-                # stop backprop
-                self.policy.detach_z()
+            # stop backprop
+            self.policy.detach_z()
 
     def _take_step(self, indices, obs_enc, act_enc, rewards_enc, task_idx_one_hots):
 
@@ -188,11 +184,11 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             kl_loss.backward(retain_graph=True)
 
         # auxiliary reward prediction from encoder states
-        # rewards_enc_flat = rewards_enc.contiguous().view(self.embedding_mini_batch_size * num_tasks, -1)
-        # rf_loss = self.rf_loss_scale * self.rf_criterion(r_pred, rewards_enc_flat)
-        # self.rf_optimizer.zero_grad()
-        # rf_loss.backward(retain_graph=True)
-        # self.rf_optimizer.step()
+        rewards_enc_flat = rewards_enc.contiguous().view(self.embedding_mini_batch_size * num_tasks, -1)
+        rf_loss = self.rf_loss_scale * self.rf_criterion(r_pred, rewards_enc_flat)
+        self.rf_optimizer.zero_grad()
+        rf_loss.backward(retain_graph=True)
+        self.rf_optimizer.step()
 
         # qf and encoder update (note encoder does not get grads from policy or vf)
         self.qf1_optimizer.zero_grad()
@@ -200,9 +196,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         rewards_flat = rewards.view(self.batch_size * num_tasks, -1)
         terms_flat = terms.view(self.batch_size * num_tasks, -1)
         q_target = rewards_flat + (1. - terms_flat) * self.discount * target_v_values
-        pdb.set_trace()
-        q1_target = self.qf1.popart_layers[task_idx].update_and_normalize(q_target)
-        q2_target = self.qf2.popart_layers[task_idx].update_and_normalize(q_target)
+        # pdb.set_trace()
+        q1_target, _, _ = self.qf1.popart_layers[task_idx].update_and_normalize(q_target)
+        q2_target, _, _ = self.qf2.popart_layers[task_idx].update_and_normalize(q_target)
         qf_loss = torch.mean((q1_pred - q1_target) ** 2) + torch.mean((q2_pred - q2_target) ** 2)
         qf_loss.backward()
         self.qf1_optimizer.step()
@@ -214,7 +210,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
         # vf update
         v_target = min_q_new_actions - log_pi
-        v_target = self.vf.update_and_normalize(v_target)
+        v_target, _, _ = self.vf.popart_layers[task_idx].update_and_normalize(v_target.detach())
 
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
         self.vf_optimizer.zero_grad()

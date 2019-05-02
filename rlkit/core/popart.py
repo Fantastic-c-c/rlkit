@@ -1,7 +1,8 @@
 import torch
 import numpy as np
 from torch import nn as nn
-
+import pdb
+from functools import reduce
 
 class PopArtLayer(nn.Module):
     def __init__(
@@ -15,6 +16,7 @@ class PopArtLayer(nn.Module):
             use_gpu=False,
             **kwargs
     ):        
+        super(PopArtLayer, self).__init__()
         # Popart params
         self.mean = 0
         self.mean_of_square = 0
@@ -25,15 +27,15 @@ class PopArtLayer(nn.Module):
         else:
             device = torch.device('cpu')
 
-        self.kernel = torch.randn(in_size, output_size, dtype=torch.float32, requires_grad=False, device=device)
-        self.bias = torch.randn(output_size, dtype=torch.float32, requires_grad=False, device=device)
+        self.kernel = torch.randn(in_size, output_size, dtype=torch.float32, requires_grad=True, device=device)
+        self.bias = torch.randn(output_size, dtype=torch.float32, requires_grad=True, device=device)
 
         self.beta = beta
         self.epsilon = epsilon
         self.stable_rate = stable_rate
         self.min_steps = min_steps
 
-    def infer(self, h):
+    def forward(self, h):
         return h*self.kernel + self.bias
 
     def pop_art_update(self, x):
@@ -64,18 +66,24 @@ class PopArtLayer(nn.Module):
             adj_beta = beta / (1 - (1 - beta)**step)
             return (1 - adj_beta) * old + adj_beta * new
 
-        x_means = np.stack([x.mean(), np.square(x).mean()], axis=1)
-        # Updating normalization parameters (for ART)
-        # pdb.set_trace()
-        
-        online_mean, online_mean_of_square = reduce(
-            update_rule, x_means,
-            np.array([old_online_mean, old_online_mean_of_square]))
+        def update_rule_static_beta(old, new):
+            return (1 - self.beta) * old + self.beta * new
 
-        old_std_dev = np.sqrt(
-            old_online_mean_of_square - np.square(old_online_mean))
-        std_dev = np.sqrt(online_mean_of_square - np.square(online_mean))
+        x_means = np.stack([x.mean(), np.square(x).mean()])
+
+        # Updating normalization parameters (for ART)
+
+        online_mean = update_rule_static_beta(old_online_mean, x.mean())
+        online_mean_of_square = update_rule(old_online_mean_of_square, np.square(x).mean())
+        
+        # online_mean, online_mean_of_square = reduce(
+        #     update_rule, x_means,
+        #     np.array([old_online_mean, old_online_mean_of_square]))
+
         # pdb.set_trace()
+        old_std_dev = np.sqrt(
+            max(old_online_mean_of_square - np.square(old_online_mean), self.epsilon))
+        std_dev = np.sqrt(max(online_mean_of_square - np.square(online_mean), self.epsilon))
         old_std_dev = old_std_dev if old_std_dev > 0 else std_dev
         # Performing POP (Preserve the Output Precisely) update
         # but only if we are not in the beginning of the training
