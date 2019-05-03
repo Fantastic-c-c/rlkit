@@ -311,6 +311,9 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
         print("~~~~~~~~~~~~~~~~~~~")
         return ob, reward, done, info
 
+    def get_all_goals(self):
+        return self.goals
+
     def reset_goal(self, direction):
         return self.goals[direction]
 

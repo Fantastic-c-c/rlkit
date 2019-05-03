@@ -8,7 +8,7 @@
     }
     ,
     "algo_params": {
-        "initial_data_path": "initial_data_60-3d.pkl",
+        "initial_data_path": "",
         "num_initial_steps": 50,
         "num_steps_prior": 20,
         "num_steps_posterior": 0,
