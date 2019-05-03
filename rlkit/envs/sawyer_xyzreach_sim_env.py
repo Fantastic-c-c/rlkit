@@ -306,9 +306,6 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
     def step(self, action):
         ob, reward, done, info = super().step(action)
         ob = ob['observation'] # just return the state
-        print("OB: " + str(ob))
-        print("GOAL: " + str(self.get_goal()))
-        print("~~~~~~~~~~~~~~~~~~~")
         return ob, reward, done, info
 
     def get_all_goals(self):
