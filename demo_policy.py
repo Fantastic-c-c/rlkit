@@ -132,20 +132,20 @@ class PolicyRunner:
         return paths
 
 def main():
-    # POSITION_SAFETY_BOX_LOWS = np.array([0.45, -0.3, 0.22])
-    # POSITION_SAFETY_BOX_HIGHS = np.array([0.7, 0.3, 0.5])
     print("Please close any webcam viewers")
     policyRunner = PolicyRunner(STEPS_PER_EVAL, MAX_PATH_LENGTH, use_webcam=False)
-    # policyRunner.env._act(np.asarray([0, 0, 1]))
     print("Initial position: " + str(policyRunner.env._get_obs()))
 
     print("MARKING GOAL")
-    target_goal = np.asarray([0.8, -0.17, 0.52])
+    # center: array([ 0.63,  0.  ,  0.35])
+    # goal_low = np.array([0.48, -0.15, 0.20]),
+    # goal_high = np.array([0.78, 0.15, 0.50]),
+    target_goal = np.asarray([0.63, -0.15,  0.50])
     policyRunner.mark_policy(target_goal)
 
-    # print("EVAL POLICY")
-    # policyRunner.eval_policy(target_goal)
-    # print("Final position: " + str(policyRunner.env._get_obs()))
+    print("EVAL POLICY")
+    policyRunner.eval_policy(target_goal)
+    print("Final position: " + str(policyRunner.env._get_obs()))
 
 if __name__ == "__main__":
     main()
