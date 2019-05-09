@@ -64,9 +64,11 @@ class PearlSawyerReachXYZEnv(SawyerReachXYEnv):
         vec = np.random.randn(n_dim, n_tasks)  # 2 dimensional circle
         vec /= np.linalg.norm(vec, axis=0)
         vec = vec.T
+        vec = np.append(vec, 0, axis=1)
+
         widths = (self.goal_space.high - self.goal_space.low) / 2.0  # width of each dimension
         center = self.goal_space.low + widths
-        scaled_vec = vec * widths[:n_dim]
+        scaled_vec = vec * widths
         goals = scaled_vec + center
         return goals
 
