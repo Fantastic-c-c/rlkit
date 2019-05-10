@@ -100,13 +100,15 @@ class MujocoEnv(gym.Env):
     def dt(self):
         return self.model.opt.timestep * self.frame_skip
 
-    def do_simulation(self, ctrl, n_frames=None):
+    def do_simulation(self, ctrl, n_frames=None, render_intermediate=False):
         if n_frames is None:
             n_frames = self.frame_skip
         if self.sim.data.ctrl is not None and ctrl is not None:
             self.sim.data.ctrl[:] = ctrl
         for _ in range(n_frames):
             self.sim.step()
+            if render_intermediate:
+                self.render()
 
     def render(self, mode='human'):
         if mode == 'rgb_array':

@@ -129,6 +129,7 @@ class SawyerReachXYZEnv(SawyerXYZEnv, MultitaskEnv):
             self.data.set_mocap_pos('mocap', np.array([0, 0.5, 0.02]))
             self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
             self.do_simulation(None, self.frame_skip)
+        print("DIFF: {}".format(self.data.mocap_pos - self._get_obs()['observation']))
 
     """
     Multitask functions

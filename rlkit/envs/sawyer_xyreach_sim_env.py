@@ -34,6 +34,7 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
             hand_z_position=hand_z_position,
             **kwargs
         )
+        print("FRAME SKIP: " + str(self.frame_skip))
         self.observation_space = self.hand_space  # now we just care about hand
         self.goal_low = np.array([-0.15, 0.48, self.hand_z_position])
         self.goal_high = np.array([0.15, 0.78, self.hand_z_position])
@@ -118,9 +119,8 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
             center = self.goal_space.low + widths
         else:
             center = np.array([0, 0.5, 0.02])
-
         while np.linalg.norm(center - self._get_obs()['observation']) > 0.05:
-            for i in range(100):
+            for i in range(10):
                 self.data.set_mocap_pos('mocap', center)
                 self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
                 self.do_simulation(None, self.frame_skip)
@@ -139,16 +139,16 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
 
 
 if __name__ == '__main__':
-    env = PearlSawyerReachXYSimEnv(frame_skip=1)  # num_resets_before_puck_reset=int(1e6))
-    path = 100
+    env = PearlSawyerReachXYSimEnv()  # num_resets_before_puck_reset=int(1e6))
+
+    path = 15
     for i in range(3*path + 1):
         if i % path == 0:
             print("~~~~~~~~~~~~~~")
             print("DIFF: {}".format(env.data.mocap_pos - env._get_obs()['observation']))
-            print("POS: {}".format(env._get_obs()['observation']))
+            print("POS: {} | {}".format(env._get_obs()['observation'], env.data.mocap_pos))
             env.reset_task(np.random.randint(0, 5))
-            env.reset()
         curr = env.get_endeff_pos()
-        env.step(np.asarray([0, 1]))
+        env.step(np.asarray([1, 0]))
         print("{} DELTA: {}".format(i, env.get_endeff_pos() - curr))
         env.render()

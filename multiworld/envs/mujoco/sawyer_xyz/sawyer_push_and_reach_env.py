@@ -447,7 +447,7 @@ class SawyerPushAndReachXYEnv(SawyerPushAndReachXYZEnv):
 
 
 if __name__ == '__main__':
-    env = SawyerPushAndReachXYEnv(num_resets_before_puck_reset=int(1e6))
+    env = SawyerPushAndReachXYEnv()#num_resets_before_puck_reset=int(1e6))
     for i in range(1000):
         if i % 100 == 0:
             env.reset()
