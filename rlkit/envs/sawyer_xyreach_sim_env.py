@@ -2,7 +2,7 @@
 import numpy as np
 from gym import spaces
 from gym import Env
-# from . import register_env
+from . import register_env
 
 # Multiworld / Mujoco imports
 from collections import OrderedDict
@@ -14,7 +14,7 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
 import time
 
 
-# @register_env('sawyer-reach-sim-2d')
+@register_env('sawyer-reach-sim-2d')
 class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
     def __init__(self, *args, randomize_tasks=True, n_tasks=5,
                  reward_type='hand_distance',
