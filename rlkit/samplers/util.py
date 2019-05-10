@@ -35,7 +35,6 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, resample_z=F
     if animated:
         env.render()
     while path_length < max_path_length:
-        print(o)
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
         # update the agent's current context
