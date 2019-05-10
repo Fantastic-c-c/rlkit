@@ -97,15 +97,18 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
             center = self.goal_space.low + widths
         else:
             center = np.array([0, 0.5, 0.02])
-        for _ in range(10):
-            self.data.set_mocap_pos('mocap', center)
-            self.data.set_mocap_quat('mocap', np.array([1, 0, 0, 0]))
-            self.do_simulation(None, self.frame_skip)
+        while np.linalg.norm(center - self._get_obs()['observation']) > 0.05:
+            for i in range(100):
+                self.data.set_mocap_pos('mocap', center)
+                self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
+                self.do_simulation(None, self.frame_skip)
 
     def reset_model(self):
         velocities = self.data.qvel.copy()
         angles = self.data.qpos.copy()
         angles[:7] = [1.7244448, -0.92036369,  0.10234232,  2.11178144,  2.97668632, -0.38664629, 0.54065733]
+        # angles[:7] = [0.165470703125, -0.785970703125, -0.7146943359375, 1.50058203125, 0.557935546875, 1.0604775390625,
+        #               -2.0759697265625]
         self.set_state(angles.flatten(), velocities.flatten())
         self._reset_hand()
         # self.set_goal(self.sample_goal()) # We don't want to do this because we set our own goal
@@ -115,9 +118,10 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
 if __name__ == '__main__':
     env = PearlSawyerReachXYZEnv(frame_skip=1)#num_resets_before_puck_reset=int(1e6))
     for i in range(1000):
-        if i % 150 == 0:
+        if i % 200 == 0:
+            print(env._get_obs()['observation'])
             env.reset_task(np.random.randint(0, 5))
             env.reset()
-        env.step(np.asarray([0, 1, 0]))
+        env.step(np.asarray([0, 0, 0]))
         env.render()
         time.sleep(0.01)

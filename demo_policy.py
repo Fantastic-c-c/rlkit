@@ -9,7 +9,6 @@ from webcam import Webcam
 from rlkit.torch.sac.policies import MakeDeterministic
 from rlkit.core import eval_util
 from rlkit.samplers.in_place import InPlacePathSampler
-from rlkit.envs.sawyer_reach_real_env import PearlSawyerReachXYZEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.torch.sac.agent import PEARLAgent
 from rlkit.torch.sac.policies import TanhGaussianPolicy
@@ -18,29 +17,37 @@ from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 
 video_path = 'demo/video_' + datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S') + ".avi"
 image_folder = r'demo/'
-model_path = "/home/justin/Documents/rlkit/output/sawyer-reach-real-3d/2019_04_29_16_42_08/"
+model_path = "/home/justin/Documents/rlkit/output/sawyer-reach-sim-2d/2019_05_08_18_12_39/"
 IS_ONLINE = False
 
 ROBOT_CONFIG = 'pearl_lordi_config'
 ACTION_MODE = 'position'  # position or torque - NOTE: torque safety box has not been tested
 MAX_SPEED = 0.15
-MAX_PATH_LENGTH = 10
+MAX_PATH_LENGTH = 50
 STEPS_PER_EVAL = 2 * MAX_PATH_LENGTH # 5 * MAX_PATH
 
 config = default_config
 
+use_sim = True
+
 class PolicyRunner:
     def __init__(self, num_steps_per_eval, max_path_length, use_webcam=True):
-        self.env = NormalizedBoxEnv(PearlSawyerReachXYZEnv(config_name=ROBOT_CONFIG,
-                                                  action_mode=ACTION_MODE,
-                                                  max_speed=MAX_SPEED,
-                                                  position_action_scale=1/7, # 1/30
-                                                  height_2d=None,
+        if use_sim:
+            from rlkit.envs.sawyer_xyreach_sim_env import PearlSawyerReachXYSimEnv
+            self.env = NormalizedBoxEnv(PearlSawyerReachXYSimEnv())
+        else:
+            from rlkit.envs.sawyer_reach_real_env import PearlSawyerReachXYZEnv
+            self.env = NormalizedBoxEnv(PearlSawyerReachXYZEnv(config_name=ROBOT_CONFIG,
+                                                      action_mode=ACTION_MODE,
+                                                      max_speed=MAX_SPEED,
+                                                      position_action_scale=1/7, # 1/30
+                                                      height_2d=None,
 
-                                                  reward_type='hand_distance',  # no_y
-                                                  goal_low=np.array([0.45, -0.3, 0.2]),
-                                                  goal_high=np.array([0.65, 0.3, 0.4]),
-                                                  ))
+                                                      reward_type='hand_distance',  # no_y
+                                                      goal_low=np.array([0.45, -0.3, 0.2]),
+                                                      goal_high=np.array([0.65, 0.3, 0.4]),
+                                                      ))
+
 
         obs_dim = int(np.prod(self.env.observation_space.shape))
         action_dim = int(np.prod(self.env.action_space.shape))
@@ -79,11 +86,19 @@ class PolicyRunner:
         else:
             self.cap = None
 
-        self.eval_sampler = InPlacePathSampler(
-            env=self.env,
-            policy=self.agent,
-            max_path_length=MAX_PATH_LENGTH,
-            )
+        if use_sim:
+            self.eval_sampler = InPlacePathSampler(
+                env=self.env,
+                policy=self.agent,
+                max_path_length=MAX_PATH_LENGTH,
+                animated=True
+                )
+        else:
+            self.eval_sampler = InPlacePathSampler(
+                env=self.env,
+                policy=self.agent,
+                max_path_length=MAX_PATH_LENGTH,
+                )
 
     def mark_policy(self, target_goal):
         self.env.move_to_pos(target_goal)
@@ -136,16 +151,19 @@ def main():
     policyRunner = PolicyRunner(STEPS_PER_EVAL, MAX_PATH_LENGTH, use_webcam=False)
     print("Initial position: " + str(policyRunner.env._get_obs()))
 
-    print("MARKING GOAL")
-    # center: array([ 0.63,  0.  ,  0.35])
-    # goal_low = np.array([0.48, -0.15, 0.20]),
-    # goal_high = np.array([0.78, 0.15, 0.50]),
-    target_goal = np.asarray([0.63, -0.15,  0.50])
-    policyRunner.mark_policy(target_goal)
+    # print("MARKING GOAL")
+    if use_sim:
+        target_goal = np.asarray([-0.15, 0.45, 0.38])
+    else:
+        target_goal = np.asarray([0.63, -0.15,  0.50])
+    # policyRunner.mark_policy(target_goal)
 
     print("EVAL POLICY")
-    policyRunner.eval_policy(target_goal)
-    print("Final position: " + str(policyRunner.env._get_obs()))
+    print(policyRunner.env.reset())
+    for i in range(2):
+        policyRunner.eval_policy(target_goal)
+    # policyRunner.eval_policy(target_goal)
+    print("Final position: " + str(policyRunner.env._get_obs()) + " | " + str(policyRunner.env.data.mocap_pos))
 
 if __name__ == "__main__":
     main()

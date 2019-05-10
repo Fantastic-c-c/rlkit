@@ -116,6 +116,7 @@ class SawyerReachXYZEnv(SawyerXYZEnv, MultitaskEnv):
     def reset_model(self):
         velocities = self.data.qvel.copy()
         angles = self.data.qpos.copy()
+
         angles[:7] = [1.7244448, -0.92036369,  0.10234232,  2.11178144,  2.97668632, -0.38664629, 0.54065733]
         self.set_state(angles.flatten(), velocities.flatten())
         self._reset_hand()
@@ -132,6 +133,7 @@ class SawyerReachXYZEnv(SawyerXYZEnv, MultitaskEnv):
     """
     Multitask functions
     """
+
     def get_goal(self):
         return {
             'desired_goal': self._state_goal,
@@ -199,12 +201,12 @@ class SawyerReachXYZEnv(SawyerXYZEnv, MultitaskEnv):
                 '%s%s' % (prefix, stat_name),
                 stat,
                 always_show_all_stats=True,
-                ))
+            ))
             statistics.update(create_stats_ordered_dict(
                 'Final %s%s' % (prefix, stat_name),
                 [s[-1] for s in stat],
                 always_show_all_stats=True,
-                ))
+            ))
         return statistics
 
     def get_env_state(self):
