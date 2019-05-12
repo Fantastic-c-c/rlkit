@@ -18,6 +18,7 @@ import time
 class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
     def __init__(self, *args, randomize_tasks=True, n_tasks=5,
                  reward_type='hand_distance',
+                 use_mocap=False,
                  action_scale=0.02,
                  hand_z_position=0.38,
                  hand_low=(-0.17, 0.46, 0.21),
@@ -95,6 +96,7 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
     def step(self, action):
         ob, reward, done, info = super().step(action)
         ob = ob['observation']  # just return the state
+        print("DIFF: {}".format(env.data.mocap_pos - env._get_obs()['observation']))
         return ob, reward, done, info
 
     def get_all_goals(self):
