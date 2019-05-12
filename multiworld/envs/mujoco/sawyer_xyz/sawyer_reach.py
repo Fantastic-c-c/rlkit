@@ -65,7 +65,7 @@ class SawyerReachXYZEnv(SawyerXYZEnv, MultitaskEnv):
 
     def _get_obs(self):
         if self.use_mocap:
-            flat_obs = self.data.mocap_pos
+            flat_obs = self.data.mocap_pos[0]
         else:
             flat_obs = self.get_endeff_pos()
         return dict(
