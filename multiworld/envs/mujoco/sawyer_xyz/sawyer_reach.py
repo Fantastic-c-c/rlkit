@@ -18,6 +18,7 @@ class SawyerReachXYZEnv(SawyerXYZEnv, MultitaskEnv):
             fix_goal=False,
             fixed_goal=(0.15, 0.6, 0.3),
             hide_goal_markers=False,
+            use_mocap=False,
 
             **kwargs
     ):
@@ -28,6 +29,7 @@ class SawyerReachXYZEnv(SawyerXYZEnv, MultitaskEnv):
         self.reward_type = reward_type
         self.norm_order = norm_order
         self.indicator_threshold = indicator_threshold
+        self.use_mocap = use_mocap
 
         self.fix_goal = fix_goal
         self.fixed_goal = np.array(fixed_goal)
@@ -62,7 +64,10 @@ class SawyerReachXYZEnv(SawyerXYZEnv, MultitaskEnv):
         return ob, reward, done, info
 
     def _get_obs(self):
-        flat_obs = self.get_endeff_pos()
+        if self.use_mocap:
+            flat_obs = self.data.mocap_pos
+        else:
+            flat_obs = self.get_endeff_pos()
         return dict(
             observation=flat_obs,
             desired_goal=self._state_goal,
@@ -130,7 +135,6 @@ class SawyerReachXYZEnv(SawyerXYZEnv, MultitaskEnv):
             self.data.set_mocap_pos('mocap', np.array([0, 0.5, 0.02]))
             self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
             self.do_simulation(None, self.frame_skip)
-        print("DIFF: {}".format(self.data.mocap_pos - self._get_obs()['observation']))
 
     """
     Multitask functions

@@ -33,6 +33,7 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
             hand_low=hand_low,
             hand_high=hand_high,
             hand_z_position=hand_z_position,
+            use_mocap=use_mocap,
             **kwargs
         )
         print("FRAME SKIP: " + str(self.frame_skip))
@@ -96,7 +97,7 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
     def step(self, action):
         ob, reward, done, info = super().step(action)
         ob = ob['observation']  # just return the state
-        print("DIFF: {}".format(env.data.mocap_pos - env._get_obs()['observation']))
+        print("DIFF: {}".format(self.data.mocap_pos - self._get_obs()['observation']))
         return ob, reward, done, info
 
     def get_all_goals(self):
