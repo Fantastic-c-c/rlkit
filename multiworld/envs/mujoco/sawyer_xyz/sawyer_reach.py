@@ -59,7 +59,6 @@ class SawyerReachXYZEnv(SawyerXYZEnv, MultitaskEnv):
         ob = self._get_obs()
         reward = self.compute_reward(action, ob)
         info = self._get_info()
-        print(reward, info["hand_distance"])
         done = False
         return ob, reward, done, info
 
