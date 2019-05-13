@@ -72,6 +72,8 @@ class PointEnv(Env):
         print('no viewer')
         pass
 
+
+
     def render(self):
         print('current state:', self._state)
 
