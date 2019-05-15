@@ -63,7 +63,12 @@ robot controller is still running even after this so you do not need to restart 
 2. `./lordi.sh` (or whatever robot you are going to use). You need to start a 
 separate terminal for the script (in addition to the controller script)
 3. `cd ~/Documents/sawyer_pearl`
-4. `python3 sawyer_reach_PEARL.py`
+4. `python3 launch_experiment.py configs/sawyer_reach_real_3d.json`
+
+### Debugging
+1. If ros master node cannot be found, reboot the robot's computer
+2. If you can't enable, check e-stop button, try again
+3. If the robot starts moving weirdly reboot exp_nodes
 
 ### Other Stuff
 To define the safety bounds of the Sawyer you can run:
@@ -76,7 +81,7 @@ Make sure you are looking at the end-effector position and not its orientation.
 The x-value is forward and back, the y-value is left and right, the z-value is up and down. 
 5. Make the necessary edits to `~/ros_ws/src/sawyer_control/src/sawyer_control/configs/pearl_lordi_config.py`
 
-If you want to define a torque safety box, you can look at `base_config` for an example.
+If you want to define a torque safety box, you can look at `base_config` in the `sawyer_control` repor for an example.
 
 ## Visualizing a policy and seeing results
 During training, the results will be saved to a file called under

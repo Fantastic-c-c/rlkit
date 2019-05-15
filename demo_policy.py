@@ -156,13 +156,13 @@ def main():
         target_goal = np.asarray([-0.15, 0.45, 0.38])
     else:
         target_goal = np.asarray([0.63, -0.15,  0.50])
-    # policyRunner.mark_policy(target_goal)
+    policyRunner.mark_policy(target_goal)
 
     print("EVAL POLICY")
     print(policyRunner.env.reset())
     for i in range(2):
         policyRunner.eval_policy(target_goal)
-    # policyRunner.eval_policy(target_goal)
+    policyRunner.eval_policy(target_goal)
     print("Final position: " + str(policyRunner.env._get_obs()) + " | " + str(policyRunner.env.data.mocap_pos))
 
 if __name__ == "__main__":
