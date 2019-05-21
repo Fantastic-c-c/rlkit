@@ -38,7 +38,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False):
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
         # update the agent's current context
-        agent.update_context([o, a, r, next_o, d, env_info])
+        agent.update_context([o, a, r, next_o, d, path_length, env_info])
         agent.infer_posterior()  # also resamples latent
 
         observations.append(o)

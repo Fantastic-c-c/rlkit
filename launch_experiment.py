@@ -37,7 +37,7 @@ def experiment(variant):
 
     context_encoder = encoder_model(
         hidden_sizes=[200, 200, 200],
-        input_size=obs_dim + action_dim + reward_dim,
+        input_size=obs_dim + action_dim + reward_dim + 1,
         output_size=context_encoder,
     )
     qf1 = FlattenMlp(
@@ -61,15 +61,37 @@ def experiment(variant):
         latent_dim=latent_dim,
         action_dim=action_dim,
     )
+
+    belief_qf1 = FlattenMlp(
+        hidden_sizes=[net_size, net_size, net_size],
+        input_size=obs_dim + action_dim + 2 * latent_dim,
+        output_size=1,
+    )
+    belief_qf2 = FlattenMlp(
+        hidden_sizes=[net_size, net_size, net_size],
+        input_size=obs_dim + action_dim + 2 * latent_dim,
+        output_size=1,
+    )
+    belief_vf = FlattenMlp(
+        hidden_sizes=[net_size, net_size, net_size],
+        input_size=obs_dim + 2 * latent_dim,
+        output_size=1,
+    )
+    belief_policy = TanhGaussianPolicy(
+        hidden_sizes=[net_size, net_size, net_size],
+        obs_dim=obs_dim + 2 * latent_dim,
+        latent_dim=latent_dim,
+        action_dim=action_dim,
+    )
     agent = PEARLAgent(
         latent_dim,
         context_encoder,
-        policy,
+        belief_policy,
         **variant['algo_params']
     )
     algorithm = PEARLSoftActorCritic(
         env=env,
-        nets=[agent, qf1, qf2, vf],
+        nets=[agent, qf1, qf2, vf, policy, belief_qf1, belief_qf2, belief_vf],
         latent_dim=latent_dim,
         **variant['algo_params']
     )

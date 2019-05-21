@@ -59,11 +59,12 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         self.use_information_bottleneck = use_information_bottleneck
         self.sparse_rewards = sparse_rewards
 
-        self.qf1, self.qf2, self.vf = nets[1:]
+        self.qf1, self.qf2, self.vf, self.policy, self.belief_qf1, self.belief_qf2, self.belief_vf = nets[1:]
         self.target_vf = self.vf.copy()
+        self.target_belief_vf = self.belief_vf.copy()
 
         self.policy_optimizer = optimizer_class(
-            self.agent.policy.parameters(),
+            self.policy.parameters(),
             lr=policy_lr,
         )
         self.qf1_optimizer = optimizer_class(
@@ -82,11 +83,28 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             self.agent.context_encoder.parameters(),
             lr=context_lr,
         )
+        self.belief_policy_optimizer = optimizer_class(
+            self.agent.policy.parameters(),
+            lr=policy_lr,
+        )
+        self.belief_qf1_optimizer = optimizer_class(
+            self.belief_qf1.parameters(),
+            lr=qf_lr,
+        )
+        self.belief_qf2_optimizer = optimizer_class(
+            self.belief_qf2.parameters(),
+            lr=qf_lr,
+        )
+        self.belief_vf_optimizer = optimizer_class(
+            self.belief_vf.parameters(),
+            lr=vf_lr,
+        )
 
     ###### Torch stuff #####
     @property
     def networks(self):
-        return self.agent.networks + [self.agent] + [self.qf1, self.qf2, self.vf, self.target_vf]
+        return self.agent.networks + [self.agent] + [self.qf1, self.qf2, self.vf, self.target_vf, self.policy] + \
+               [self.belief_qf1, self.belief_qf2, self.belief_vf, self.target_belief_vf]
 
     def training_mode(self, mode):
         for net in self.networks:
@@ -137,11 +155,11 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         return [obs, actions, rewards, next_obs, terms]
         """
 
-    def prepare_encoder_data(self, obs, act, rewards):
+    def prepare_encoder_data(self, obs, act, rewards, timesteps):
         ''' prepare context for encoding '''
         # for now we embed only observations and rewards
         # assume obs and rewards are (task, batch, feat)
-        task_data = torch.cat([obs, act, rewards], dim=-1)
+        task_data = torch.cat([obs, act, rewards, timesteps], dim=-1)
         return task_data
 
     def prepare_context(self, batch):
@@ -149,7 +167,8 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         obs = batch['observations']
         act = batch['actions']
         rewards = batch['rewards']
-        context = self.prepare_encoder_data(obs, act, rewards)
+        timesteps = batch['timesteps']
+        context = self.prepare_encoder_data(obs, act, rewards, timesteps)
         return context
 
     # context_batch will contain timesteps [1:t)
@@ -162,6 +181,9 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             # shape should be [n_paths x n_timesteps x dim]
             context_batch[key] = np.stack([path[key][:final_index] for path in paths])
             finals[key] = np.stack([path[key][final_index] for path in paths]) # check shape here
+        timesteps = np.tile(np.arange(final_index), (self.batch_size, 1)) - final_index
+        timesteps = np.expand_dims(timesteps, -1)
+        context_batch['timesteps'] = timesteps
 
         return ptu.np_to_pytorch_batch(context_batch), ptu.np_to_pytorch_batch(finals)
 
@@ -197,20 +219,31 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         min_q = torch.min(q1, q2)
         return min_q
 
+    def _min_belief_q(self, obs, actions, z_means, z_vars):
+        q1 = self.belief_qf1(obs, actions, z_means.detach(), z_vars.detach())
+        q2 = self.belief_qf2(obs, actions, z_means.detach(), z_vars.detach())
+        min_q = torch.min(q1, q2)
+        return min_q
+
+
     def _update_target_network(self):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.soft_target_tau)
+        ptu.soft_update_from_to(self.belief_vf, self.target_belief_vf, self.soft_target_tau)
 
     def _take_step(self):
         paths_batch = self.replay_buffer.sample_paths(self.batch_size)
         # randomly updates for a timestep along the paths
-        context_batch, train_batch = self.prepare_batch(paths_batch, 1+np.random.randint(self.max_path_length-1))
+        context_batch, train_batch = self.prepare_batch(paths_batch, np.random.randint(1, self.max_path_length))
 
         context = self.prepare_context(context_batch)
         obs, actions, rewards, next_obs, terms = self.sample_data(train_batch)
 
         # run inference in networks
         policy_outputs, task_z = self.agent(obs, context)
-        new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
+        z_mean, z_vars = self.agent.z_means, self.agent.z_vars
+        policy_in = torch.cat([obs, task_z.detach()], dim=1)
+        new_actions, policy_mean, policy_log_std, log_pi = self.policy(policy_in, reparameterize=True, return_log_prob=True)[:4]
+        belief_new_actions, belief_policy_mean, belief_policy_log_std, belief_log_pi = policy_outputs[:4]
 
         # task_z = torch.zeros((256,5)).cuda()
 
@@ -235,7 +268,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         self.qf2_optimizer.zero_grad()
         q_target = rewards + (1. - terms) * self.discount * target_v_values
         qf_loss = torch.mean((q1_pred - q_target) ** 2) + torch.mean((q2_pred - q_target) ** 2)
-        qf_loss.backward()
+        qf_loss.backward(retain_graph=True)
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
         self.context_optimizer.step()
@@ -247,9 +280,9 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         v_target = min_q_new_actions - log_pi
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
         self.vf_optimizer.zero_grad()
-        vf_loss.backward()
+        vf_loss.backward(retain_graph=True)
         self.vf_optimizer.step()
-        self._update_target_network()
+        # self._update_target_network()
 
         # policy update
         # n.b. policy update includes dQ/da
@@ -269,8 +302,37 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         policy_loss = policy_loss + policy_reg_loss
 
         self.policy_optimizer.zero_grad()
-        policy_loss.backward()
+        policy_loss.backward(retain_graph=True)
         self.policy_optimizer.step()
+
+        # do updates on belief nets
+        belief_q1_pred = self.belief_qf1(obs, actions, z_mean.detach(), z_vars.detach())
+        belief_q2_pred = self.belief_qf2(obs, actions, z_mean.detach(), z_vars.detach())
+        belief_v_pred = self.belief_vf(obs, z_mean.detach(), z_vars.detach())
+        with torch.no_grad():
+            target_belief_v_values = self.target_belief_vf(next_obs, z_mean.detach(), z_vars.detach())
+        self.belief_qf1_optimizer.zero_grad()
+        self.belief_qf2_optimizer.zero_grad()
+        q_target = rewards + (1. - terms) * self.discount * target_belief_v_values
+        qf_loss = torch.mean((belief_q1_pred - q_target.detach()) ** 2) + torch.mean((belief_q2_pred - q_target.detach()) ** 2)
+        qf_loss.backward(retain_graph=True)
+        self.belief_qf1_optimizer.step()
+        self.belief_qf2_optimizer.step()
+        min_q_new_actions = self._min_belief_q(obs, belief_new_actions, z_mean.detach(), z_vars.detach())
+        v_target = min_q_new_actions - belief_log_pi
+        vf_loss = self.vf_criterion(belief_v_pred, v_target.detach())
+        self.belief_vf_optimizer.zero_grad()
+        vf_loss.backward(retain_graph=True)
+        self.belief_vf_optimizer.step()
+        self._update_target_network()
+
+        log_belief_policy_target = min_q_new_actions
+        policy_loss = (belief_log_pi - log_belief_policy_target).mean()
+
+        self.belief_policy_optimizer.zero_grad()
+        policy_loss.backward(retain_graph=True)
+        self.belief_policy_optimizer.step()
+
 
         # save some statistics for eval
         if self.eval_statistics is None:

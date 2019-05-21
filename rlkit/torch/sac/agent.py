@@ -94,13 +94,14 @@ class PEARLAgent(nn.Module):
 
     def update_context(self, inputs):
         ''' append single transition to the current context '''
-        o, a, r, no, d, info = inputs
+        o, a, r, no, d, t, info = inputs
         if self.sparse_rewards:
             r = info['sparse_reward']
         o = ptu.from_numpy(o[None, None, ...])
         a = ptu.from_numpy(a[None, None, ...])
         r = ptu.from_numpy(np.array([r])[None, None, ...])
-        data = torch.cat([o, a, r], dim=2)
+        t = ptu.from_numpy(np.array([t])[None, None, ...])
+        data = torch.cat([o, a, r, t], dim=2)
         if self.context is None:
             self.context = data
         else:
@@ -145,7 +146,7 @@ class PEARLAgent(nn.Module):
         ''' sample action from the policy, conditioned on the task embedding '''
         z = self.z
         obs = ptu.from_numpy(obs[None])
-        in_ = torch.cat([obs, z], dim=1)
+        in_ = torch.cat([obs, self.z_means, self.z_vars], dim=1)
         return self.policy.get_action(in_, deterministic=deterministic)
 
     def set_num_steps_total(self, n):
@@ -156,7 +157,7 @@ class PEARLAgent(nn.Module):
         task_z = self.infer_posterior(context)
 
         # run policy, get log probs and new actions
-        in_ = torch.cat([obs, task_z.detach()], dim=1)
+        in_ = torch.cat([obs, self.z_means.detach(), self.z_vars.detach()], dim=1)
         policy_outputs = self.policy(in_, reparameterize=True, return_log_prob=True)
 
         return policy_outputs, task_z
