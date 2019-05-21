@@ -1,0 +1,12 @@
+{
+  "env_name": "no-velocity-pendulum",
+  "env_params": {
+  }
+,
+  "algo_params": {
+    "num_steps_per_eval": 60,
+    "max_path_length": 100,
+    "reward_scale": 100.0,
+    "kl_lambda": 0.1
+  }
+}
