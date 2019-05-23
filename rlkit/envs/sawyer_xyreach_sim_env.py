@@ -36,7 +36,6 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
             use_mocap=use_mocap,
             **kwargs
         )
-        print("FRAME SKIP: " + str(self.frame_skip))
         self.observation_space = self.hand_space  # now we just care about hand
         self.goal_low = np.array([-0.15, 0.48, self.hand_z_position])
         self.goal_high = np.array([0.15, 0.78, self.hand_z_position])
@@ -80,6 +79,7 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
     def sample_goals(self, n_tasks):
         # Taken from: https://stackoverflow.com/questions/33976911/generate-a-random-sample-of-points-distributed-on-the-surface-of-a-unit-sphere
         n_dim = 2
+        np.random.seed(1337)
         vec = np.random.randn(n_dim, n_tasks)  # 2 dimensional circle
         vec /= np.linalg.norm(vec, axis=0)
         vec = vec.T
@@ -89,6 +89,7 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
         center = self.goal_space.low + widths
         scaled_vec = vec * widths
         goals = scaled_vec + center
+        print('goals', goals)
         return goals
 
     def get_all_task_idx(self):

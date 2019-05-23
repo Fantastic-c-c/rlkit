@@ -189,8 +189,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 self.env.reset_task(idx)
                 self.enc_replay_buffer.task_buffers[idx].clear()
 
-                print("Sampling data: {} {}".format(idx, self.env.get_goal()))
-
                 # collect some trajectories with z ~ prior
                 if self.num_steps_prior > 0:
                     self.collect_data(self.num_steps_prior, 1, np.inf)
@@ -208,7 +206,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 self._do_training(indices)
                 self._n_train_steps_total += 1
             gt.stamp('train')
-            print("Finished computing gradients")
 
             self.training_mode(False)
 
@@ -439,7 +436,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
         ### train tasks
         # eval on a subset of train tasks for speed
-        indices = np.random.choice(self.train_tasks, len(self.eval_tasks))
+        indices = self.train_tasks
         eval_util.dprint('evaluating on {} train tasks'.format(len(indices)))
         ### eval train tasks with posterior sampled from the training replay buffer
         train_returns = []

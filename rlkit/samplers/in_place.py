@@ -34,8 +34,6 @@ class InPlacePathSampler(object):
         num_traj trajectories.
         The resample argument specifies how often (in trajectories) the agent will resample it's context.
         """
-        print("OBTAINING SAMPLES FOR: {}, nsteps: {}".format(self.env.get_goal(), max_samples))
-
         assert max_samples < np.inf or max_trajs < np.inf, "either max_samples or max_trajs must be finite"
         policy = MakeDeterministic(self.policy) if deterministic else self.policy
         paths = []
