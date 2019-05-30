@@ -130,8 +130,9 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
 
 class CameraWrapper(object):
 
-    def __init__(self, env,  *args, **kwargs):
+    def __init__(self, env, device_id=0):
         self._wrapped_env = env
+        self.device_id = device_id # gpu ID for rendering
         self.initialize_camera()
 
     def get_image(self, width=256, height=256, camera_name=None):
@@ -145,7 +146,7 @@ class CameraWrapper(object):
     def initialize_camera(self):
         # set camera parameters for viewing
         sim = self.sim
-        viewer = mujoco_py.MjRenderContextOffscreen(sim)
+        viewer = mujoco_py.MjRenderContextOffscreen(sim, device_id=self.device_id)
         camera = viewer.cam
         camera.type = 1
         camera.trackbodyid = 0
