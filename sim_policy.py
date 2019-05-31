@@ -62,11 +62,11 @@ def sim_policy(variant, num_trajs, save_video):
 
     # loop through tasks collecting rollouts
     all_rets = []
+    video_frames = []
     for idx in eval_tasks:
         env.reset_task(idx)
         agent.clear_z()
         paths = []
-        video_frames = []
         for n in range(num_trajs):
             policy = MakeDeterministic(policy)
             path = rollout(env, agent, max_path_length=variant['algo_params']['max_path_length'], accum_context=True, save_frames=save_video)
@@ -77,18 +77,18 @@ def sim_policy(variant, num_trajs, save_video):
                 agent.infer_posterior(agent.context)
         all_rets.append([sum(p['rewards']) for p in paths])
 
-        if save_video:
-            # save frames to file temporarily
-            temp_dir = os.path.join(data_dir, 'temp')
-            os.makedirs(temp_dir, exist_ok=True)
-            for i, frm in enumerate(video_frames):
-                frm.save(os.path.join(temp_dir, '%06d.jpg' % i))
+    if save_video:
+        # save frames to file temporarily
+        temp_dir = os.path.join(data_dir, 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        for i, frm in enumerate(video_frames):
+            frm.save(os.path.join(temp_dir, '%06d.jpg' % i))
 
-            video_filename=os.path.join(data_dir, 'task_{}.mp4'.format(idx))
-            # run ffmpeg to make the video
-            os.system('ffmpeg -i {}/%06d.jpg -vcodec mpeg4 {}'.format(temp_dir, video_filename))
-            # delete the frames
-            shutil.rmtree(temp_dir)
+        video_filename=os.path.join(data_dir, 'video.mp4'.format(idx))
+        # run ffmpeg to make the video
+        os.system('ffmpeg -i {}/%06d.jpg -vcodec mpeg4 {}'.format(temp_dir, video_filename))
+        # delete the frames
+        shutil.rmtree(temp_dir)
 
     # compute average returns across tasks
     n = min([len(a) for a in all_rets])
