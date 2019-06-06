@@ -19,7 +19,19 @@ class PointEnv(Env):
 
         if randomize_tasks:
             np.random.seed(1337)
-            goals = [[np.random.uniform(-1., 1.), np.random.uniform(-1., 1.)] for _ in range(n_tasks)]
+            uniform = False
+            if uniform:
+                goals = [[np.random.uniform(-1., 1.), np.random.uniform(-1., 1.)] for _ in range(n_tasks)]
+            else:
+                vec = np.random.randn(2, n_tasks)  # 2 dimensional circle
+                vec /= np.linalg.norm(vec, axis=0)
+                vec = vec.T
+                vec = np.append(vec, np.zeros((n_tasks, 1)), axis=1)
+
+                widths = 1.0 / 2.0  # width of each dimension
+                center = widths
+                scaled_vec = vec * widths
+                goals = scaled_vec + center
         else:
             # some hand-coded goals for debugging
             goals = [np.array([10, -10]),
