@@ -371,7 +371,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             path['goal'] = goal # goal
 
         # save the paths for visualization, only useful for point mass
-        if self.dump_eval_paths:
+        if self.dump_eval_paths and epoch % 5 == 0:
             logger.save_extra_data(paths, path='eval_trajectories/task{}-epoch{}-run{}'.format(idx, epoch, run))
 
         return paths
