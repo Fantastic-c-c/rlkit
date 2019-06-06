@@ -1,4 +1,5 @@
 import os, shutil
+import pickle
 import json
 import numpy as np
 import click
@@ -70,12 +71,16 @@ def sim_policy(variant, num_trajs, save_video):
         for n in range(num_trajs):
             policy = MakeDeterministic(policy)
             path = rollout(env, agent, max_path_length=variant['algo_params']['max_path_length'], accum_context=True, save_frames=save_video)
+            path['goal'] = env._goal
             paths.append(path)
             if save_video:
                 video_frames += [t['frame'] for t in path['env_infos']]
             if n >= variant['algo_params']['num_exp_traj_eval']:
                 agent.infer_posterior(agent.context)
         all_rets.append([sum(p['rewards']) for p in paths])
+        file_name = os.path.join(data_dir, 'task{}_rollouts.pkl'.format(idx))
+        with open(file_name, 'wb') as f:
+            pickle.dump(paths, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     if save_video:
         # save frames to file temporarily
