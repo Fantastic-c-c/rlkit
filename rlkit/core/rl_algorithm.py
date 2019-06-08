@@ -34,7 +34,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             embedding_mini_batch_size=1024,
             max_path_length=1000,
             discount=0.99,
-            replay_buffer_size=1000000,
+            replay_buffer_size=1000,  # turn 1000000 to 1000
             reward_scale=1,
             num_exp_traj_eval=1,
             update_post_train=1,
@@ -221,7 +221,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                                                                 accum_context=False,
                                                                 resample=resample_z_rate)
             num_transitions += n_samples
-            self.replay_buffer.add_paths(self.task_idx, paths)
+            self.replay_buffer.add_paths(self.task_idx, paths)    #path is a dict returned by rollout, observations is the original image
             if add_to_enc_buffer:
                 self.enc_replay_buffer.add_paths(self.task_idx, paths)
             if update_posterior_rate != np.inf:

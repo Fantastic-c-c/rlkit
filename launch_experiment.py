@@ -19,6 +19,8 @@ from rlkit.launchers.launcher_util import setup_logger
 import rlkit.torch.pytorch_util as ptu
 from configs.default import default_config
 
+from rlkit.torch.convnet import Convnet
+
 
 def experiment(variant):
 
@@ -35,6 +37,10 @@ def experiment(variant):
     net_size = variant['net_size']
     recurrent = variant['algo_params']['recurrent']
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
+
+    obs_dim = 64
+    image_dim = env.image_dim
+    convnet = Convnet()
 
     context_encoder = encoder_model(
         hidden_sizes=[200, 200, 200],
@@ -66,6 +72,8 @@ def experiment(variant):
         latent_dim,
         context_encoder,
         policy,
+        convnet,
+        image_dim,
         **variant['algo_params']
     )
     algorithm = PEARLSoftActorCritic(
@@ -74,6 +82,7 @@ def experiment(variant):
         eval_tasks=list(tasks[-variant['n_eval_tasks']:]),
         nets=[agent, qf1, qf2, vf],
         latent_dim=latent_dim,
+        cnn=convnet,
         **variant['algo_params']
     )
 

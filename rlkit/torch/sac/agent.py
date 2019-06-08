@@ -5,7 +5,7 @@ from torch import nn as nn
 import torch.nn.functional as F
 
 import rlkit.torch.pytorch_util as ptu
-
+from rlkit.torch.convnet import Convnet
 
 def _product_of_gaussians(mus, sigmas_squared):
     '''
@@ -46,6 +46,8 @@ class PEARLAgent(nn.Module):
                  latent_dim,
                  context_encoder,
                  policy,
+                 cnn,
+                 image_dim,
                  **kwargs
     ):
         super().__init__()
@@ -53,6 +55,9 @@ class PEARLAgent(nn.Module):
 
         self.context_encoder = context_encoder
         self.policy = policy
+
+        self.cnn = cnn  # new parameter: cnn
+        self.image_dim = image_dim  # new parameter: dim of image observation
 
         self.recurrent = kwargs['recurrent']
         self.use_ib = kwargs['use_information_bottleneck']
@@ -100,6 +105,9 @@ class PEARLAgent(nn.Module):
         o = ptu.from_numpy(o[None, None, ...])
         a = ptu.from_numpy(a[None, None, ...])
         r = ptu.from_numpy(np.array([r])[None, None, ...])
+        # import pdb; pdb.set_trace()
+        o = o.view(1, 3, self.image_dim, self.image_dim)
+        o = self.cnn(o).view(1, 1, 64)
         data = torch.cat([o, a, r], dim=2)
         if self.context is None:
             self.context = data
@@ -142,6 +150,9 @@ class PEARLAgent(nn.Module):
         ''' sample action from the policy, conditioned on the task embedding '''
         z = self.z
         obs = ptu.from_numpy(obs[None])
+        obs = self.cnn(obs)
+
+        obs = obs.view(1, -1)
         in_ = torch.cat([obs, z], dim=1)
         return self.policy.get_action(in_, deterministic=deterministic)
 
@@ -155,12 +166,13 @@ class PEARLAgent(nn.Module):
 
         task_z = self.z
 
-        t, b, _ = obs.size()
+        t, b, _ = obs.size()        # dim 1-->3, so add 2*_
         obs = obs.view(t * b, -1)
         task_z = [z.repeat(b, 1) for z in task_z]
         task_z = torch.cat(task_z, dim=0)
 
         # run policy, get log probs and new actions
+
         in_ = torch.cat([obs, task_z.detach()], dim=1)
         policy_outputs = self.policy(in_, reparameterize=True, return_log_prob=True)
 

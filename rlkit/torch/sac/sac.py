@@ -17,6 +17,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             train_tasks,
             eval_tasks,
             latent_dim,
+            cnn,   #new param: cnn
             nets,
 
             policy_lr=1e-3,
@@ -54,6 +55,9 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
 
         self.recurrent = recurrent
         self.latent_dim = latent_dim
+
+        self.cnn = cnn   # new
+
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
         self.vib_criterion = nn.MSELoss()
@@ -84,6 +88,10 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         )
         self.context_optimizer = optimizer_class(
             self.agent.context_encoder.parameters(),
+            lr=context_lr,
+        )
+        self.cnn_optimizer = optimizer_class(
+            self.cnn.parameters(),
             lr=context_lr,
         )
 
@@ -137,6 +145,8 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         ''' prepare context for encoding '''
         # for now we embed only observations and rewards
         # assume obs and rewards are (task, batch, feat)
+        obs = [self.cnn(x) for x in obs]
+        obs = torch.stack(obs).view(-1, 64, 64)
         task_data = torch.cat([obs, act, rewards], dim=2)
         return task_data
 
@@ -169,8 +179,8 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             self.agent.detach_z()
 
     def _min_q(self, obs, actions, task_z):
-        q1 = self.qf1(obs, actions, task_z.detach())
-        q2 = self.qf2(obs, actions, task_z.detach())
+        q1 = self.qf1(obs, actions, task_z)
+        q2 = self.qf2(obs, actions, task_z)
         min_q = torch.min(q1, q2)
         return min_q
 
@@ -183,28 +193,36 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
 
         # data is (task, batch, feat)
         obs, actions, rewards, next_obs, terms = self.sample_data(indices)
+        t, b, _, _, _= obs.size()  # dim 1-->3, so add 2*_
+
+        obs = obs.view(-1, 3, 84, 84)
+        actions = actions.view(t * b, -1)
+        next_obs = next_obs.view(-1, 3, 84, 84)
+
+        obs = torch.squeeze(self.cnn(obs)).view(t, b, -1) # task x batch x feature
+        next_obs = torch.squeeze(self.cnn(next_obs)).view(t, b, -1)
 
         # run inference in networks
-        policy_outputs, task_z = self.agent(obs, context)
+        policy_outputs, task_z = self.agent(obs.detach(), context)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
-        # flattens out the task dimension
-        t, b, _ = obs.size()
-        obs = obs.view(t * b, -1)
-        actions = actions.view(t * b, -1)
-        next_obs = next_obs.view(t * b, -1)
 
         # Q and V networks
         # encoder will only get gradients from Q nets
+
+        obs = obs.view(t * b, -1)
+        next_obs = next_obs.view(t * b, -1)
+
         q1_pred = self.qf1(obs, actions, task_z)
         q2_pred = self.qf2(obs, actions, task_z)
-        v_pred = self.vf(obs, task_z.detach())
+        v_pred = self.vf(obs.detach(), task_z.detach())
         # get targets for use in V and Q updates
         with torch.no_grad():
-            target_v_values = self.target_vf(next_obs, task_z)
+            target_v_values = self.target_vf(next_obs.detach(), task_z)
 
         # KL constraint on z if probabilistic
         self.context_optimizer.zero_grad()
+        self.cnn_optimizer.zero_grad()
         if self.use_information_bottleneck:
             kl_div = self.agent.compute_kl_div()
             kl_loss = self.kl_lambda * kl_div
@@ -223,9 +241,10 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
         self.context_optimizer.step()
+        self.cnn_optimizer.step()
 
         # compute min Q on the new actions
-        min_q_new_actions = self._min_q(obs, new_actions, task_z)
+        min_q_new_actions = self._min_q(obs.detach(), new_actions, task_z.detach())
 
         # vf update
         v_target = min_q_new_actions - log_pi
@@ -302,6 +321,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             qf2=self.qf2.state_dict(),
             policy=self.agent.policy.state_dict(),
             vf=self.vf.state_dict(),
+            cnn=self.cnn.state_dict(),
             target_vf=self.target_vf.state_dict(),
             context_encoder=self.agent.context_encoder.state_dict(),
         )

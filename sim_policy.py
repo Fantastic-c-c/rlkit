@@ -15,6 +15,9 @@ from launch_experiment import deep_update_dict
 from rlkit.torch.sac.policies import MakeDeterministic
 from rlkit.samplers.util import rollout
 
+from rlkit.torch.convnet import Convnet
+
+import rlkit.torch.pytorch_util as ptu
 
 def sim_policy(variant, num_trajs, save_video):
     '''
@@ -37,6 +40,10 @@ def sim_policy(variant, num_trajs, save_video):
     recurrent = variant['algo_params']['recurrent']
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
 
+    obs_dim = 64
+    convnet = Convnet()
+
+
     context_encoder = encoder_model(
         hidden_sizes=[200, 200, 200],
         input_size=obs_dim + action_dim + reward_dim,
@@ -52,6 +59,7 @@ def sim_policy(variant, num_trajs, save_video):
         latent_dim,
         context_encoder,
         policy,
+        convnet,
         **variant['algo_params']
     )
 
@@ -81,6 +89,16 @@ def sim_policy(variant, num_trajs, save_video):
         file_name = os.path.join(data_dir, 'task{}_rollouts.pkl'.format(idx))
         with open(file_name, 'wb') as f:
             pickle.dump(paths, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+
+    ptu.set_gpu_mode(variant['util_params']['use_gpu'], variant['util_params']['gpu_id'])
+    if ptu.gpu_enabled():
+        convnet.to()
+        context_encoder.to()
+        policy.to()
+        agent.to()
+
 
     if save_video:
         # save frames to file temporarily

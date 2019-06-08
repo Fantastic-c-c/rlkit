@@ -9,6 +9,8 @@ from collections import OrderedDict
 import numpy as np
 from gym.spaces import Box, Dict
 
+
+
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
 
 import time
@@ -26,6 +28,11 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
                  hand_high=(0.17, 0.8, 0.55),
                  **kwargs):
         self.quick_init(locals())
+        # NOTE: when true, prevents reset() from calling render()
+        # to return an image observation, inadvertently also setting
+        # camera parameters to default, which we do not want! Set to
+        # False after __init__() is done.
+        self.init = True
         SawyerReachXYEnv.__init__(
             self,
             *args,
@@ -54,8 +61,19 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
         self.goals = np.asarray(goals)
         self.tasks = [{'direction': direction} for direction in directions]
 
+        self.image_dim = 84 # new, dim of image observation, set in mujoco_env.py
+
         # set the initial goal
-        self.reset_task(init_task_idx)
+        def cam_init(x):
+            # TODO: other cam params here
+            x.type = 0
+            x.elevation = -20
+            x.distance = self.model.stat.extent * 1.0
+            x.azimuth = 250
+        self.initialize_camera(cam_init)
+        self.reset_task(init_task_idx
+)
+        self.init = False
 
     def get_goal(self):
         return self._state_goal
@@ -94,7 +112,9 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
 
     def step(self, action):
         ob, reward, done, info = super().step(action)
-        ob = ob['observation']  # just return the state
+        image = self.get_image()
+        ob = np.moveaxis(image, 2, 0)
+        # ob = ob['observation']  # just return the state
         return ob, reward, done, info
 
     def get_all_goals(self):
@@ -111,6 +131,8 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
         self.reset()
 
     def reset(self):
+        if self.init:
+            return None
         return self.reset_model()
 
     def _reset_hand(self):
@@ -130,7 +152,13 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
         self._reset_hand()
         # self.set_goal(self.sample_goal()) # We don't want to do this because we set our own goal
         self.sim.forward()
-        return self._get_obs()['observation']  # Redefine to just return state
+
+        #when reset model, also need to return an image observation
+        image = self.get_image()
+        ob = np.moveaxis(image, 2, 0)
+
+        return ob
+        # return self._get_obs()['observation']  # Redefine to just return state #original
 
 
 if __name__ == '__main__':
