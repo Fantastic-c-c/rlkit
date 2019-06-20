@@ -36,15 +36,15 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
             **kwargs
         )
         self.observation_space = self.hand_space  # now we just care about hand
-        self.goal_low = np.array([-0.15, 0.48, self.hand_z_position])
+        self.goal_low = np.array([0.05, 0.55, self.hand_z_position])
         self.goal_high = np.array([0.15, 0.78, self.hand_z_position])
         self.goal_space = Box(self.goal_low, self.goal_high, dtype=np.float32)
         init_task_idx = 0
 
         directions = list(range(n_tasks))
         if randomize_tasks:
-            goals = self.sample_goals(n_tasks)
-            # goals = [1 * np.random.uniform(-1., 1., 2) for _ in directions]
+            #goals = self.sample_goals(n_tasks)
+            goals = [1 * np.random.uniform(self.goal_low, self.goal_high) for _ in directions]
         else:
             # add more goals in n_tasks > 7
             goals = [
@@ -56,8 +56,6 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
 
         # set the initial goal
         self.reset_task(init_task_idx)
-
-        self.reset()
 
     def get_goal(self):
         return self._state_goal
@@ -116,16 +114,11 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
         return self.reset_model()
 
     def _reset_hand(self):
-        if hasattr(self, "goal_space"):
-            widths = (self.goal_space.high - self.goal_space.low) / 2.0
-            center = self.goal_space.low + widths
-        else:
-            center = np.array([0, 0.5, 0.02])
-        while np.linalg.norm(center - self._get_obs()['observation']) > 0.05:
-            for i in range(10):
-                self.data.set_mocap_pos('mocap', center)
-                self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
-                self.do_simulation(None, self.frame_skip)
+        # 2-D reaching, so start with hand at same height as goals
+        for _ in range(10):
+            self.data.set_mocap_pos('mocap', np.array([0, 0.5, 0.38]))
+            self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
+            self.do_simulation(None, self.frame_skip)
 
     def reset_model(self):
         velocities = self.data.qvel.copy()
