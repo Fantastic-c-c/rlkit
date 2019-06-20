@@ -3,6 +3,7 @@ from sawyer_control.core.serializable import Serializable
 import numpy as np
 
 
+@register_env('sawyer-reach-real-3d')
 class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
     def __init__(self, *args, randomize_tasks=True, n_tasks=5,
                  height_2d=None,
@@ -23,10 +24,9 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
 
         directions = list(range(n_tasks))
         if randomize_tasks:
-            goals = self.sample_goals(n_tasks)
+            goals = [1 * np.random.uniform(self.goal_low, self.goal_high) for _ in directions]
             if height_2d and height_2d >= 0:
                 goals = [[g[0], g[1], height_2d] for g in goals]
-            # goals = [1 * np.random.uniform(-1., 1., 2) for _ in directions]
         else:
             # add more goals if we want non-randomized tasks
             goals = [
@@ -41,19 +41,6 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
 
         # set the initial goal
         self.reset_task(init_task_idx)
-
-        self.reset()
-
-    def sample_goals(self, n_tasks):
-        # Taken from: https://stackoverflow.com/questions/33976911/generate-a-random-sample-of-points-distributed-on-the-surface-of-a-unit-sphere
-        vec = np.random.randn(3, n_tasks)  # 3 dimensional sphere
-        vec /= np.linalg.norm(vec, axis=0)
-        vec = vec.T
-        widths = (self.goal_space.high - self.goal_space.low) / 2.0
-        center = self.goal_space.low + widths
-        scaled_vec = vec * widths
-        goals = scaled_vec + center
-        return goals
 
     def step(self, action):
         observation, reward, _, info = super().step(action)

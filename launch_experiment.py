@@ -34,7 +34,7 @@ def experiment(variant):
                                                       height_2d=None,
 
                                                       reward_type='hand_distance',
-                                                      goal_low = np.array([0.48, -0.15, 0.20]),
+                                                      goal_low = np.array([0.55, 0.05, 0.20]),
                                                       goal_high = np.array([0.78, 0.15, 0.50]),
                                                       **variant['env_params']))
     else:

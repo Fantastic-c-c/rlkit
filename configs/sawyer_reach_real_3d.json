@@ -1,5 +1,5 @@
 {
-    "env_name": "sawyer_reach_real_3d",
+    "env_name": "sawyer-reach-real-3d",
     "n_train_tasks": 48,
     "n_eval_tasks": 12,
     "env_params": {
@@ -8,7 +8,7 @@
     }
     ,
     "algo_params": {
-        "initial_data_path": "initial_data_60-3d.pkl",
+        "initial_data_path": "",
         "num_initial_steps": 50,
         "num_iterations": 1000,
         "num_steps_prior": 20,
