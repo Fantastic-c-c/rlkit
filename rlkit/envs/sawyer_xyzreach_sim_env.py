@@ -32,15 +32,14 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
         )
         self.observation_space = self.hand_space # now we just care about hand
 
-        self.goal_low = np.array([-0.15, 0.48, 0.20])
+        self.goal_low = np.array([0.05, 0.55, 0.20])
         self.goal_high = np.array([0.15, 0.78, 0.50])
         self.goal_space = Box(self.goal_low, self.goal_high, dtype=np.float32)
         init_task_idx = 0
 
         directions = list(range(n_tasks))
         if randomize_tasks:
-            goals = self.sample_goals(n_tasks)
-            # goals = [1 * np.random.uniform(-1., 1., 2) for _ in directions]
+            goals = [1 * np.random.uniform(self.goal_low, self.goal_high) for _ in directions]
         else:
             # add more goals in n_tasks > 7
             goals = [
@@ -49,22 +48,9 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
                 raise NotImplementedError("We don't have enough goals defined")
         self.goals = np.asarray(goals)
         self.tasks = [{'direction': direction} for direction in directions]
-        
+
         # set the initial goal
         self.reset_task(init_task_idx)
-
-        self.reset()
-
-    def sample_goals(self, n_tasks):
-        # Taken from: https://stackoverflow.com/questions/33976911/generate-a-random-sample-of-points-distributed-on-the-surface-of-a-unit-sphere
-        vec = np.random.randn(3, n_tasks)  # 3 dimensional sphere
-        vec /= np.linalg.norm(vec, axis=0)
-        vec = vec.T
-        widths = (self.goal_space.high - self.goal_space.low) / 2.0
-        center = self.goal_space.low + widths
-        scaled_vec = vec * widths
-        goals = scaled_vec + center
-        return goals
 
     def get_all_task_idx(self):
         return range(len(self.tasks))
@@ -102,16 +88,11 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
         return self._get_obs()['observation'] # Redefine to just return state
 
     def _reset_hand(self):
-        if hasattr(self, "goal_space"):
-            widths = (self.goal_space.high - self.goal_space.low) / 2.0
-            center = self.goal_space.low + widths
-        else:
-            center = np.array([0, 0.5, 0.02])
-        while np.linalg.norm(center - self._get_obs()['observation']) > 0.05:
-            for i in range(10):
-                self.data.set_mocap_pos('mocap', center)
-                self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
-                self.do_simulation(None, self.frame_skip)
+        # 3D reaching, all the goals are down and in the same X-Y quadrant
+        for _ in range(10):
+            self.data.set_mocap_pos('mocap', np.array([0, 0.5, 0.5]))
+            self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
+            self.do_simulation(None, self.frame_skip)
 
 if __name__ == '__main__':
     env = PearlSawyerReachXYZEnv(frame_skip=50)#num_resets_before_puck_reset=int(1e6))
