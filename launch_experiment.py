@@ -23,20 +23,8 @@ from configs.default import default_config
 def experiment(variant):
     # create multi-task environment and sample tasks
     if ("sawyer_reach_real" in variant['env_name']):  # We need a separate import because this can only be done when on a ROS computer
-        from rlkit.envs.sawyer_reach_real_env import PearlSawyerReachXYZEnv
-        ROBOT_CONFIG = 'pearl_lordi_config'
-        ACTION_MODE = 'position'  # position or torque - NOTE: torque safety box has not been tested
-        MAX_SPEED = 0.15
-        env = NormalizedBoxEnv(PearlSawyerReachXYZEnv(config_name=ROBOT_CONFIG,
-                                                      action_mode=ACTION_MODE,
-                                                      max_speed=MAX_SPEED,
-                                                      position_action_scale=1.0 / 30,
-                                                      height_2d=None,
-
-                                                      reward_type='hand_distance',
-                                                      goal_low = np.array([0.55, 0.05, 0.20]),
-                                                      goal_high = np.array([0.78, 0.15, 0.50]),
-                                                      **variant['env_params']))
+        from rlkit.envs.sawyer_reach_real import MultitaskSawyerReachEnv
+        env = NormalizedBoxEnv(MultitaskSawyerReachEnv(**variant['env_params']))
     else:
         env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
     tasks = env.get_all_task_idx()
