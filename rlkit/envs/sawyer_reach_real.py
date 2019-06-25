@@ -21,6 +21,7 @@ class MultitaskSawyerReachEnv(SawyerReachEnv):
         if n_tasks == 1:
             self.goals = [self._reset_position + 0.15]
         else:
+            np.random.seed(1337)
             self.goals = [1 * np.random.uniform(self.goal_low, self.goal_high) for _ in range(n_tasks)]
 
         print('goals \n', self.goals)
