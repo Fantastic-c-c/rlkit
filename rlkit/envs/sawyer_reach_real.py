@@ -13,9 +13,9 @@ class MultitaskSawyerReachEnv(SawyerReachEnv):
             **kwargs):
         super().__init__(*args, **kwargs)
 
-        # define a safe goal space
-        self.goal_low = self.observation_space.low
-        self.goal_high = self.observation_space.high
+        # define a safe goal space, slighty smaller than the obs space to make sure the robot always has to move at least a little
+        self.goal_low = self.observation_space.low + np.array([0.1, .02, .02])
+        self.goal_high = self.observation_space.high+ np.array([-0.2, -0.2, -0.1])
 
         # generate random goals
         if n_tasks == 1:
