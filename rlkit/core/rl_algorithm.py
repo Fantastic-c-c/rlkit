@@ -1,6 +1,7 @@
 import abc
 from collections import OrderedDict
 import time
+import os
 
 import gtimer as gt
 import numpy as np
@@ -27,6 +28,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             num_steps_prior=100,
             num_steps_posterior=100,
             num_extra_rl_steps_posterior=100,
+            eval_interval=1,
             num_evals=10,
             num_steps_per_eval=1000,
             batch_size=1024,
@@ -45,6 +47,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             save_environment=False,
             render_eval_paths=False,
             dump_eval_paths=False,
+            skip_init_data_collection=False,
             plotter=None,
     ):
         """
@@ -68,6 +71,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.num_steps_prior = num_steps_prior
         self.num_steps_posterior = num_steps_posterior
         self.num_extra_rl_steps_posterior = num_extra_rl_steps_posterior
+        self.eval_interval = eval_interval
         self.num_evals = num_evals
         self.num_steps_per_eval = num_steps_per_eval
         self.batch_size = batch_size
@@ -88,6 +92,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.eval_statistics = None
         self.render_eval_paths = render_eval_paths
         self.dump_eval_paths = dump_eval_paths
+        self.skip_init_data_collection = skip_init_data_collection
         self.plotter = plotter
 
         self.sampler = InPlacePathSampler(
@@ -142,8 +147,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         meta-training loop
         '''
         self.pretrain()
-        params = self.get_epoch_snapshot(-1)
-        logger.save_itr_params(-1, params)
         gt.reset()
         gt.set_def_unique(False)
         self._current_path_builder = PathBuilder()
@@ -155,16 +158,31 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         ):
             self._start_epoch(it_)
             self.training_mode(True)
-            if it_ == 0:
-                print('collecting initial pool of data for train and eval')
-                # temp for evaluating
+
+            # save model and optimizer parameters
+            params = self.get_epoch_snapshot(-1)
+            logger.save_itr_params(-1, params)
+            # optionally save the current replay buffer
+            if self.save_replay_buffer:
+                logger.save_data_with_torch(self.replay_buffer, path='replay_buffer')
+                logger.save_data_with_torch(self.enc_replay_buffer, path='enc_replay_buffer')
+
+            # initial data collection
+            if it_ == 0 and not self.skip_init_data_collection:
+                print('collecting initial data buffer for all train tasks')
                 for idx in self.train_tasks:
                     self.task_idx = idx
                     self.env.reset_task(idx)
                     self.collect_data(self.num_initial_steps, 1, np.inf)
-            # Sample data from train tasks.
-            for i in range(self.num_tasks_sample):
-                idx = np.random.randint(len(self.train_tasks))
+                # save the initial replay buffer
+                print('saving the initial replay buffer')
+                logger.save_data_with_torch(self.replay_buffer, path='init_buffer')
+
+            # sample data from train tasks
+            print('epoch: {}, sampling training data'.format(it_))
+            sample_tasks = np.random.choice(self.train_tasks, self.num_tasks_sample, replace=False)
+            print('sampled tasks', sample_tasks)
+            for idx in sample_tasks:
                 self.task_idx = idx
                 self.env.reset_task(idx)
                 self.enc_replay_buffer.task_buffers[idx].clear()
@@ -179,7 +197,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 if self.num_extra_rl_steps_posterior > 0:
                     self.collect_data(self.num_extra_rl_steps_posterior, 1, self.update_post_train, add_to_enc_buffer=False)
 
-            # Sample train tasks and compute gradient updates on parameters.
+            print('training')
+            # sample train tasks and compute gradient updates on parameters
             for train_step in range(self.num_train_steps_per_itr):
                 indices = np.random.choice(self.train_tasks, self.meta_batch)
                 self._do_training(indices)
@@ -189,8 +208,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.training_mode(False)
 
             # eval
-            self._try_to_eval(it_)
-            gt.stamp('eval')
+            if it_ % self.eval_interval == 0:
+                self._try_to_eval(it_)
+                gt.stamp('eval')
 
             self._end_epoch()
 
@@ -341,6 +361,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             data_to_save['env'] = self.training_env
         if self.save_replay_buffer:
             data_to_save['replay_buffer'] = self.replay_buffer
+            data_to_save['enc_replay_buffer'] = self.enc_replay_buffer
         if self.save_algorithm:
             data_to_save['algorithm'] = self
         return data_to_save

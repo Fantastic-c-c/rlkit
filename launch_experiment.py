@@ -3,10 +3,12 @@ Launcher for experiments with PEARL
 
 """
 import os
+import os.path as osp
 import pathlib
 import numpy as np
 import click
 import json
+import copy
 import torch
 
 from rlkit.envs import ENVS
@@ -71,6 +73,30 @@ def experiment(variant):
         policy,
         **variant['algo_params']
     )
+
+    # optionally load pre-trained weights
+    checkpoint = None
+    if variant['continue_training']:
+        if variant['path_to_checkpoint'] is None:
+            raise Exception('Must specify checkpoint to continue training from')
+        # checkpoint contains model weights, optimizer settings
+        checkpoint = torch.load(osp.join(variant['path_to_checkpoint'], 'checkpoint.pth.tar'))
+
+        # load model weights
+        print('loading saved model weights...')
+        context_encoder.load_state_dict(checkpoint['context_encoder_weights'])
+        qf1.load_state_dict(checkpoint['qf1_weights'])
+        qf2.load_state_dict(checkpoint['qf2_weights'])
+        vf.load_state_dict(checkpoint['vf_weights'])
+        policy.load_state_dict(checkpoint['policy_weights'])
+
+    # optional GPU mode, move nets to gpu
+    ptu.set_gpu_mode(variant['util_params']['use_gpu'], variant['util_params']['gpu_id'])
+    if ptu.gpu_enabled():
+        for net in [context_encoder, qf1, qf2, vf, policy]:
+            net.to(ptu.device)
+
+    # instantiate algorithm, creates optimizers
     algorithm = PEARLSoftActorCritic(
         env=env,
         train_tasks=list(tasks[:variant['n_train_tasks']]),
@@ -80,16 +106,43 @@ def experiment(variant):
         **variant['algo_params']
     )
 
-    # optionally load pre-trained weights
-    if variant['path_to_weights'] is not None:
-        path = variant['path_to_weights']
-        context_encoder.load_state_dict(torch.load(os.path.join(path, 'context_encoder.pth')))
-        qf1.load_state_dict(torch.load(os.path.join(path, 'qf1.pth')))
-        qf2.load_state_dict(torch.load(os.path.join(path, 'qf2.pth')))
-        vf.load_state_dict(torch.load(os.path.join(path, 'vf.pth')))
-        # TODO hacky, revisit after model refactor
-        algorithm.networks[-2].load_state_dict(torch.load(os.path.join(path, 'target_vf.pth')))
-        policy.load_state_dict(torch.load(os.path.join(path, 'policy.pth')))
+    # if continuing training, load saved optimizer settings and replay buffers
+    if variant['continue_training']:
+        # TODO hacky, instantiate target vf net in this script?
+        algorithm.networks[-2].load_state_dict(checkpoint['target_vf_weights'])
+        algorithm.networks[-2].to(ptu.device)
+
+        # NOTE: must do this AFTER loading model weights and moving them to gpu
+        # see this issue: https://github.com/pytorch/pytorch/issues/2830
+        print('loading saved model optimizers...')
+        algorithm.policy_optimizer.load_state_dict(checkpoint['policy_optimizer'])
+        algorithm.qf1_optimizer.load_state_dict(checkpoint['qf1_optimizer'])
+        algorithm.qf2_optimizer.load_state_dict(checkpoint['qf2_optimizer'])
+        algorithm.vf_optimizer.load_state_dict(checkpoint['vf_optimizer'])
+        algorithm.context_optimizer.load_state_dict(checkpoint['context_optimizer'])
+
+        if ptu.gpu_enabled():
+            algorithm.to_optimizers()
+
+        # load the replay buffers
+        try:
+            print('loading saved replay buffers...')
+            algorithm.replay_buffer = torch.load(osp.join(variant['path_to_checkpoint'], 'replay_buffer.pth.tar'))
+            algorithm.enc_replay_buffer = torch.load(osp.join(variant['path_to_checkpoint'], 'enc_replay_buffer.pth.tar'))
+            algorithm.skip_init_data_collection = True
+        except:
+            print('failed to load replay buffers')
+
+    else:
+        try:
+            print('trying to load saved initial data...')
+            algorithm.replay_buffer = torch.load(osp.join(variant['path_to_checkpoint'], 'init_buffer.pth.tar'))
+            algorithm.enc_replay_buffer = copy.deepcopy(algorithm.replay_buffer)
+            algorithm.skip_init_data_collection = True
+            print('success!')
+            print('sizes', [t._size for t in algorithm.replay_buffer.task_buffers.values()])
+        except:
+            print('tried and failed to load initial data buffer')
 
     # optional GPU mode
     ptu.set_gpu_mode(variant['util_params']['use_gpu'], variant['util_params']['gpu_id'])

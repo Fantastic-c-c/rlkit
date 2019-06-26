@@ -42,6 +42,7 @@ class InPlacePathSampler(object):
             path = rollout(
                 self.env, policy, max_path_length=self.max_path_length, accum_context=accum_context)
             # save the latent context that generated this trajectory
+            # TODO: this was for some random eval thing? shouldn't be here
             path['context'] = policy.z.detach().cpu().numpy()
             paths.append(path)
             n_steps_total += len(path['observations'])
