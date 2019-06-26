@@ -19,6 +19,11 @@
         "reward_scale": 1000.0,
         "kl_lambda": 0.1,
         "num_exp_traj_eval":2,
-        "dump_eval_paths": 1
+        "dump_eval_paths": 1,
+        "start_from_scratch": 1
+    }
+    ,
+    "util_params": {
+        "debug": 0
     }
 }

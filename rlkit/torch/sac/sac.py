@@ -102,6 +102,17 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         for net in self.networks:
             net.to(device)
 
+    def to_optimizers(self, device=None):
+        if device == None:
+            device = ptu.device
+        # TODO: there must be an easier way??
+        # relevant issue: https://github.com/pytorch/pytorch/issues/2830
+        for optimizer in [self.policy_optimizer, self.qf1_optimizer, self.qf2_optimizer, self.vf_optimizer, self.context_optimizer]:
+            for state in optimizer.state.values():
+                for k, v in state.items():
+                    if torch.is_tensor(v):
+                        state[k].to(device)
+
     ##### Data handling #####
     def sample_data(self, indices, encoder=False):
         ''' sample data from replay buffers to construct a training meta-batch '''
@@ -298,11 +309,23 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
     def get_epoch_snapshot(self, epoch):
         # NOTE: overriding parent method which also optionally saves the env
         snapshot = OrderedDict(
-            qf1=self.qf1.state_dict(),
-            qf2=self.qf2.state_dict(),
-            policy=self.agent.policy.state_dict(),
-            vf=self.vf.state_dict(),
-            target_vf=self.target_vf.state_dict(),
-            context_encoder=self.agent.context_encoder.state_dict(),
+            # model weights
+            qf1_weights=self.qf1.state_dict(),
+            qf2_weights=self.qf2.state_dict(),
+            policy_weights=self.agent.policy.state_dict(),
+            vf_weights=self.vf.state_dict(),
+            target_vf_weights=self.target_vf.state_dict(),
+            context_encoder_weights=self.agent.context_encoder.state_dict(),
+
+            # optimizer weights
+            qf1_optimizer=self.qf1_optimizer.state_dict(),
+            qf2_optimizer=self.qf2_optimizer.state_dict(),
+            policy_optimizer=self.policy_optimizer.state_dict(),
+            vf_optimizer=self.vf_optimizer.state_dict(),
+            context_optimizer=self.context_optimizer.state_dict(),
+
+            # replay buffers
+            replay_buffer = self.replay_buffer,
+            enc_replay_buffer=self.enc_replay_buffer
         )
         return snapshot

@@ -172,6 +172,9 @@ def save_extra_data(data, path='extra_data', ext='.pkl'):
     with open(file_name, 'wb') as f:
         pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
 
+def save_data_with_torch(data, path='torch_data', ext='.pth.tar'):
+    filename = osp.join(_snapshot_dir, path + ext)
+    torch.save(data, filename)
 
 def get_table_dict():
     return dict(_tabular)
@@ -266,9 +269,8 @@ def save_itr_params(itr, params_dict):
             file_names = [osp.join(_snapshot_dir, n + '_itr_%d.pth' % itr) for n in names]
             save_weights(params, file_names)
         elif _snapshot_mode == 'last':
-            # override previous params
-            file_names = [osp.join(_snapshot_dir, n + '.pth') for n in names]
-            save_weights(params, file_names)
+            # TODO make the other options like this
+            torch.save(params_dict, osp.join(_snapshot_dir, 'checkpoint.pth.tar'))
         elif _snapshot_mode == "gap":
             if itr % _snapshot_gap == 0:
                 file_names = [osp.join(_snapshot_dir, n + '_itr_%d.pth' % itr) for n in names]
