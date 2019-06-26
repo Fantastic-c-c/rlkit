@@ -18,24 +18,22 @@ from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
 
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_assembly_peg_6dof import SawyerNutAssembly6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_bin_picking_6dof import SawyerBinPicking6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_book_place import SawyerBookPlace6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_box_close_6dof import SawyerBoxClose6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_assembly_peg_6dof import SawyerNutAssembly6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_bin_picking_6dof import SawyerBinPicking6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_book_place import SawyerBookPlace6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_box_close_6dof import SawyerBoxClose6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYZEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_hand_insert import SawyerHandInsert6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_sweep import SawyerSweep6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_hammer_6dof import SawyerHammer6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_laptop_close_6dof import SawyerLaptopClose6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_sweep_into_goal import SawyerSweepIntoGoal6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_button_press_topdown_6dof import SawyerButtonPressTopdown6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_dial_turn_6dof import SawyerDialTurn6DOFEnv
 
-
-
-
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYZEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_hand_insert import SawyerHandInsert6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_sweep import SawyerSweep6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_hammer_6dof import SawyerHammer6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_laptop_close_6dof import SawyerLaptopClose6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_sweep_into_goal import SawyerSweepIntoGoal6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_button_press_topdown_6dof import SawyerButtonPressTopdown6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place_6dof import SawyerPickAndPlace6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_6dof import SawyerDoor6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_drawer_close_6dof import SawyerDrawerClose6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_6dof import SawyerDoor6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_drawer_close_6dof import SawyerDrawerClose6DOFEnv
 
 
 
@@ -48,16 +46,20 @@ def experiment(variant):
 
     # Initialize copies of each environment with random goals.
     tasks = [
-    SawyerHandInsert6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=0),
-    SawyerSweep6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=1),
-    SawyerHammer6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=2),
-    SawyerBookPlace6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=3),
-    # SawyerNutAssembly6DOFEnv(rotMode='rotz', num_obs_space_obj_positions=3),
-    SawyerLaptopClose6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=4),
-    # SawyerSweepIntoGoal6DOFEnv(rotMode='rotz', multitask=True, multitask_num=8, task_idx=4),
-    # SawyerDrawerClose6DOFEnv(rotMode='rotz', multitask=True, multitask_num=8, task_idx=5),
-    SawyerButtonPressTopdown6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=5),
-    SawyerPickAndPlace6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=6)
+    # SawyerHandInsert6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=0),
+    # SawyerSweep6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=1),
+    # SawyerHammer6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=2),
+    # SawyerBookPlace6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=3),
+    # # SawyerNutAssembly6DOFEnv(rotMode='rotz', num_obs_space_obj_positions=3),
+    # SawyerLaptopClose6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=4),
+    # # SawyerSweepIntoGoal6DOFEnv(rotMode='rotz', multitask=True, multitask_num=8, task_idx=4),
+    # # SawyerDrawerClose6DOFEnv(rotMode='rotz', multitask=True, multitask_num=8, task_idx=5),
+    # SawyerButtonPressTopdown6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=5),
+    # SawyerPickAndPlace6DOFEnv(rotMode='rotz')
+    # SawyerDialTurn6DOFEnv()
+    SawyerReachPushPickPlace6DOFEnv(),
+    SawyerReachPushPickPlace6DOFEnv(),
+    SawyerReachPushPickPlace6DOFEnv(),
     ]
 
 
@@ -116,8 +118,8 @@ def experiment(variant):
 
     algorithm = ProtoSoftActorCritic(
         envs=tasks,
-        train_tasks=list(tasks),
-        eval_tasks=list(tasks),
+        train_tasks=list(tasks[:2]),
+        eval_tasks=list(tasks[2:]),
         nets=[agent, task_enc, policy, qf1, qf2, vf, rf],
         latent_dim=latent_dim,
         **variant['algo_params']
@@ -177,7 +179,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = '7tasks-rs1-vis'
+    exp_name = 'dialturn'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)
