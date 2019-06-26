@@ -116,7 +116,7 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
     def _reset_hand(self):
         # 2-D reaching, so start with hand at same height as goals
         for _ in range(10):
-            self.data.set_mocap_pos('mocap', np.array([0, 0.5, 0.38]))
+            self.data.set_mocap_pos('mocap', np.array([0, 0.65, 0.38]))
             self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
             self.do_simulation(None, self.frame_skip)
 
