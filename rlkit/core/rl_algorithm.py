@@ -31,6 +31,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             eval_interval=1,
             num_evals=10,
             num_steps_per_eval=1000,
+            num_task_eval = None,
             batch_size=1024,
             embedding_batch_size=1024,
             embedding_mini_batch_size=1024,
@@ -74,6 +75,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.eval_interval = eval_interval
         self.num_evals = num_evals
         self.num_steps_per_eval = num_steps_per_eval
+        self.num_task_eval = num_task_eval
+        if self.num_task_eval is None:
+            self.num_task_eval = len(self.eval_tasks)
         self.batch_size = batch_size
         self.embedding_batch_size = embedding_batch_size
         self.embedding_mini_batch_size = embedding_mini_batch_size
@@ -419,21 +423,13 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         if self.eval_statistics is None:
             self.eval_statistics = OrderedDict()
 
-        ### sample trajectories from prior for debugging / visualization
-        if self.dump_eval_paths:
-            # 100 arbitrarily chosen for visualizations of point_robot trajectories
-            # just want stochasticity of z, not the policy
-            self.agent.clear_z()
-            prior_paths, _ = self.sampler.obtain_samples(deterministic=self.eval_deterministic, max_samples=self.max_path_length * 20,
-                                                        accum_context=False,
-                                                        resample=1)
-            logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
-
         ### train tasks
         # eval on a subset of train tasks for speed
-        indices = np.random.choice(self.train_tasks, len(self.eval_tasks))
-        eval_util.dprint('evaluating on {} train tasks'.format(len(indices)))
+        indices = np.random.choice(self.train_tasks, self.num_task_eval, replace=False)
+        print('evaluating on train tasks: {}'.format(indices))
+        # TODO: consider not doing this, if we can esimate overfitting from sim?
         ### eval train tasks with posterior sampled from the training replay buffer
+        print('evaluating with context from replay buffer')
         train_returns = []
         for idx in indices:
             self.task_idx = idx
@@ -455,14 +451,16 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
             train_returns.append(eval_util.get_average_returns(paths))
         train_returns = np.mean(train_returns)
+        print('evaluating with on-policy context')
         ### eval train tasks with on-policy data to match eval of test tasks
         train_final_returns, train_online_returns = self._do_eval(indices, epoch)
         eval_util.dprint('train online returns')
         eval_util.dprint(train_online_returns)
 
         ### test tasks
-        eval_util.dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
-        test_final_returns, test_online_returns = self._do_eval(self.eval_tasks, epoch)
+        indices = np.random.choice(self.eval_tasks, self.num_task_eval, replace=False)
+        print('evaluating on test tasks: {}'.format(indices))
+        test_final_returns, test_online_returns = self._do_eval(indices, epoch)
         eval_util.dprint('test online returns')
         eval_util.dprint(test_online_returns)
 
