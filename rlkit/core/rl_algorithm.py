@@ -175,6 +175,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             if it_ == 0 and not self.skip_init_data_collection:
                 print('collecting initial data buffer for all train tasks')
                 for idx in self.train_tasks:
+                    print('task: {} / {}'.format(idx, len(self.train_tasks)))
                     self.task_idx = idx
                     self.env.reset_task(idx)
                     self.collect_data(self.num_initial_steps, 1, np.inf)
@@ -187,6 +188,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             sample_tasks = np.random.choice(self.train_tasks, self.num_tasks_sample, replace=False)
             print('sampled tasks', sample_tasks)
             for idx in sample_tasks:
+                print('task: {} / {}'.format(idx, len(self.sample_tasks)))
                 self.task_idx = idx
                 self.env.reset_task(idx)
                 #self.enc_replay_buffer.task_buffers[idx].clear()
