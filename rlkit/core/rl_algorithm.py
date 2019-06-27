@@ -191,15 +191,16 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 self.env.reset_task(idx)
                 self.enc_replay_buffer.task_buffers[idx].clear()
 
+                # TODO: don't hardcode max_trajs
                 # collect some trajectories with z ~ prior
                 if self.num_steps_prior > 0:
-                    self.collect_data(self.num_steps_prior, 1, np.inf)
+                    self.collect_data(self.num_steps_prior, 1, np.inf, max_trajs=10)
                 # collect some trajectories with z ~ posterior
                 if self.num_steps_posterior > 0:
-                    self.collect_data(self.num_steps_posterior, 1, self.update_post_train)
+                    self.collect_data(self.num_steps_posterior, 1, self.update_post_train, max_trajs=10)
                 # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
                 if self.num_extra_rl_steps_posterior > 0:
-                    self.collect_data(self.num_extra_rl_steps_posterior, 1, self.update_post_train, add_to_enc_buffer=False)
+                    self.collect_data(self.num_extra_rl_steps_posterior, 1, self.update_post_train, add_to_enc_buffer=False, max_trajs=10)
 
             print('training')
             # sample train tasks and compute gradient updates on parameters
@@ -224,10 +225,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         """
         pass
 
-    def collect_data(self, num_samples, resample_z_rate, update_posterior_rate, add_to_enc_buffer=True):
+    def collect_data(self, num_samples, resample_z_rate, update_posterior_rate, add_to_enc_buffer=True, max_trajs=np.inf):
         '''
         get trajectories from current env in batch mode with given policy
-        collect complete trajectories until the number of collected transitions >= num_samples
+        collect complete trajectories until the number of collected transitions >= num_samples OR number of trajs exceeds a max (default is infinite)
 
         :param agent: policy to rollout
         :param num_samples: total number of transitions to sample
@@ -238,13 +239,14 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         # start from the prior
         self.agent.clear_z()
 
-        num_transitions = 0
-        while num_transitions < num_samples:
+        num_transitions, num_trajs = 0, 0
+        while num_transitions < num_samples and num_trajs < max_trajs:
             paths, n_samples = self.sampler.obtain_samples(max_samples=num_samples - num_transitions,
                                                                 max_trajs=update_posterior_rate,
                                                                 accum_context=False,
                                                                 resample=resample_z_rate)
             num_transitions += n_samples
+            num_trajs += len(paths)
             self.replay_buffer.add_paths(self.task_idx, paths)
             if add_to_enc_buffer:
                 self.enc_replay_buffer.add_paths(self.task_idx, paths)
