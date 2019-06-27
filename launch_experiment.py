@@ -10,6 +10,7 @@ import click
 import json
 import copy
 import pickle
+import datetime
 import torch
 
 from rlkit.envs import ENVS
@@ -21,6 +22,7 @@ from rlkit.torch.sac.agent import PEARLAgent
 from rlkit.launchers.launcher_util import setup_logger
 import rlkit.torch.pytorch_util as ptu
 from configs.default import default_config
+from rlkit.launchers.send_email import _send_email
 
 
 def experiment(variant):
@@ -195,7 +197,13 @@ def main(config, gpu, docker, debug):
         variant = deep_update_dict(exp_params, variant)
     variant['util_params']['gpu_id'] = gpu
 
-    experiment(variant)
+    start_time = datetime.datetime.now()
+    try:
+        experiment(variant)
+    except:
+        _send_email('exception raised', start_time)
+    else:
+        _send_email('experiment finished', start_time)
 
 if __name__ == "__main__":
     main()
