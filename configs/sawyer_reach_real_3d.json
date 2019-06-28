@@ -2,10 +2,9 @@
     "env_name": "sawyer-reach-real-3d",
     "n_train_tasks": 40,
     "n_eval_tasks": 15,
-    "path_to_checkpoint": "./output/sawyer-reach-real-3d/2019_06_25_22_40_13",
     "continue_training": 0,
     "env_params": {
-        "n_tasks": 45,
+        "n_tasks": 55,
         "randomize_tasks": 1
     }
     ,
@@ -18,10 +17,11 @@
         "num_train_steps_per_itr": 2000,
         "eval_interval": 5,
         "num_steps_per_eval": 45,
-        "num_task_eval": 5,
+        "num_task_eval": 10,
+        "num_evals": 1,
         "max_path_length": 15,
         "num_tasks_sample": 5,
-        "reward_scale": 1000.0,
+        "reward_scale": 100.0,
         "kl_lambda": 0.1,
         "dump_eval_paths": 1,
         "save_replay_buffer": 1
