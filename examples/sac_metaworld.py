@@ -45,22 +45,7 @@ def experiment(variant):
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
     # Initialize copies of each environment with random goals.
-    tasks = [
-    # SawyerHandInsert6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=0),
-    # SawyerSweep6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=1),
-    # SawyerHammer6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=2),
-    # SawyerBookPlace6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=3),
-    # # SawyerNutAssembly6DOFEnv(rotMode='rotz', num_obs_space_obj_positions=3),
-    # SawyerLaptopClose6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=4),
-    # # SawyerSweepIntoGoal6DOFEnv(rotMode='rotz', multitask=True, multitask_num=8, task_idx=4),
-    # # SawyerDrawerClose6DOFEnv(rotMode='rotz', multitask=True, multitask_num=8, task_idx=5),
-    # SawyerButtonPressTopdown6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=5),
-    # SawyerPickAndPlace6DOFEnv(rotMode='rotz')
-    # SawyerDialTurn6DOFEnv()
-    SawyerReachPushPickPlace6DOFEnv(),
-    SawyerReachPushPickPlace6DOFEnv(),
-    SawyerReachPushPickPlace6DOFEnv(),
-    ]
+    tasks = [SawyerReachPushPickPlace6DOFEnv(if_render=False, fix_task=True, task_idx=2, multitask=False)]*60
 
 
     for env in tasks:
@@ -118,8 +103,8 @@ def experiment(variant):
 
     algorithm = ProtoSoftActorCritic(
         envs=tasks,
-        train_tasks=list(tasks[:2]),
-        eval_tasks=list(tasks[2:]),
+        train_tasks=list(tasks[:50]),
+        eval_tasks=list(tasks[50:]),
         nets=[agent, task_enc, policy, qf1, qf2, vf, rf],
         latent_dim=latent_dim,
         **variant['algo_params']
@@ -172,14 +157,14 @@ def main(gpu, docker):
             dump_eval_paths=True,
             render_eval_paths=False,
             render=False,
-            task_idx_for_render=None,
+            task_idx_for_render=0,
         ),
         net_size=300,
         use_gpu=True,
         gpu_id=gpu,
     )
 
-    exp_name = 'dialturn'
+    exp_name = 'push'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)
