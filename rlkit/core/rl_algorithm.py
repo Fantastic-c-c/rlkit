@@ -189,8 +189,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             print('epoch: {}, sampling training data'.format(it_))
             sample_tasks = np.random.choice(self.train_tasks, self.num_tasks_sample, replace=False)
             print('sampled tasks', sample_tasks)
-            for idx in sample_tasks:
-                print('task: {} / {}'.format(idx, len(self.sample_tasks)))
+            for i, idx in enumerate(sample_tasks):
+                print('task: {} / {}'.format(i, len(sample_tasks)))
                 self.task_idx = idx
                 self.env.reset_task(idx)
                 #self.enc_replay_buffer.task_buffers[idx].clear()
