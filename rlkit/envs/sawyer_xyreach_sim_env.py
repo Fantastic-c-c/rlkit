@@ -21,6 +21,7 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
                  use_mocap=False,
                  action_scale=0.02,
                  hand_z_position=0.38,
+                 # first is to / from robot, second is left-right, third is up / down
                  hand_low=(-0.17, 0.46, 0.21),
                  # NOTE: these coords are different from physical sawyer as (x, y) coords flipped
                  hand_high=(0.17, 0.8, 0.55),
@@ -36,7 +37,7 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
             **kwargs
         )
         self.observation_space = self.hand_space  # now we just care about hand
-        self.goal_low = np.array([0.05, 0.55, self.hand_z_position])
+        self.goal_low = np.array([0.05, 0.48, self.hand_z_position])
         self.goal_high = np.array([0.15, 0.78, self.hand_z_position])
         self.goal_space = Box(self.goal_low, self.goal_high, dtype=np.float32)
         init_task_idx = 0

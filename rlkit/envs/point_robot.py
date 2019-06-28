@@ -19,7 +19,7 @@ class PointEnv(Env):
 
         if randomize_tasks:
             np.random.seed(1337)
-            self.goal_low = np.array([0.05, 0.55])
+            self.goal_low = np.array([0.05, 0.48])
             self.goal_high = np.array([0.15, 0.78])
             goals = [1 * np.random.uniform(self.goal_low, self.goal_high) for _ in range(n_tasks)]
         else:
@@ -38,9 +38,9 @@ class PointEnv(Env):
         self.goals = goals
 
         self.reset_task(0)
-        hand_low=np.array([0, 0.8])
-        # NOTE: these coords are different from physical sawyer as (x, y) coords flipped
-        hand_high=np.array([0, 0.8])
+        hand_low=np.array([-0.17, 0.46])
+        # NOTE: these coords are set to match the simulated sawyer
+        hand_high=np.array([0.17, 0.8])
         self.observation_space = spaces.Box(low=hand_low, high=hand_high)
         self.action_space = spaces.Box(low=-0.02, high=0.02, shape=(2,))
 

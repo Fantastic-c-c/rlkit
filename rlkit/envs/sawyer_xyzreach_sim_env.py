@@ -18,8 +18,8 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
     def __init__(self, *args, randomize_tasks=True, n_tasks=5,
                  reward_type='hand_distance',
                  action_scale=0.02,
-                 hand_low=(-0.17, 0.46, 0.18), # NOTE: these coords are different from physical sawyer as (x, y) coords flipped
-                 hand_high=(0.17, 0.8, 0.52),
+                 hand_low=(-0.17, 0.46, 0.21), # NOTE: these coords are different from physical sawyer as (x, y) coords flipped
+                 hand_high=(0.17, 0.8, 0.55),
                  **kwargs):
         self.quick_init(locals())
         SawyerReachXYZEnv.__init__(
@@ -32,7 +32,7 @@ class PearlSawyerReachXYZEnv(SawyerReachXYZEnv):
         )
         self.observation_space = self.hand_space # now we just care about hand
 
-        self.goal_low = np.array([0.05, 0.55, 0.20])
+        self.goal_low = np.array([0.05, 0.48, 0.23])
         self.goal_high = np.array([0.15, 0.78, 0.50])
         self.goal_space = Box(self.goal_low, self.goal_high, dtype=np.float32)
         init_task_idx = 0
