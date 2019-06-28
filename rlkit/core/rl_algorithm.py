@@ -353,8 +353,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 env.step(action)
             )
             reward = raw_reward * self.reward_scale
-            if render:
-                print('reward', reward)
+            # if render:
+            #     print('reward', reward)
             terminal = np.array([terminal])
             reward = np.array([reward])
             self._handle_step(

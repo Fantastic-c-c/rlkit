@@ -154,11 +154,11 @@ class ProtoAgent(nn.Module):
     def _update_target_network(self):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.tau)
 
-    def forward(self, obs, actions, next_obs, enc_data, obs_enc, act_enc, task_idx_one_hots):
+    def forward(self, obs, actions, next_obs, enc_data, obs_enc, act_enc):
         self.set_z(enc_data)
-        return self.infer(obs, actions, next_obs, obs_enc, act_enc, task_idx_one_hots)
+        return self.infer(obs, actions, next_obs, obs_enc, act_enc)
 
-    def infer(self, obs, actions, next_obs, obs_enc, act_enc, task_idx_one_hots):
+    def infer(self, obs, actions, next_obs, obs_enc, act_enc):
         '''
         compute predictions of SAC networks for update
 
@@ -166,9 +166,6 @@ class ProtoAgent(nn.Module):
         '''
 
         task_z = self.z
-        task_z = torch.tensor(task_idx_one_hots, dtype=torch.float32, device=torch.device('cuda:0'))
-        # pdb.set_trace()
-
 
         # auxiliary reward regression
         rf_z = [z.repeat(obs_enc.size(1), 1) for z in task_z]
