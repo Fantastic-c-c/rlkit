@@ -139,11 +139,7 @@ def experiment(variant):
     else:
         try:
             print('trying to load saved initial data...')
-            #algorithm.replay_buffer = torch.load(osp.join(variant['path_to_checkpoint'], 'init_buffer.pth.tar'))
-            # TODO delete when no longer using this old-style checkpoint
-            with open(osp.join(variant['path_to_checkpoint'], 'init_buffer.pkl'), 'rb') as f:
-                algorithm.replay_buffer = pickle.load(f)
-
+            algorithm.replay_buffer = torch.load(osp.join(variant['path_to_checkpoint'], 'init_buffer.pth.tar'))
             algorithm.enc_replay_buffer = copy.deepcopy(algorithm.replay_buffer)
             algorithm.skip_init_data_collection = True
             print('success!')
