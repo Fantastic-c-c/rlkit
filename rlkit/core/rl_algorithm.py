@@ -29,7 +29,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             num_steps_posterior=100,
             num_extra_rl_steps_posterior=100,
             eval_interval=1,
-            num_evals=10,
+            num_evals=1,
             num_steps_per_eval=1000,
             num_task_eval = None,
             batch_size=1024,
@@ -150,6 +150,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         '''
         meta-training loop
         '''
+        if self.dump_eval_paths:
+            logger.save_extra_data(self.env.get_tasks(), path='tasks')
         self.pretrain()
         gt.reset()
         gt.set_def_unique(False)
