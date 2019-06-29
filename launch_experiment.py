@@ -20,6 +20,7 @@ import rlkit.torch.pytorch_util as ptu
 from configs.default import default_config
 
 from rlkit.torch.convnet import Convnet
+from rlkit.torch.debugnet import Debugnet
 
 
 def experiment(variant):
@@ -41,6 +42,8 @@ def experiment(variant):
     obs_dim = 64
     image_dim = env.image_dim
     convnet = Convnet()
+    debugnet = Debugnet()
+    # debugnet.cuda()
 
     context_encoder = encoder_model(
         hidden_sizes=[200, 200, 200],
@@ -74,6 +77,7 @@ def experiment(variant):
         policy,
         convnet,
         image_dim,
+        debugnet,
         **variant['algo_params']
     )
     algorithm = PEARLSoftActorCritic(
@@ -83,6 +87,7 @@ def experiment(variant):
         nets=[agent, qf1, qf2, vf],
         latent_dim=latent_dim,
         cnn=convnet,
+        debugnet=debugnet,
         **variant['algo_params']
     )
 

@@ -68,7 +68,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
         return actions[0, :], {}
 
     @torch.no_grad()
-    def get_actions(self, obs, deterministic=False):
+    def get_actions(self, obs, deterministic=False, state=None):
         outputs = self.forward(obs, deterministic=deterministic)[0]
         return np_ify(outputs)
 
@@ -135,7 +135,7 @@ class MakeDeterministic(Wrapper, Policy):
         super().__init__(stochastic_policy)
         self.stochastic_policy = stochastic_policy
 
-    def get_action(self, observation):
+    def get_action(self, observation, state=None):
         return self.stochastic_policy.get_action(observation,
                                                  deterministic=True)
 

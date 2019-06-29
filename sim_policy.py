@@ -16,6 +16,7 @@ from rlkit.torch.sac.policies import MakeDeterministic
 from rlkit.samplers.util import rollout
 
 from rlkit.torch.convnet import Convnet
+from rlkit.torch.debugnet import Debugnet
 
 import rlkit.torch.pytorch_util as ptu
 
@@ -41,7 +42,9 @@ def sim_policy(variant, num_trajs, save_video):
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
 
     obs_dim = 64
-    convnet = Convnet()
+    image_dim = env.image_dim
+    cnn = Convnet()
+    debugnet = Debugnet()
 
 
     context_encoder = encoder_model(
@@ -59,7 +62,9 @@ def sim_policy(variant, num_trajs, save_video):
         latent_dim,
         context_encoder,
         policy,
-        convnet,
+        cnn,
+        image_dim,
+        debugnet,
         **variant['algo_params']
     )
 
@@ -68,6 +73,7 @@ def sim_policy(variant, num_trajs, save_video):
     if data_dir is not None:
         context_encoder.load_state_dict(torch.load(os.path.join(data_dir, 'context_encoder.pth')))
         policy.load_state_dict(torch.load(os.path.join(data_dir, 'policy.pth')))
+        cnn.load_state_dict(torch.load(os.path.join(data_dir, 'cnn.pth')))
 
     # loop through tasks collecting rollouts
     all_rets = []
@@ -94,7 +100,7 @@ def sim_policy(variant, num_trajs, save_video):
 
     ptu.set_gpu_mode(variant['util_params']['use_gpu'], variant['util_params']['gpu_id'])
     if ptu.gpu_enabled():
-        convnet.to()
+        cnn.to()
         context_encoder.to()
         policy.to()
         agent.to()

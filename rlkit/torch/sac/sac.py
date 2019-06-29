@@ -18,6 +18,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             eval_tasks,
             latent_dim,
             cnn,   #new param: cnn
+            debugnet,  ####debug####
             nets,
 
             policy_lr=1e-3,
@@ -57,6 +58,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         self.latent_dim = latent_dim
 
         self.cnn = cnn   # new
+        self.debugnet = debugnet ####debug####
 
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
@@ -222,7 +224,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
 
         # KL constraint on z if probabilistic
         self.context_optimizer.zero_grad()
-        self.cnn_optimizer.zero_grad()
+        # self.cnn_optimizer.zero_grad()
         if self.use_information_bottleneck:
             kl_div = self.agent.compute_kl_div()
             kl_loss = self.kl_lambda * kl_div
@@ -231,6 +233,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         # qf and encoder update (note encoder does not get grads from policy or vf)
         self.qf1_optimizer.zero_grad()
         self.qf2_optimizer.zero_grad()
+        ######### self.cnn_optimizer.zero_grad()
         rewards_flat = rewards.view(self.batch_size * num_tasks, -1)
         # scale rewards for Bellman update
         rewards_flat = rewards_flat * self.reward_scale
@@ -241,7 +244,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
         self.context_optimizer.step()
-        self.cnn_optimizer.step()
+        # self.cnn_optimizer.step()
 
         # compute min Q on the new actions
         min_q_new_actions = self._min_q(obs.detach(), new_actions, task_z.detach())
@@ -322,6 +325,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             policy=self.agent.policy.state_dict(),
             vf=self.vf.state_dict(),
             cnn=self.cnn.state_dict(),
+            debugnet=self.debugnet.state_dict(),   ####debug####
             target_vf=self.target_vf.state_dict(),
             context_encoder=self.agent.context_encoder.state_dict(),
         )

@@ -117,6 +117,15 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
         # ob = ob['observation']  # just return the state
         return ob, reward, done, info
 
+    def debug(self, action):
+        ob, reward, done, info = super().step(action)
+        realstate = ob['observation']  # just return the state
+        image = self.get_image()
+        ob = np.moveaxis(image, 2, 0)
+        # ob = np.moveaxis(image, 2, 0)
+
+        return realstate, ob
+
     def get_all_goals(self):
         return self.goals
 
