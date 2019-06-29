@@ -51,13 +51,13 @@ def datetimestamp(divider=''):
 
 def experiment(variant):
     task_params = variant['task_params']
-    params = joblib.load('/Users/deirdrequillen/corl_metaworld_exps/params.pkl')
+    params = joblib.load('/home/deirdre/metaworld_exps/reach/params.pkl')
 
     # env.render()
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
     # Initialize copies of each environment with random goals.
-    tasks = [SawyerReachPushPickPlace6DOFEnv(if_render=False, fix_task=True, task_idx=0, multitask=False)]
+    tasks = [SawyerReachPushPickPlace6DOFEnv(if_render=False, fix_task=True, task_idx=1, multitask=False)]
 
     for env in tasks:
         print('env.observation_space.shape', env.observation_space.shape)
@@ -99,7 +99,7 @@ def experiment(variant):
 @click.argument('gpu', default=0)
 @click.option('--docker', default=0)
 def main(gpu, docker):
-    max_path_length = 500
+    max_path_length = 150
     # noinspection PyTypeChecker
     variant = dict(
         task_params=dict(
