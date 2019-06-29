@@ -411,6 +411,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         final_returns = []
         online_returns = []
         for idx in indices:
+            print('task: {}'.format(idx))
             all_rets = []
             for r in range(self.num_evals):
                 paths = self.collect_paths(idx, epoch, r)
@@ -438,6 +439,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         print('evaluating with context from replay buffer')
         train_returns = []
         for idx in indices:
+            print('task: {}'.format(idx))
             self.task_idx = idx
             self.env.reset_task(idx)
             paths = []
