@@ -21,8 +21,7 @@
         "reward_scale": 100.0,
         "kl_lambda": 0.1,
         "num_exp_traj_eval":2,
-        "dump_eval_paths": 1,
-        "start_from_scratch": 0
+        "dump_eval_paths": 1
     }
     ,
     "util_params": {
