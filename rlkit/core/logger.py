@@ -172,9 +172,17 @@ def save_extra_data(data, path='extra_data', ext='.pkl'):
     with open(file_name, 'wb') as f:
         pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
 
+
 def save_data_with_torch(data, path='torch_data', ext='.pth.tar'):
     filename = osp.join(_snapshot_dir, path + ext)
     torch.save(data, filename)
+
+
+def save_with_numpy(data_dict, d='np_data', path='arr', ext='.npz'):
+    ''' save a dict of numpy arrays as npz '''
+    os.makedirs(osp.join(_snapshot_dir, d), exist_ok=True)
+    filename = osp.join(_snapshot_dir, d, path + ext)
+    np.savez_compressed(filename, **data_dict)
 
 def get_table_dict():
     return dict(_tabular)

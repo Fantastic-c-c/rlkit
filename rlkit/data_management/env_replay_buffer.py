@@ -58,6 +58,18 @@ class MultiTaskReplayBuffer(object):
     def clear_buffer(self, task):
         self.task_buffers[task].clear()
 
+    def export_data(self):
+        ''' export the buffer as list of (task ID, buffer arrays)'''
+        d = list()
+        for task in range(len(self.task_buffers.keys())):
+            d.append((task, self.task_buffers[task].export_data()))
+        return d
+
+    def import_data(self, task, data):
+        ''' import data from saved arrays '''
+        self.task_buffers[task].import_data(data)
+
+
 
 def get_dim(space):
     if isinstance(space, Box):

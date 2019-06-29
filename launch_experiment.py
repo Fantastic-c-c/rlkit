@@ -103,6 +103,16 @@ def experiment(variant):
         **variant['algo_params']
     )
 
+    def load_replay_buffer(name):
+        paths = os.listdir(osp.join(variant['path_to_checkpoint'], name))
+        data = []
+        for p in paths:
+            d = np.load(osp.join(variant['path_to_checkpoint'], name, p))
+            task = int(p[0])
+            if 'enc' in name:
+                algorithm.enc_replay_buffer.import_data(task, d)
+            else:
+                algorithm.replay_buffer.import_data(task, d)
     # if continuing training, load saved optimizer settings and replay buffers
     if variant['continue_training']:
         # TODO hacky, instantiate target vf net in this script?
@@ -124,21 +134,26 @@ def experiment(variant):
         # load the replay buffers
         try:
             print('loading saved replay buffers...')
-            algorithm.replay_buffer = torch.load(osp.join(variant['path_to_checkpoint'], 'replay_buffer.pth.tar'))
-            algorithm.enc_replay_buffer = torch.load(osp.join(variant['path_to_checkpoint'], 'enc_replay_buffer.pth.tar'))
+            load_replay_buffer('sac_replay_buffer')
+            load_replay_buffer('enc_replay_buffer')
             algorithm.skip_init_data_collection = True
-        except:
+            print('success!')
+            print('sizes', [t._size for t in algorithm.replay_buffer.task_buffers.values()])
+
+        except Exception as e:
+            print(e)
             print('failed to load replay buffers')
 
     else:
         try:
             print('trying to load saved initial data...')
-            algorithm.replay_buffer = torch.load(osp.join(variant['path_to_checkpoint'], 'init_buffer.pth.tar'))
+            load_replay_buffer('init_buffer')
             algorithm.enc_replay_buffer = copy.deepcopy(algorithm.replay_buffer)
             algorithm.skip_init_data_collection = True
             print('success!')
             print('sizes', [t._size for t in algorithm.replay_buffer.task_buffers.values()])
-        except:
+        except Exception as e:
+            print(e)
             print('tried and failed to load initial data buffer')
 
     # optional GPU mode
