@@ -25,6 +25,7 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
                  hand_low=(-0.17, 0.46, 0.21),
                  # NOTE: these coords are different from physical sawyer as (x, y) coords flipped
                  hand_high=(0.17, 0.8, 0.55),
+                 norm_order=2,
                  **kwargs):
         self.quick_init(locals())
         SawyerReachXYEnv.__init__(
@@ -34,6 +35,7 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
             hand_low=hand_low,
             hand_high=hand_high,
             hand_z_position=hand_z_position,
+            norm_order=norm_order,
             **kwargs
         )
         self.observation_space = self.hand_space  # now we just care about hand
