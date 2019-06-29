@@ -60,6 +60,8 @@ def sim_policy(variant, num_trajs, save_video):
         policy,
         **variant['algo_params']
     )
+    # deterministic eval
+    agent = MakeDeterministic(agent)
 
     # load trained weights (otherwise simulate random policy)
     data_dir = variant['path_to_checkpoint']
@@ -77,7 +79,6 @@ def sim_policy(variant, num_trajs, save_video):
         agent.clear_z()
         paths = []
         for n in range(num_trajs):
-            policy = MakeDeterministic(policy)
             path = rollout(env, agent, max_path_length=variant['algo_params']['max_path_length'], accum_context=True, save_frames=False)
             path['goal'] = env._goal
             paths.append(path)
