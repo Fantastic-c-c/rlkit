@@ -11,6 +11,7 @@ import json
 import copy
 import pickle
 import datetime
+import traceback
 import torch
 
 from rlkit.envs import ENVS
@@ -196,7 +197,8 @@ def main(config, gpu, docker, debug):
     start_time = datetime.datetime.now()
     try:
         experiment(variant)
-    except:
+    except Exception as e: # won't catch Keyboard Interrupt! yay
+        print(traceback.format_exc()) # print the trace to the terminal
         _send_email('exception raised', start_time)
     else:
         _send_email('experiment finished', start_time)
