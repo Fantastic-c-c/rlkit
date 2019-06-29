@@ -174,13 +174,19 @@ class Logger(object):
                 fd.flush()
             sys.stdout.flush()
 
-
-    def save_data_with_torch(self, data, path='torch_data', ext='.pth.tar'):
-        filename = osp.join(self._snapshot_dir, path + ext)
+    def save_data_with_torch(data, path='torch_data', ext='.pth.tar'):
+        filename = osp.join(_snapshot_dir, path + ext)
         torch.save(data, filename)
 
-    def record_tabular(self, key, val):
-        self._tabular.append((self._tabular_prefix_str + str(key), str(val)))
+
+    def save_with_numpy(data_dict, d='np_data', path='arr', ext='.npz'):
+        ''' save a dict of numpy arrays as npz '''
+        os.makedirs(osp.join(_snapshot_dir, d), exist_ok=True)
+        filename = osp.join(_snapshot_dir, d, path + ext)
+        np.savez_compressed(filename, **data_dict)
+
+    def get_table_dict():
+        return dict(_tabular)
 
 
     def push_tabular_prefix(self, key):

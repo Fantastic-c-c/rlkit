@@ -2,6 +2,7 @@ import abc
 from collections import OrderedDict
 import time
 import os
+import os.path as osp
 
 import gtimer as gt
 import numpy as np
@@ -215,12 +216,20 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
             # save model and optimizer parameters
             params = self.get_epoch_snapshot(-1)
+            import time
+            s = time.time()
             logger.save_itr_params(-1, params)
+            e = time.time()
+            print('time to snapshot', e - s)
             # optionally save the current replay buffer
+            s = time.time()
             if self.save_replay_buffer:
-                logger.save_data_with_torch(self.replay_buffer, path='replay_buffer')
-                logger.save_data_with_torch(self.enc_replay_buffer, path='enc_replay_buffer')
-
+                for task, data_dict in self.replay_buffer.export_data():
+                    logger.save_with_numpy(data_dict, d='sac_replay_buffer', path='{}'.format(task))
+                for task, data_dict in self.enc_replay_buffer.export_data():
+                    logger.save_with_numpy(data_dict, d='enc_replay_buffer', path='{}'.format(task))
+            e = time.time()
+            print('time to save rb', e - s)
             # initial data collection
             if it_ == 0 and not self.skip_init_data_collection:
                 print('collecting initial data buffer for all train tasks')
@@ -231,7 +240,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     self.collect_data(self.num_initial_steps, 1, np.inf)
                 # save the initial replay buffer
                 print('saving the initial replay buffer')
-                logger.save_data_with_torch(self.replay_buffer, path='init_buffer')
+                for task, data_dict in self.replay_buffer.export_data():
+                    logger.save_with_numpy(data_dict, d='init_buffer', path='{}'.format(task))
 
             # sample data from train tasks
             print('epoch: {}, sampling training data'.format(it_))

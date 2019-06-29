@@ -86,3 +86,30 @@ class SimpleReplayBuffer(ReplayBuffer):
 
     def num_steps_can_sample(self):
         return self._size
+
+    def export_data(self):
+        ''' return contents as dict of numpy arrays for saving '''
+        # TODO: doesn't handle episode starts
+        return {
+                'obs': self._observations,
+                'actions': self._actions,
+                'rewards': self._rewards,
+                'terminals': self._terminals,
+                'next_obs': self._next_obs,
+                'sparse_rewards': self._sparse_rewards,
+                'top': self._top,
+                'size': self._size
+                }
+
+    def import_data(self, d):
+        ''' load saved data into this buffer object '''
+        self._observations = d['obs']
+        self._actions = d['actions']
+        self._rewards = d['rewards']
+        self._terminals = d['terminals']
+        self._next_obs = d['next_obs']
+        self._sparse_rewards = d['sparse_rewards']
+        self._top = d['top']
+        self._size = d['size']
+
+
