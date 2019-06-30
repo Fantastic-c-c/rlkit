@@ -50,7 +50,6 @@ class PEARLAgent(nn.Module):
                  policy,
                  cnn,
                  image_dim,
-                 debugnet,
                  **kwargs
     ):
         super().__init__()
@@ -61,9 +60,6 @@ class PEARLAgent(nn.Module):
 
         self.cnn = cnn  # new parameter: cnn
         self.image_dim = image_dim  # new parameter: dim of image observation
-
-        self.debug = debugnet
-        # self.debug.cuda()
 
         self.recurrent = kwargs['recurrent']
         self.use_ib = kwargs['use_information_bottleneck']
@@ -152,7 +148,7 @@ class PEARLAgent(nn.Module):
         else:
             self.z = self.z_means
 
-    def get_action(self, obs, deterministic=False, state=[10000,0,0]):
+    def get_action(self, obs, deterministic=False):
         ''' sample action from the policy, conditioned on the task embedding '''
 
         z = self.z
@@ -160,43 +156,6 @@ class PEARLAgent(nn.Module):
 
         obs = self.cnn(obs)
         obs = obs.view(1, -1)
-
-        # ############### debug ##############
-
-        # optimizer = torch.optim.Adam(self.debug.parameters(), lr=0.005)
-        # # cnnopt = torch.optim.Adam(self.cnn.parameters(), lr=0.01)
-        #
-        # # optimizer.zero_grad()
-        # # cnnopt.zero_grad()
-        #
-        # sp = self.debug(obs)   #[ , , ]
-        #
-        # if state[0] != 10000:
-        #     # optimizer.zero_grad()
-        #     state = torch.from_numpy(np.asanyarray(state))
-        #     state = state.double()
-        #
-        #     state = state.view(1, 3)
-        #     # print(state)
-        #     loss = torch.norm(state - sp.double().cpu())
-        #     print(loss)
-        #     # loss = nn.CrossEntropyLoss(sp.double().cpu(), state.long())
-        #     loss.backward()
-        #
-        #     # cnnopt.step()
-        #     optimizer.step()
-        #
-        #
-        #     obs = torch.cuda.FloatTensor(1, 64).fill_(0)
-        #     # obs = torch.zeros(1, 64)
-        #     obs[:, :3] = sp
-
-        # ######### debug session2 ####################
-        # # import pdb; pdb.set_trace()
-        # state = torch.DoubleTensor(state)
-        # # obs = torch.cuda.FloatTensor(1, 64).fill_(0)
-        # obs = torch.zeros(1, 64)
-        # obs[:, :3] = state
 
         in_ = torch.cat([obs, z], dim=1)
         return self.policy.get_action(in_, deterministic=deterministic)

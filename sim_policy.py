@@ -44,7 +44,6 @@ def sim_policy(variant, num_trajs, save_video):
     obs_dim = 64
     image_dim = env.image_dim
     cnn = Convnet()
-    debugnet = Debugnet()
 
 
     context_encoder = encoder_model(
@@ -64,7 +63,6 @@ def sim_policy(variant, num_trajs, save_video):
         policy,
         cnn,
         image_dim,
-        debugnet,
         **variant['algo_params']
     )
 

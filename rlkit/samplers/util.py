@@ -33,13 +33,10 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
     next_o = None
     path_length = 0
 
-    state = [10000,0,0]
-
-
     if animated:
         env.render()
     while path_length < max_path_length:
-        a, agent_info = agent.get_action(o, state=state)
+        a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)  #next_o is an image now
 
         state, img = env.debug(a)
@@ -128,7 +125,7 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
     if animated:
         env.render()
     while path_length < max_path_length:
-        a, agent_info = agent.get_action(o, state=state)
+        a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)  #next_o is an image now
 
         state, img = env.debug(a)

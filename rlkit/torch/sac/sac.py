@@ -18,7 +18,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             eval_tasks,
             latent_dim,
             cnn,   #new param: cnn
-            debugnet,  ####debug####
+            image_dim, #new param: image_dim
             nets,
 
             policy_lr=1e-3,
@@ -57,8 +57,8 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         self.recurrent = recurrent
         self.latent_dim = latent_dim
 
-        self.cnn = cnn   # new
-        self.debugnet = debugnet ####debug####
+        self.cnn = cnn   #new
+        self.image_dim = image_dim #new
 
         self.qf_criterion = nn.MSELoss()
         self.vf_criterion = nn.MSELoss()
@@ -148,7 +148,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         # for now we embed only observations and rewards
         # assume obs and rewards are (task, batch, feat)
         obs = [self.cnn(x) for x in obs]
-        obs = torch.stack(obs).view(-1, 64, 64)
+        obs = torch.stack(obs).view(-1, 64, 64)  # the first is the embedding_minibatch_size, the other is obs_dim
         task_data = torch.cat([obs, act, rewards], dim=2)
         return task_data
 
@@ -197,9 +197,9 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         obs, actions, rewards, next_obs, terms = self.sample_data(indices)
         t, b, _, _, _= obs.size()  # dim 1-->3, so add 2*_
 
-        obs = obs.view(-1, 3, 84, 84)
+        obs = obs.view(-1, 3, self.image_dim, self.image_dim)
         actions = actions.view(t * b, -1)
-        next_obs = next_obs.view(-1, 3, 84, 84)
+        next_obs = next_obs.view(-1, 3, self.image_dim, self.image_dim)
 
         obs = torch.squeeze(self.cnn(obs)).view(t, b, -1) # task x batch x feature
         next_obs = torch.squeeze(self.cnn(next_obs)).view(t, b, -1)
@@ -207,7 +207,6 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         # run inference in networks
         policy_outputs, task_z = self.agent(obs.detach(), context)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
-
 
         # Q and V networks
         # encoder will only get gradients from Q nets
@@ -224,7 +223,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
 
         # KL constraint on z if probabilistic
         self.context_optimizer.zero_grad()
-        # self.cnn_optimizer.zero_grad()
+        self.cnn_optimizer.zero_grad()
         if self.use_information_bottleneck:
             kl_div = self.agent.compute_kl_div()
             kl_loss = self.kl_lambda * kl_div
@@ -233,7 +232,6 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         # qf and encoder update (note encoder does not get grads from policy or vf)
         self.qf1_optimizer.zero_grad()
         self.qf2_optimizer.zero_grad()
-        ######### self.cnn_optimizer.zero_grad()
         rewards_flat = rewards.view(self.batch_size * num_tasks, -1)
         # scale rewards for Bellman update
         rewards_flat = rewards_flat * self.reward_scale
@@ -244,7 +242,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
         self.context_optimizer.step()
-        # self.cnn_optimizer.step()
+        self.cnn_optimizer.step()
 
         # compute min Q on the new actions
         min_q_new_actions = self._min_q(obs.detach(), new_actions, task_z.detach())
@@ -325,7 +323,6 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             policy=self.agent.policy.state_dict(),
             vf=self.vf.state_dict(),
             cnn=self.cnn.state_dict(),
-            debugnet=self.debugnet.state_dict(),   ####debug####
             target_vf=self.target_vf.state_dict(),
             context_encoder=self.agent.context_encoder.state_dict(),
         )
