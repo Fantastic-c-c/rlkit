@@ -39,9 +39,11 @@ def sim_policy(variant, num_trajs, save_video):
     recurrent = variant['algo_params']['recurrent']
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
 
+    goal_repeated = 10
+
     context_encoder = encoder_model(
         hidden_sizes=[200, 200, 200],
-        input_size=obs_dim + action_dim + reward_dim,
+        input_size=3 * goal_repeated,
         output_size=context_encoder,
     )
     policy = TanhGaussianPolicy(
@@ -54,6 +56,7 @@ def sim_policy(variant, num_trajs, save_video):
         latent_dim,
         context_encoder,
         policy,
+        goal_repeated,
         **variant['algo_params']
     )
     # deterministic eval
