@@ -46,7 +46,7 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
 
         if accum_context:
             # agent.update_context([o, a, r, next_o, d, env_info])   ##commented out for all goal as context
-            agent.update_context_goal(goal)
+            agent.update_context([o, a, r, next_o, d, env_info, goal])
 
         observations.append(o)
         rewards.append(r)

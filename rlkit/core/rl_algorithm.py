@@ -12,7 +12,7 @@ from rlkit.data_management.env_replay_buffer import MultiTaskReplayBuffer
 from rlkit.data_management.path_builder import PathBuilder
 from rlkit.samplers.in_place import InPlacePathSampler
 from rlkit.torch import pytorch_util as ptu
-
+import random
 
 class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def __init__(
@@ -126,6 +126,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self._old_table_keys = None
         self._current_path_builder = PathBuilder()
         self._exploration_paths = []
+
+        self.probability = 0.8
 
     def make_exploration_policy(self, policy):
          return policy

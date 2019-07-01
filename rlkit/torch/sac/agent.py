@@ -5,7 +5,7 @@ from torch import nn as nn
 import torch.nn.functional as F
 
 import rlkit.torch.pytorch_util as ptu
-
+import random
 
 def _product_of_gaussians(mus, sigmas_squared):
     '''
@@ -44,7 +44,8 @@ class PEARLAgent(nn.Module):
 
     def __init__(self,
                  latent_dim,
-                 context_encoder,
+                 context_encoder_experience,   ##new
+                 context_encoder_goal,  ##new
                  policy,
                  goal_repeated,  ##new
                  **kwargs
@@ -52,7 +53,8 @@ class PEARLAgent(nn.Module):
         super().__init__()
         self.latent_dim = latent_dim
 
-        self.context_encoder = context_encoder
+        self.context_encoder_experience = context_encoder_experience  ##new
+        self.context_encoder_goal = context_encoder_goal  ##new
         self.policy = policy
 
         self.recurrent = kwargs['recurrent']
@@ -66,6 +68,7 @@ class PEARLAgent(nn.Module):
         self.register_buffer('z_vars', torch.zeros(1, latent_dim))
 
         self.goal_repeated = goal_repeated
+        self.probability = 0.8
 
         self.clear_z()
 
@@ -87,36 +90,36 @@ class PEARLAgent(nn.Module):
         # reset the context collected so far
         self.context = None
         # reset any hidden state in the encoder network (relevant for RNN)
-        self.context_encoder.reset(num_tasks)
+        self.context_encoder_experience.reset(num_tasks)
+        self.context_encoder_goal.reset(num_tasks)
 
     def detach_z(self):
         ''' disable backprop through z '''
         self.z = self.z.detach()
         if self.recurrent:
-            self.context_encoder.hidden = self.context_encoder.hidden.detach()
+            self.context_encoder_experience.hidden = self.context_encoder_experience.hidden.detach()  ##new
+            self.context_encoder_goal.hidden = self.context_encoder_goal.hidden.detach()    ##new
 
     def update_context(self, inputs):
         ''' append single transition to the current context '''
-        o, a, r, no, d, info = inputs
+        o, a, r, no, d, info, g = inputs
         if self.sparse_rewards:
             r = info['sparse_reward']
         o = ptu.from_numpy(o[None, None, ...])
         a = ptu.from_numpy(a[None, None, ...])
         r = ptu.from_numpy(np.array([r])[None, None, ...])
-        data = torch.cat([o, a, r], dim=2)
+        g = ptu.from_numpy(np.array(g)[None, None, ...]).repeat(1, 1, self.goal_repeated)
+        experience = torch.cat([o, a, r], dim=2)
         if self.context is None:
-            self.context = data
+            if random.random() < self.probability:
+                self.context = g
+            else:
+                self.context = experience
         else:
-            self.context = torch.cat([self.context, data], dim=1)
-
-    def update_context_goal(self, goal):        ##new
-        ''' append single transition to the current context '''
-        g = ptu.from_numpy(goal[None, None, ...])
-        data = g.repeat(1, 1, self.goal_repeated)
-        if self.context is None:
-            self.context = data
-        else:
-            self.context = torch.cat([self.context, data], dim=1)
+            if self.context.shape[2] == experience.shape[2]:
+                self.context = torch.cat([self.context, experience], dim=1)
+            else:
+                self.context = torch.cat([self.context, g], dim=1)
 
     def compute_kl_div(self):
         ''' compute KL( q(z|c) || r(z) ) '''
@@ -128,8 +131,12 @@ class PEARLAgent(nn.Module):
 
     def infer_posterior(self, context):
         ''' compute q(z|c) as a function of input context and sample new z from it'''
-        params = self.context_encoder(context)
-        params = params.view(context.size(0), -1, self.context_encoder.output_size)
+        if context.shape[2] == self.context_encoder_experience.input_size:
+            params = self.context_encoder_experience(context)
+            params = params.view(context.size(0), -1, self.context_encoder_experience.output_size)
+        else:
+            params = self.context_encoder_goal(context)
+            params = params.view(context.size(0), -1, self.context_encoder_goal.output_size)
         # with probabilistic z, predict mean and variance of q(z | c)
         if self.use_ib:
             mu = params[..., :self.latent_dim]
@@ -190,7 +197,7 @@ class PEARLAgent(nn.Module):
 
     @property
     def networks(self):
-        return [self.context_encoder, self.policy]
+        return [self.context_encoder_experience, self.context_encoder_goal, self.policy]
 
 
 
