@@ -1,4 +1,5 @@
 import os, shutil
+import os.path as osp
 import pickle
 import json
 import numpy as np
@@ -28,6 +29,7 @@ def sim_policy(variant, num_trajs, save_video):
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
     eval_tasks=list(tasks[-variant['n_eval_tasks']:])
+    print('testing on {} test tasks, {} trajectories each'.format(len(eval_tasks), num_trajs))
 
     # instantiate networks
     latent_dim = variant['latent_size']
@@ -56,12 +58,14 @@ def sim_policy(variant, num_trajs, save_video):
     )
 
     # load trained weights (otherwise simulate random policy)
-    data_dir = variant['path_to_weights']
+    data_dir = variant['path_to_checkpoint']
     if data_dir is not None:
-        context_encoder.load_state_dict(torch.load(os.path.join(data_dir, 'context_encoder.pth')))
-        policy.load_state_dict(torch.load(os.path.join(data_dir, 'policy.pth')))
+        checkpoint = torch.load(osp.join(data_dir, 'checkpoint.pth.tar'))
+        context_encoder.load_state_dict(checkpoint['context_encoder_weights'])
+        policy.load_state_dict(checkpoint['policy_weights'])
 
     # loop through tasks collecting rollouts
+    os.makedirs(osp.join(data_dir, 'sim_policy'), exist_ok=True)
     all_rets = []
     video_frames = []
     for idx in eval_tasks:
@@ -78,7 +82,7 @@ def sim_policy(variant, num_trajs, save_video):
             if n >= variant['algo_params']['num_exp_traj_eval']:
                 agent.infer_posterior(agent.context)
         all_rets.append([sum(p['rewards']) for p in paths])
-        file_name = os.path.join(data_dir, 'task{}_rollouts.pkl'.format(idx))
+        file_name = osp.join(data_dir, 'sim_policy', '{}.pkl'.format(idx))
         with open(file_name, 'wb') as f:
             pickle.dump(paths, f, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -110,7 +114,7 @@ def sim_policy(variant, num_trajs, save_video):
 def main(config, num_trajs, video):
     variant = default_config
     if config:
-        with open(os.path.join(config)) as f:
+        with open(osp.join(config)) as f:
             exp_params = json.load(f)
         variant = deep_update_dict(exp_params, variant)
     sim_policy(variant, num_trajs, video)
