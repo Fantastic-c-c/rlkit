@@ -24,7 +24,11 @@ def sim_policy(variant, num_trajs, save_video):
     '''
 
     # create multi-task environment and sample tasks
-    env = CameraWrapper(NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params'])), variant['util_params']['gpu_id'])
+    if ("sawyer_reach_real" in variant['env_name']):  # We need a separate import because this can only be done when on a ROS computer
+        from rlkit.envs.sawyer_reach_real import MultitaskSawyerReachEnv
+        env = NormalizedBoxEnv(MultitaskSawyerReachEnv(**variant['env_params']))
+    else:
+        env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
     tasks = env.get_all_task_idx()
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -67,37 +71,22 @@ def sim_policy(variant, num_trajs, save_video):
     # loop through tasks collecting rollouts
     os.makedirs(osp.join(data_dir, 'sim_policy'), exist_ok=True)
     all_rets = []
-    video_frames = []
     for idx in eval_tasks:
+        print('task: {}'.format(idx))
         env.reset_task(idx)
         agent.clear_z()
         paths = []
         for n in range(num_trajs):
             policy = MakeDeterministic(policy)
-            path = rollout(env, agent, max_path_length=variant['algo_params']['max_path_length'], accum_context=True, save_frames=save_video)
+            path = rollout(env, agent, max_path_length=variant['algo_params']['max_path_length'], accum_context=True, save_frames=False)
             path['goal'] = env._goal
             paths.append(path)
-            if save_video:
-                video_frames += [t['frame'] for t in path['env_infos']]
             if n >= variant['algo_params']['num_exp_traj_eval']:
                 agent.infer_posterior(agent.context)
         all_rets.append([sum(p['rewards']) for p in paths])
         file_name = osp.join(data_dir, 'sim_policy', '{}.pkl'.format(idx))
         with open(file_name, 'wb') as f:
             pickle.dump(paths, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-    if save_video:
-        # save frames to file temporarily
-        temp_dir = os.path.join(data_dir, 'temp')
-        os.makedirs(temp_dir, exist_ok=True)
-        for i, frm in enumerate(video_frames):
-            frm.save(os.path.join(temp_dir, '%06d.jpg' % i))
-
-        video_filename=os.path.join(data_dir, 'video.mp4'.format(idx))
-        # run ffmpeg to make the video
-        os.system('ffmpeg -i {}/%06d.jpg -vcodec mpeg4 {}'.format(temp_dir, video_filename))
-        # delete the frames
-        shutil.rmtree(temp_dir)
 
     # compute average returns across tasks
     n = min([len(a) for a in all_rets])
@@ -112,6 +101,7 @@ def sim_policy(variant, num_trajs, save_video):
 @click.option('--num_trajs', default=3)
 @click.option('--video', is_flag=True, default=False)
 def main(config, num_trajs, video):
+    # TODO: enable video capture from webcam
     variant = default_config
     if config:
         with open(osp.join(config)) as f:
