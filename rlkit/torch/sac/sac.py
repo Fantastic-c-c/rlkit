@@ -9,6 +9,8 @@ import rlkit.torch.pytorch_util as ptu
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.core.rl_algorithm import MetaRLAlgorithm
 
+import random
+
 
 class PEARLSoftActorCritic(MetaRLAlgorithm):
     def __init__(
@@ -85,8 +87,12 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             self.vf.parameters(),
             lr=vf_lr,
         )
-        self.context_optimizer = optimizer_class(
-            self.agent.context_encoder.parameters(),
+        self.context_optimizer_experience = optimizer_class(
+            self.agent.context_encoder_experience.parameters(),
+            lr=context_lr,
+        )
+        self.context_optimizer_goal = optimizer_class(
+            self.agent.context_encoder_goal.parameters(),
             lr=context_lr,
         )
 
@@ -110,7 +116,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             device = ptu.device
         # TODO: there must be an easier way??
         # relevant issue: https://github.com/pytorch/pytorch/issues/2830
-        for optimizer in [self.policy_optimizer, self.qf1_optimizer, self.qf2_optimizer, self.vf_optimizer, self.context_optimizer]:
+        for optimizer in [self.policy_optimizer, self.qf1_optimizer, self.qf2_optimizer, self.vf_optimizer, self.context_optimizer_experience, self.context_optimizer_goal]:
             for state in optimizer.state.values():
                 for k, v in state.items():
                     if torch.is_tensor(v):
@@ -156,7 +162,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
 
         return [obs, actions, rewards, next_obs, terms, goals]
 
-    def prepare_encoder_data(self, obs, act, rewards):
+    def prepare_encoder_data(self, obs, act, rewards):    # for experience only
         ''' prepare context for encoding '''
         # for now we embed only observations and rewards
         # assume obs and rewards are (task, batch, feat)
@@ -171,7 +177,8 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         rewards = batch['rewards'][None, ...]
         context = self.prepare_encoder_data(obs, act, rewards)
         goal = batch['goals']
-        context = goal.repeat(1, self.goal_repeated).unsqueeze(0) #########################change context to goal
+        if random.random() < self.probability:
+            context = goal.repeat(1, self.goal_repeated).unsqueeze(0) #########################change context to goal
         return context
 
     ##### Training #####
@@ -189,7 +196,8 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             obs_enc, act_enc, rewards_enc, _, _, goals_enc = mini_batch
 
             context = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
-            context = goals_enc.repeat(1, 1, self.goal_repeated)  #########################change context to goal
+            if random.random() < self.probability:
+                context = goals_enc.repeat(1, 1, self.goal_repeated)  #########################change context to goal
 
             self._take_step(indices, context)
 
@@ -232,7 +240,8 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             target_v_values = self.target_vf(next_obs, task_z)
 
         # KL constraint on z if probabilistic
-        self.context_optimizer.zero_grad()
+        self.context_optimizer_experience.zero_grad()
+        self.context_optimizer_goal.zero_grad()
         if self.use_information_bottleneck:
             kl_div = self.agent.compute_kl_div()
             kl_loss = self.kl_lambda * kl_div
@@ -250,7 +259,8 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         qf_loss.backward()
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
-        self.context_optimizer.step()
+        self.context_optimizer_experience.step()
+        self.context_optimizer_goal.step()
 
         # compute min Q on the new actions
         min_q_new_actions = self._min_q(obs, new_actions, task_z)
@@ -332,13 +342,15 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             policy_weights=self.agent.policy.state_dict(),
             vf_weights=self.vf.state_dict(),
             target_vf_weights=self.target_vf.state_dict(),
-            context_encoder_weights=self.agent.context_encoder.state_dict(),
+            context_encoder_experience_weights=self.agent.context_encoder_experience.state_dict(),  ##new
+            context_encoder_goal_weights=self.agent.context_encoder_goal.state_dict(),  ##new
 
             # optimizer weights
             qf1_optimizer=self.qf1_optimizer.state_dict(),
             qf2_optimizer=self.qf2_optimizer.state_dict(),
             policy_optimizer=self.policy_optimizer.state_dict(),
             vf_optimizer=self.vf_optimizer.state_dict(),
-            context_optimizer=self.context_optimizer.state_dict(),
+            context_optimizer_experience=self.context_optimizer_experience.state_dict(), ##new
+            context_optimizer_goal=self.context_optimizer_goal.state_dict(),  ##new
         )
         return snapshot

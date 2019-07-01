@@ -40,11 +40,18 @@ def experiment(variant):
 
     goal_repeated = 10
 
-    context_encoder = encoder_model(
+    context_encoder_experience = encoder_model(
+        hidden_sizes=[200, 200, 200],
+        input_size=obs_dim + action_dim + reward_dim,
+        output_size=context_encoder,
+    )
+
+    context_encoder_goal = encoder_model(
         hidden_sizes=[200, 200, 200],
         input_size=3 * goal_repeated,
         output_size=context_encoder,
     )
+
     qf1 = FlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
         input_size=obs_dim + action_dim + latent_dim,
@@ -68,7 +75,8 @@ def experiment(variant):
     )
     agent = PEARLAgent(
         latent_dim,
-        context_encoder,
+        context_encoder_experience, ##new
+        context_encoder_goal, ##new
         policy,
         goal_repeated,
         **variant['algo_params']
@@ -84,7 +92,8 @@ def experiment(variant):
 
         # load model weights
         print('loading saved model weights...')
-        context_encoder.load_state_dict(checkpoint['context_encoder_weights'])
+        context_encoder_experience.load_state_dict(checkpoint['context_encoder_experience_weights'])  ##new
+        context_encoder_goal.load_state_dict(checkpoint['context_encoder_goal_weights'])    ##new
         qf1.load_state_dict(checkpoint['qf1_weights'])
         qf2.load_state_dict(checkpoint['qf2_weights'])
         vf.load_state_dict(checkpoint['vf_weights'])
@@ -93,7 +102,7 @@ def experiment(variant):
     # optional GPU mode, move nets to gpu
     ptu.set_gpu_mode(variant['util_params']['use_gpu'], variant['util_params']['gpu_id'])
     if ptu.gpu_enabled():
-        for net in [context_encoder, qf1, qf2, vf, policy]:
+        for net in [context_encoder_experience, context_encoder_goal, qf1, qf2, vf, policy]: ##new
             net.to(ptu.device)
 
     # instantiate algorithm, creates optimizers
@@ -130,7 +139,8 @@ def experiment(variant):
         algorithm.qf1_optimizer.load_state_dict(checkpoint['qf1_optimizer'])
         algorithm.qf2_optimizer.load_state_dict(checkpoint['qf2_optimizer'])
         algorithm.vf_optimizer.load_state_dict(checkpoint['vf_optimizer'])
-        algorithm.context_optimizer.load_state_dict(checkpoint['context_optimizer'])
+        algorithm.context_optimizer_experience.load_state_dict(checkpoint['context_optimizer_experience'])
+        algorithm.context_optimizer_goal.load_state_dict(checkpoint['context_optimizer_goal'])
 
         if ptu.gpu_enabled():
             algorithm.to_optimizers()

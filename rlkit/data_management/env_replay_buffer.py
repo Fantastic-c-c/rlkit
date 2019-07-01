@@ -44,7 +44,6 @@ class MultiTaskReplayBuffer(object):
         else:
             batch = self.task_buffers[task].random_batch(batch_size)
 
-        # import pdb; pdb.set_trace()
         return batch
 
     def num_steps_can_sample(self, task):
