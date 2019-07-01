@@ -33,6 +33,7 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
     o = env.reset()
     next_o = None
     path_length = 0
+    goals = [] #new
 
     if animated:
         env.render()
@@ -40,14 +41,23 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
         # update the agent's current context
+
+        goal = env._state_goal
+
         if accum_context:
-            agent.update_context([o, a, r, next_o, d, env_info])
+            # agent.update_context([o, a, r, next_o, d, env_info])   ##commented out for all goal as context
+            agent.update_context_goal(goal)
+
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
         actions.append(a)
         agent_infos.append(agent_info)
         path_length += 1
+
+
+        goals.append(goal)
+
         if d:
             break
         o = next_o
@@ -72,6 +82,7 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
             np.expand_dims(next_o, 0)
         )
     )
+
     return dict(
         observations=observations,
         actions=actions,
@@ -80,6 +91,7 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
         terminals=np.array(terminals).reshape(-1, 1),
         agent_infos=agent_infos,
         env_infos=env_infos,
+        goals=goals,
     )
 
 

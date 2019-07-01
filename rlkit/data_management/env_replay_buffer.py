@@ -27,13 +27,13 @@ class MultiTaskReplayBuffer(object):
 
 
     def add_sample(self, task, observation, action, reward, terminal,
-            next_observation, **kwargs):
+            next_observation, goal, **kwargs):
 
         if isinstance(self._action_space, Discrete):
             action = np.eye(self._action_space.n)[action]
         self.task_buffers[task].add_sample(
                 observation, action, reward, terminal,
-                next_observation, **kwargs)
+                next_observation, goal, **kwargs)    ##new added goal
 
     def terminate_episode(self, task):
         self.task_buffers[task].terminate_episode()
@@ -43,6 +43,8 @@ class MultiTaskReplayBuffer(object):
             batch = self.task_buffers[task].random_sequence(batch_size)
         else:
             batch = self.task_buffers[task].random_batch(batch_size)
+
+        # import pdb; pdb.set_trace()
         return batch
 
     def num_steps_can_sample(self, task):
@@ -50,6 +52,7 @@ class MultiTaskReplayBuffer(object):
 
     def add_path(self, task, path):
         self.task_buffers[task].add_path(path)
+        import pdb; pdb.set_trace()
 
     def add_paths(self, task, paths):
         for path in paths:
