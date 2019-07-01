@@ -44,8 +44,8 @@ def datetimestamp(divider=''):
 def experiment(variant):
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
-    goal_low = np.array((0.1 - .5, 0.8 - .5, 0.2))
-    goal_high = np.array((0.1 + .5, 0.8 + .5, 0.2))
+    goal_low = np.array((0.1 - .05, 0.8 - .05, 0.2))
+    goal_high = np.array((0.1 + .05, 0.8 + .05, 0.2))
 
     goals = np.random.uniform(low=goal_low, high=goal_high, size=(N_TASKS, len(goal_low))).tolist()
 
@@ -171,7 +171,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'push'
+    exp_name = 'push2'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)
