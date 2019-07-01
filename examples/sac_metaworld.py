@@ -35,7 +35,7 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_dial_turn_6dof import SawyerDialTu
 # from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_6dof import SawyerDoor6DOFEnv
 # from multiworld.envs.mujoco.sawyer_xyz.sawyer_drawer_close_6dof import SawyerDrawerClose6DOFEnv
 
-
+N_TASKS = 50
 
 def datetimestamp(divider=''):
     now = datetime.datetime.now()
@@ -44,8 +44,15 @@ def datetimestamp(divider=''):
 def experiment(variant):
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
+    goal_low = np.array((0.1 - .5, 0.8 - .5, 0.2))
+    goal_high = np.array((0.1 + .5, 0.8 + .5, 0.2))
+
+    goals = np.random.uniform(low=goal_low, high=goal_high, size=(N_TASKS, len(goal_low))).tolist()
+
     # Initialize copies of each environment with random goals.
-    tasks = [SawyerReachPushPickPlace6DOFEnv(if_render=False, fix_task=True, task_idx=2, multitask=False)]*60
+    tasks = []
+    for i in range(N_TASKS):
+        tasks.append(SawyerReachPushPickPlace6DOFEnv(if_render=False, fix_goal=goals[i], fix_task=True, task_idx=2, multitask=False))
 
 
     for env in tasks:
@@ -104,7 +111,7 @@ def experiment(variant):
     algorithm = ProtoSoftActorCritic(
         envs=tasks,
         train_tasks=list(tasks[:50]),
-        eval_tasks=list(tasks[50:]),
+        eval_tasks=list(tasks[10:]),
         nets=[agent, task_enc, policy, qf1, qf2, vf, rf],
         latent_dim=latent_dim,
         **variant['algo_params']
@@ -118,7 +125,7 @@ def experiment(variant):
 @click.argument('gpu', default=0)
 @click.option('--docker', default=0)
 def main(gpu, docker):
-    max_path_length = 500
+    max_path_length = 150
     # noinspection PyTypeChecker
     variant = dict(
         task_params=dict(
