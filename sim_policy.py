@@ -71,7 +71,6 @@ def sim_policy(variant, num_trajs, save_video):
         policy.load_state_dict(checkpoint['policy_weights'])
 
     # loop through tasks collecting rollouts
-    
     os.makedirs(osp.join(data_dir, 'sim_policy'), exist_ok=True)
     all_rets = []
     for idx in eval_tasks:
