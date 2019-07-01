@@ -254,6 +254,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.replay_buffer.add_paths(self.task_idx, paths)
             if add_to_enc_buffer:
                 self.enc_replay_buffer.add_paths(self.task_idx, paths)
+                # import pdb; pdb.set_trace()
             if update_posterior_rate != np.inf:
                 context = self.prepare_context(self.task_idx)
                 self.agent.infer_posterior(context)

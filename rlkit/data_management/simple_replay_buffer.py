@@ -22,16 +22,19 @@ class SimpleReplayBuffer(ReplayBuffer):
         self._sparse_rewards = np.zeros((max_replay_buffer_size, 1))
         # self._terminals[i] = a terminal was received at time i
         self._terminals = np.zeros((max_replay_buffer_size, 1), dtype='uint8')
+
+        self._goals = np.zeros((max_replay_buffer_size, 3))
         self.clear()
 
     def add_sample(self, observation, action, reward, terminal,
-                   next_observation, **kwargs):
+                   next_observation, goal, **kwargs):  ##new add goal
         self._observations[self._top] = observation
         self._actions[self._top] = action
         self._rewards[self._top] = reward
         self._terminals[self._top] = terminal
         self._next_obs[self._top] = next_observation
         self._sparse_rewards[self._top] = kwargs['env_info'].get('sparse_reward', 0)
+        self._goals[self._top] = goal  ##new
         self._advance()
 
     def terminate_episode(self):
@@ -55,6 +58,7 @@ class SimpleReplayBuffer(ReplayBuffer):
             self._size += 1
 
     def sample_data(self, indices):
+
         return dict(
             observations=self._observations[indices],
             actions=self._actions[indices],
@@ -62,6 +66,7 @@ class SimpleReplayBuffer(ReplayBuffer):
             terminals=self._terminals[indices],
             next_observations=self._next_obs[indices],
             sparse_rewards=self._sparse_rewards[indices],
+            goals=self._goals[indices],  ##new
         )
 
     def random_batch(self, batch_size):

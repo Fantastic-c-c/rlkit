@@ -18,6 +18,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             eval_tasks,
             latent_dim,
             nets,
+            goal_repeated,
 
             policy_lr=1e-3,
             qf_lr=1e-3,
@@ -51,6 +52,8 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         self.policy_pre_activation_weight = policy_pre_activation_weight
         self.plotter = plotter
         self.render_eval_paths = render_eval_paths
+
+        self.goal_repeated = goal_repeated
 
         self.recurrent = recurrent
         self.latent_dim = latent_dim
@@ -117,7 +120,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
     def sample_data(self, indices, encoder=False):
         ''' sample data from replay buffers to construct a training meta-batch '''
         # collect data from multiple tasks for the meta-batch
-        obs, actions, rewards, next_obs, terms = [], [], [], [], []
+        obs, actions, rewards, next_obs, terms, goals = [], [], [], [], [], []
         for idx in indices:
             if encoder:
                 batch = ptu.np_to_pytorch_batch(self.enc_replay_buffer.random_batch(idx, batch_size=self.embedding_batch_size, sequence=self.recurrent))
@@ -132,17 +135,26 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
                 r = batch['rewards'][None, ...]
             no = batch['next_observations'][None, ...]
             t = batch['terminals'][None, ...]
+
+            g = batch['goals'][None, ...]
+
             obs.append(o)
             actions.append(a)
             rewards.append(r)
             next_obs.append(no)
             terms.append(t)
+
+            goals.append(g)
+
         obs = torch.cat(obs, dim=0)
         actions = torch.cat(actions, dim=0)
         rewards = torch.cat(rewards, dim=0)
         next_obs = torch.cat(next_obs, dim=0)
         terms = torch.cat(terms, dim=0)
-        return [obs, actions, rewards, next_obs, terms]
+
+        goals = torch.cat(goals, dim=0)
+
+        return [obs, actions, rewards, next_obs, terms, goals]
 
     def prepare_encoder_data(self, obs, act, rewards):
         ''' prepare context for encoding '''
@@ -158,6 +170,8 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         act = batch['actions'][None, ...]
         rewards = batch['rewards'][None, ...]
         context = self.prepare_encoder_data(obs, act, rewards)
+        goal = batch['goals']
+        context = goal.repeat(1, self.goal_repeated).unsqueeze(0) #########################change context to goal
         return context
 
     ##### Training #####
@@ -172,8 +186,11 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
 
         for i in range(num_updates):
             mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
-            obs_enc, act_enc, rewards_enc, _, _ = mini_batch
+            obs_enc, act_enc, rewards_enc, _, _, goals_enc = mini_batch
+
             context = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
+            context = goals_enc.repeat(1, 1, self.goal_repeated)  #########################change context to goal
+
             self._take_step(indices, context)
 
             # stop backprop
@@ -193,7 +210,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         num_tasks = len(indices)
 
         # data is (task, batch, feat)
-        obs, actions, rewards, next_obs, terms = self.sample_data(indices)
+        obs, actions, rewards, next_obs, terms, goals = self.sample_data(indices)
 
         # run inference in networks
         policy_outputs, task_z = self.agent(obs, context)

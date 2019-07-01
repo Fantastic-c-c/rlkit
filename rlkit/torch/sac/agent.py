@@ -46,6 +46,7 @@ class PEARLAgent(nn.Module):
                  latent_dim,
                  context_encoder,
                  policy,
+                 goal_repeated,  ##new
                  **kwargs
     ):
         super().__init__()
@@ -63,6 +64,8 @@ class PEARLAgent(nn.Module):
         self.register_buffer('z', torch.zeros(1, latent_dim))
         self.register_buffer('z_means', torch.zeros(1, latent_dim))
         self.register_buffer('z_vars', torch.zeros(1, latent_dim))
+
+        self.goal_repeated = goal_repeated
 
         self.clear_z()
 
@@ -106,6 +109,15 @@ class PEARLAgent(nn.Module):
         else:
             self.context = torch.cat([self.context, data], dim=1)
 
+    def update_context_goal(self, goal):        ##new
+        ''' append single transition to the current context '''
+        g = ptu.from_numpy(goal[None, None, ...])
+        data = g.repeat(1, 1, self.goal_repeated)
+        if self.context is None:
+            self.context = data
+        else:
+            self.context = torch.cat([self.context, data], dim=1)
+
     def compute_kl_div(self):
         ''' compute KL( q(z|c) || r(z) ) '''
         prior = torch.distributions.Normal(ptu.zeros(self.latent_dim), ptu.ones(self.latent_dim))
@@ -142,6 +154,7 @@ class PEARLAgent(nn.Module):
         ''' sample action from the policy, conditioned on the task embedding '''
         z = self.z
         obs = ptu.from_numpy(obs[None])
+
         in_ = torch.cat([obs, z], dim=1)
         return self.policy.get_action(in_, deterministic=deterministic)
 
