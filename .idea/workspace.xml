@@ -2,15 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="38e1c484-c3d8-41c8-b546-7a70b71dc062" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/configs/sawyer_reach_sim_2d.json" beforeDir="false" afterPath="$PROJECT_DIR$/configs/sawyer_reach_sim_2d.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/launch_experiment.py" beforeDir="false" afterPath="$PROJECT_DIR$/launch_experiment.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/rlkit/core/rl_algorithm.py" beforeDir="false" afterPath="$PROJECT_DIR$/rlkit/core/rl_algorithm.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/rlkit/data_management/env_replay_buffer.py" beforeDir="false" afterPath="$PROJECT_DIR$/rlkit/data_management/env_replay_buffer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/rlkit/data_management/replay_buffer.py" beforeDir="false" afterPath="$PROJECT_DIR$/rlkit/data_management/replay_buffer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/rlkit/data_management/simple_replay_buffer.py" beforeDir="false" afterPath="$PROJECT_DIR$/rlkit/data_management/simple_replay_buffer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/rlkit/samplers/util.py" beforeDir="false" afterPath="$PROJECT_DIR$/rlkit/samplers/util.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/rlkit/torch/sac/agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/rlkit/torch/sac/agent.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/rlkit/torch/sac/sac.py" beforeDir="false" afterPath="$PROJECT_DIR$/rlkit/torch/sac/sac.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sim_policy.py" beforeDir="false" afterPath="$PROJECT_DIR$/sim_policy.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -21,10 +15,22 @@
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
       <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/sim_policy.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="783">
+              <caret line="27" column="10" lean-forward="true" selection-start-line="26" selection-start-column="10" selection-end-line="27" selection-end-column="10" />
+              <folding>
+                <element signature="e#0#17#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/launch_experiment.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="941">
-              <caret line="105" column="36" selection-start-line="105" selection-start-column="36" selection-end-line="105" selection-end-column="36" />
+            <state relative-caret-position="-108">
+              <caret line="72" column="8" lean-forward="true" selection-start-line="72" selection-start-column="8" selection-end-line="72" selection-end-column="22" />
               <folding>
                 <element signature="e#45#54#0" expanded="true" />
               </folding>
@@ -35,8 +41,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/rlkit/core/rl_algorithm.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="3302">
-              <caret line="258" column="61" selection-start-line="258" selection-start-column="61" selection-end-line="258" selection-end-column="61" />
+            <state relative-caret-position="138">
+              <caret line="224" column="19" selection-start-line="224" selection-start-column="19" selection-end-line="224" selection-end-column="19" />
               <folding>
                 <element signature="e#0#10#0" expanded="true" />
               </folding>
@@ -47,8 +53,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/rlkit/torch/sac/sac.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="696">
-              <caret line="192" selection-start-line="192" selection-end-line="192" />
+            <state relative-caret-position="427">
+              <caret line="325" column="21" selection-start-line="325" selection-start-column="21" selection-end-line="325" selection-end-column="21" />
               <folding>
                 <element signature="e#0#35#0" expanded="true" />
               </folding>
@@ -71,8 +77,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/rlkit/torch/sac/agent.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="900">
-              <caret line="114" column="48" selection-start-line="114" selection-start-column="48" selection-end-line="114" selection-end-column="48" />
+            <state relative-caret-position="541">
+              <caret line="128" column="37" selection-start-line="128" selection-start-column="37" selection-end-line="128" selection-end-column="37" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -81,22 +87,10 @@
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/rlkit/envs/sawyer_xyreach_sim_env.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="3726">
-              <caret line="147" column="22" selection-start-line="147" selection-start-column="22" selection-end-line="147" selection-end-column="22" />
-              <folding>
-                <element signature="e#16#34#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/rlkit/data_management/env_replay_buffer.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1325">
-              <caret line="53" column="46" selection-start-line="53" selection-start-column="46" selection-end-line="53" selection-end-column="46" />
+            <state relative-caret-position="1125">
+              <caret line="45" selection-start-line="45" selection-end-line="45" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -129,7 +123,7 @@
         <entry file="file://$PROJECT_DIR$/rlkit/samplers/util.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="390">
-              <caret line="48" column="43" lean-forward="true" selection-start-line="48" selection-start-column="43" selection-end-line="48" selection-end-column="43" />
+              <caret line="48" column="43" selection-start-line="48" selection-start-column="43" selection-end-line="48" selection-end-column="43" />
             </state>
           </provider>
         </entry>
@@ -145,7 +139,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>view()</find>
       <find>next_obs</find>
       <find>iii</find>
       <find>so add 2*_</find>
@@ -175,6 +168,7 @@
       <find>prepare</find>
       <find>self.context</find>
       <find>pdb</find>
+      <find>prepare_context</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -192,7 +186,6 @@
         <option value="$PROJECT_DIR$/rlkit/torch/debugnet.py" />
         <option value="$PROJECT_DIR$/rlkit/envs/sawyer_xyreach_sim_env.py" />
         <option value="$PROJECT_DIR$/rlkit/torch/sac/policies.py" />
-        <option value="$PROJECT_DIR$/sim_policy.py" />
         <option value="$PROJECT_DIR$/multiworld/envs/mujoco/sawyer_xyz/sawyer_reach.py" />
         <option value="$PROJECT_DIR$/multiworld/core/multitask_env.py" />
         <option value="$PROJECT_DIR$/rlkit/samplers/in_place.py" />
@@ -204,12 +197,13 @@
         <option value="$PROJECT_DIR$/rlkit/torch/sac/agent.py" />
         <option value="$PROJECT_DIR$/launch_experiment.py" />
         <option value="$PROJECT_DIR$/rlkit/torch/sac/sac.py" />
+        <option value="$PROJECT_DIR$/sim_policy.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="857" />
-    <option name="y" value="595" />
+    <option name="x" value="804" />
+    <option name="y" value="635" />
     <option name="width" value="2471" />
     <option name="height" value="1602" />
   </component>
@@ -343,14 +337,13 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="584" y="446" width="2471" height="1602" extended-state="0" />
-    <editor active="true" />
+    <frame x="902" y="339" width="2471" height="1602" extended-state="0" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.11315359" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
-      <window_info active="true" anchor="bottom" id="Find" order="1" visible="true" weight="0.24016011" />
+      <window_info active="true" anchor="bottom" id="Find" order="1" visible="true" weight="0.16744496" />
       <window_info anchor="bottom" id="Run" order="2" weight="0.32972386" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.1488901" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
@@ -514,7 +507,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/sim_policy.py</url>
-          <line>63</line>
+          <line>66</line>
           <option name="timeStamp" value="46" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -857,16 +850,6 @@
     <entry file="file://$PROJECT_DIR$/rlkit/torch/data_management/__init__.py">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
-    <entry file="file://$PROJECT_DIR$/sim_policy.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="183">
-          <caret line="80" column="77" selection-start-line="80" selection-start-column="77" selection-end-line="80" selection-end-column="77" />
-          <folding>
-            <element signature="e#0#17#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/multiworld/core/multitask_env.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="553">
@@ -910,8 +893,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/rlkit/core/rl_algorithm.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3302">
-          <caret line="258" column="61" selection-start-line="258" selection-start-column="61" selection-end-line="258" selection-end-column="61" />
+        <state relative-caret-position="138">
+          <caret line="224" column="19" selection-start-line="224" selection-start-column="19" selection-end-line="224" selection-end-column="19" />
           <folding>
             <element signature="e#0#10#0" expanded="true" />
           </folding>
@@ -930,8 +913,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/rlkit/data_management/env_replay_buffer.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1325">
-          <caret line="53" column="46" selection-start-line="53" selection-start-column="46" selection-end-line="53" selection-end-column="46" />
+        <state relative-caret-position="1125">
+          <caret line="45" selection-start-line="45" selection-end-line="45" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>
@@ -958,14 +941,14 @@
     <entry file="file://$PROJECT_DIR$/rlkit/samplers/util.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="390">
-          <caret line="48" column="43" lean-forward="true" selection-start-line="48" selection-start-column="43" selection-end-line="48" selection-end-column="43" />
+          <caret line="48" column="43" selection-start-line="48" selection-start-column="43" selection-end-line="48" selection-end-column="43" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/rlkit/torch/sac/agent.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="900">
-          <caret line="114" column="48" selection-start-line="114" selection-start-column="48" selection-end-line="114" selection-end-column="48" />
+        <state relative-caret-position="541">
+          <caret line="128" column="37" selection-start-line="128" selection-start-column="37" selection-end-line="128" selection-end-column="37" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>
@@ -974,18 +957,28 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/launch_experiment.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="941">
-          <caret line="105" column="36" selection-start-line="105" selection-start-column="36" selection-end-line="105" selection-end-column="36" />
+        <state relative-caret-position="-108">
+          <caret line="72" column="8" lean-forward="true" selection-start-line="72" selection-start-column="8" selection-end-line="72" selection-end-column="22" />
           <folding>
             <element signature="e#45#54#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/sim_policy.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="783">
+          <caret line="27" column="10" lean-forward="true" selection-start-line="26" selection-start-column="10" selection-end-line="27" selection-end-column="10" />
+          <folding>
+            <element signature="e#0#17#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/rlkit/torch/sac/sac.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="696">
-          <caret line="192" selection-start-line="192" selection-end-line="192" />
+        <state relative-caret-position="427">
+          <caret line="325" column="21" selection-start-line="325" selection-start-column="21" selection-end-line="325" selection-end-column="21" />
           <folding>
             <element signature="e#0#35#0" expanded="true" />
           </folding>
