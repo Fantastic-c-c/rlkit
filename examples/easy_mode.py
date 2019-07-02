@@ -142,7 +142,7 @@ def main(gpu, docker):
             render=False,
         ),
         net_size=300,
-        use_gpu=False,
+        use_gpu=True,
         gpu_id=gpu,
     )
 
