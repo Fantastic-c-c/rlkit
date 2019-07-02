@@ -135,7 +135,7 @@ class CameraWrapper(object):
         self.device_id = device_id # gpu ID for rendering
         self.initialize_camera()
 
-    def get_image(self, width=256, height=256, camera_name=None):
+    def get_image(self, width=512, height=512, camera_name=None):
         # use sim.render to avoid MJViewer which doesn't seem to work without display
         return self.sim.render(
             width=width,
