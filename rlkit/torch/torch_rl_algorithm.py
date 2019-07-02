@@ -132,9 +132,9 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         paths = []
         for _ in range(num_evals):
             paths += self.obtain_eval_paths(idx, eval_task=eval_task, deterministic=True)
-        goal = self.env._goal
-        for path in paths:
-            path['goal'] = goal # goal
+        # goal = self.env._goal
+        # for path in paths:
+        #     path['goal'] = goal # goal
 
         # save the paths for visualization, only useful for point mass
         if self.dump_eval_paths:
@@ -152,10 +152,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         )) # something is wrong with these exploration paths i'm pretty sure...
         average_returns = eval_util.get_average_returns(paths)
         self.eval_statistics['AverageReturn_{}_task{}'.format(split, self.task_idx)] = average_returns
-        goal = self.env._goal
-        dprint('GoalPosition_{}_task'.format(split))
-        dprint(goal)
-        self.eval_statistics['GoalPosition_{}_task{}'.format(split, self.task_idx)] = goal
+        # goal = self.env._goal
+        # dprint('GoalPosition_{}_task'.format(split))
+        # dprint(goal)
+        # self.eval_statistics['GoalPosition_{}_task{}'.format(split, self.task_idx)] = goal
 
     def evaluate(self, epoch):
         statistics = OrderedDict()
