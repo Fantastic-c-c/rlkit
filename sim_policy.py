@@ -41,11 +41,18 @@ def sim_policy(variant, num_trajs, save_video):
 
     goal_repeated = 10
 
-    context_encoder = encoder_model(
+    context_encoder_experience = encoder_model(
+        hidden_sizes=[200, 200, 200],
+        input_size=obs_dim + action_dim + reward_dim,
+        output_size=context_encoder,
+    )
+
+    context_encoder_goal = encoder_model(
         hidden_sizes=[200, 200, 200],
         input_size=3 * goal_repeated,
         output_size=context_encoder,
     )
+
     policy = TanhGaussianPolicy(
         hidden_sizes=[net_size, net_size, net_size],
         obs_dim=obs_dim + latent_dim,
@@ -54,7 +61,8 @@ def sim_policy(variant, num_trajs, save_video):
     )
     agent = PEARLAgent(
         latent_dim,
-        context_encoder,
+        context_encoder_experience,  ##new
+        context_encoder_goal,  ##new
         policy,
         goal_repeated,
         **variant['algo_params']
@@ -66,7 +74,8 @@ def sim_policy(variant, num_trajs, save_video):
     data_dir = variant['path_to_checkpoint']
     if data_dir is not None:
         checkpoint = torch.load(osp.join(data_dir, 'checkpoint.pth.tar'))
-        context_encoder.load_state_dict(checkpoint['context_encoder_weights'])
+        context_encoder_experience.load_state_dict(checkpoint['context_encoder_experience_weights'])
+        context_encoder_goal.load_state_dict(checkpoint['context_encoder_goal_weights'])
         policy.load_state_dict(checkpoint['policy_weights'])
 
     # loop through tasks collecting rollouts

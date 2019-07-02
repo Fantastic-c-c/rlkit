@@ -127,7 +127,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self._current_path_builder = PathBuilder()
         self._exploration_paths = []
 
-        self.probability = 0.8
+        self.probability = 0.5
 
     def make_exploration_policy(self, policy):
          return policy

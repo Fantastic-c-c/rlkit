@@ -68,7 +68,7 @@ class PEARLAgent(nn.Module):
         self.register_buffer('z_vars', torch.zeros(1, latent_dim))
 
         self.goal_repeated = goal_repeated
-        self.probability = 0.8
+        self.probability = 0.5
 
         self.clear_z()
 
