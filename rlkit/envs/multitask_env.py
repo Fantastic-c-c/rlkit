@@ -74,8 +74,8 @@ class MultiTaskEnv(gym.Env, Serializable):
     def set_task(self, task):
         self._active_task = task
 
-    def log_diagnostics(self, paths, prefix):
-        pass
+    # def log_diagnostics(self, paths, prefix):
+    #     pass
 
     '''
     API's for PEARL
