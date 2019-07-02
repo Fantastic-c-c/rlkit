@@ -35,7 +35,7 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_dial_turn_6dof import SawyerDialTu
 # from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_6dof import SawyerDoor6DOFEnv
 # from multiworld.envs.mujoco.sawyer_xyz.sawyer_drawer_close_6dof import SawyerDrawerClose6DOFEnv
 
-N_TASKS = 50
+N_TASKS = 60
 
 def datetimestamp(divider=''):
     now = datetime.datetime.now()
@@ -111,7 +111,7 @@ def experiment(variant):
     algorithm = ProtoSoftActorCritic(
         envs=tasks,
         train_tasks=list(tasks[:50]),
-        eval_tasks=list(tasks[10:]),
+        eval_tasks=list(tasks[50:]),
         nets=[agent, task_enc, policy, qf1, qf2, vf, rf],
         latent_dim=latent_dim,
         **variant['algo_params']
@@ -164,7 +164,7 @@ def main(gpu, docker):
             dump_eval_paths=True,
             render_eval_paths=False,
             render=False,
-            task_idx_for_render=0,
+            task_idx_for_render=None,
         ),
         net_size=300,
         use_gpu=True,
