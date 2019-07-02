@@ -1,4 +1,4 @@
-from cached_property import cached_property
+# from cached_property import cached_property
 from rlkit.core.serializable import Serializable
 import gym
 import numpy as np
@@ -76,6 +76,16 @@ class MultiTaskEnv(gym.Env, Serializable):
 
     def log_diagnostics(self, paths, prefix):
         pass
+
+    '''
+    API's for PEARL
+    '''
+    def reset_task(self, idx):
+        self._active_task = idx
+        self.reset()
+
+    def get_all_task_idx(self):
+        return range(len(self._task_envs))
 
 
 class MultiClassMultiTaskEnv(MultiTaskEnv):
