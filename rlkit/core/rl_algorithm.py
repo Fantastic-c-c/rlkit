@@ -568,8 +568,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         :param epoch:
         :return:
         """
-        if self.render:
-            self.training_env.render(close=True)
+        # if self.render:
+        #     self.training_env.render(close=True)
         data_to_save = dict(
             epoch=epoch,
         )
