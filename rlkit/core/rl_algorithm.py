@@ -190,7 +190,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 idx = np.random.randint(len(self.train_tasks))
                 self.task_idx = idx
                 self.env.reset_task(idx)
-
+                print('collecting from posterior')
                 # TODO: there may be more permutations of sampling/adding to encoding buffer we may wish to try
                 if self.train_embedding_source == 'initial_pool':
                     # embeddings are computed using only the initial pool of data

@@ -153,7 +153,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         average_returns = eval_util.get_average_returns(paths)
         self.eval_statistics['AverageReturn_{}_task{}'.format(split, self.task_idx)] = average_returns
         success_rate = eval_util.get_success_rate(paths)
-        self.eval_statistics['Success_{}_task{}'.format(split, self.task_idx)] = sucess_rate
+        self.eval_statistics['Success_{}_task{}'.format(split, self.task_idx)] = success_rate
 
         # goal = self.env._goalgit
         # dprint('GoalPosition_{}_task'.format(split))
