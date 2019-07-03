@@ -11,7 +11,6 @@ import pathlib
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.envs.multitask_env import MultiClassMultiTaskEnv
 from rlkit.envs.medium_mode_env_list import MEDIUM_MODE_DICT, MEDIUM_MODE_ARGS_KWARGS
-from rlkit.envs.random_init_wrapper import INITIAL_CONFIGURATIONS_SPACE_DICT, RandomInitWrapper
 
 
 from rlkit.launchers.launcher_util import setup_logger
@@ -89,8 +88,8 @@ def experiment(variant):
 
     algorithm = ProtoSoftActorCritic(
         env=env,
-        train_tasks=list(tasks)[:10],
-        eval_tasks=list(tasks)[10:],
+        train_tasks=list(tasks)[:9],
+        eval_tasks=list(tasks)[9:],
         nets=[agent, task_enc, policy, qf1, qf2, vf, rf],
         latent_dim=latent_dim,
         **variant['algo_params']
@@ -138,14 +137,14 @@ def main(gpu, docker):
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
             render_eval_paths=False,
-            render=False,
+            render=True,
         ),
         net_size=300,
         use_gpu=True,
         gpu_id=gpu,
     )
 
-    exp_name = 'easy'
+    exp_name = 'medium'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)

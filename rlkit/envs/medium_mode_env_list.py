@@ -35,12 +35,12 @@ MEDIUM_MODE_DICT = {
     'button_press_top_down': SawyerButtonPressTopdown6DOFEnv,
     'peg_insertion_side': SawyerPegInsertionSide6DOFEnv,
     'window_open': SawyerWindowOpen6DOFEnv,
-    'sweep': SawyerSweep6DOFEnv,
+    'dial_turn': SawyerDialTurn6DOFEnv,
     # Test
     'drawer_close': SawyerDrawerClose6DOFEnv,
     'door_close': SawyerDoorClose6DOFEnv,
     'shelf_place': SawyerShelfPlace6DOFEnv,
-    'dial_turn': SawyerDialTurn6DOFEnv,
+    'sweep': SawyerSweep6DOFEnv,
     'lever_pull': SawyerLeverPull6DOFEnv
 }
 
@@ -136,10 +136,10 @@ MEDIUM_MODE_ARGS_KWARGS = {
             'random_init': True,   
         }
     },
-    'sweep': {
+    'dial_turn': {
         "args": [],
         "kwargs": {
-            'tasks': [{'goal': np.array([0., 0.95, -0.3]),  'obj_init_pos':np.array([0., 0.6, 0.02]), 'obj_init_angle': 0.3}],
+            'tasks': [{'goal': np.array([0., 0.73, 0.08]), 'obj_init_pos':np.array([0, 0.7, 0.05])}],
             'multitask': False,
             'obs_type': 'plain',
             'if_render': False,
@@ -177,16 +177,6 @@ MEDIUM_MODE_ARGS_KWARGS = {
             'random_init': False,  
         }
     },
-    'dial_turn': {
-        "args": [],
-        "kwargs": {
-            'tasks': [{'goal': np.array([0., 0.73, 0.08]), 'obj_init_pos':np.array([0, 0.7, 0.05])}],
-            'multitask': False,
-            'obs_type': 'plain',
-            'if_render': False,
-            'random_init': False,  
-        }
-    },
     'lever_pull': {
         "args": [],
         "kwargs": {
@@ -195,6 +185,16 @@ MEDIUM_MODE_ARGS_KWARGS = {
             'obs_type': 'plain',
             'if_render': False,
             'random_init': False,  
+        }
+    },
+    'sweep': {
+        "args": [],
+        "kwargs": {
+            'tasks': [{'goal': np.array([0., 0.95, -0.3]),  'obj_init_pos':np.array([0., 0.6, 0.02]), 'obj_init_angle': 0.3}],
+            'multitask': False,
+            'obs_type': 'plain',
+            'if_render': False,
+            'random_init': True,  
         }
     },
     # 'window_close': {
