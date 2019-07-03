@@ -111,9 +111,9 @@ def main(gpu, docker):
         algo_params=dict(
             meta_batch=16,
             num_iterations=10000,
-            num_tasks_sample=5,
+            num_tasks_sample=7,
             num_steps_per_task=10 * max_path_length,
-            num_train_steps_per_itr=1000,
+            num_train_steps_per_itr=10000,
             num_evals=5, # number of evals with separate task encodings
             num_steps_per_eval=3 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from

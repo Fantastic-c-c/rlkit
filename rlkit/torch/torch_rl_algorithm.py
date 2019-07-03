@@ -152,7 +152,10 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         )) # something is wrong with these exploration paths i'm pretty sure...
         average_returns = eval_util.get_average_returns(paths)
         self.eval_statistics['AverageReturn_{}_task{}'.format(split, self.task_idx)] = average_returns
-        # goal = self.env._goal
+        success_rate = eval_util.get_success_rate(paths)
+        self.eval_statistics['Success_{}_task{}'.format(split, self.task_idx)] = sucess_rate
+
+        # goal = self.env._goalgit
         # dprint('GoalPosition_{}_task'.format(split))
         # dprint(goal)
         # self.eval_statistics['GoalPosition_{}_task{}'.format(split, self.task_idx)] = goal
@@ -211,6 +214,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             # TODO(KR) what does this do
             if hasattr(self.env, "log_diagnostics"):
                 self.env.log_diagnostics(test_paths)
+            self.log_statistics(test_paths)
 
 
         avg_train_return = np.mean(train_avg_returns)

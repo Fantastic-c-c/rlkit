@@ -35,7 +35,6 @@ def get_generic_path_information(paths, stat_prefix=''):
         'Actions', actions, stat_prefix=stat_prefix
     ))
     statistics['Num Paths'] = len(paths)
-
     return statistics
 
 
@@ -43,6 +42,14 @@ def get_average_returns(paths):
     returns = [sum(path["rewards"]) for path in paths]
     return np.mean(returns)
 
+def get_success_rate(paths):
+    # info = np.vstack([path["env_info"] for path in paths])
+    total_successes = []
+    for path in paths:
+        infos = path["env_infos"]
+        successes = [info["success"] for info in infos]
+        total_successes.append(sum(successes))
+    return np.mean(total_successes)
 
 def create_stats_ordered_dict(
         name,
