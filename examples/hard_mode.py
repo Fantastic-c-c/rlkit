@@ -11,7 +11,6 @@ import pathlib
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.envs.multitask_env import MultiClassMultiTaskEnv
 from rlkit.envs.hard_mode_env import HardModeEnv
-from metaworld.
 
 
 from rlkit.launchers.launcher_util import setup_logger
