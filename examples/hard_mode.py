@@ -32,7 +32,7 @@ def datetimestamp(divider=''):
 def experiment(variant):
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
-    env = HardModeEnv(HARD_MODE_LIST)
+    env = HardModeEnv(HARD_MODE_LIST[:20])
 
 
     obs_dim = int(np.prod(env.observation_space.shape))
@@ -103,7 +103,7 @@ def experiment(variant):
 @click.argument('gpu', default=0)
 @click.option('--docker', default=0)
 def main(gpu, docker):
-    max_path_length = 150
+    max_path_length = 200
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
@@ -144,7 +144,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'medium'
+    exp_name = 'hard'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)

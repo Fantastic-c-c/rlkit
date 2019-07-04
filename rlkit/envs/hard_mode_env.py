@@ -6,7 +6,13 @@ import numpy as np
 class HardModeEnv(gym.Env, Serializable):
     def __init__(self, task_list):
         Serializable.quick_init(self, locals())
-        self._task_envs = [task(multitask=False, obs_type='with_goal', if_render=False, random_init=True) for task in task_list]
+        self._task_envs = []
+        for i, task in enumerate(task_list):
+            if task is SawyerReachPushPickPlace6DOFEnv or env is SawyerReachPushPickPlaceWall6DOFEnv:
+            # TODO: this could cause flaws in task_idx if SawyerReachPushPickPlace6DOFEnv/SawyerReachPushPickPlaceWall6DOFEnv is not the first environment
+                self._task_envs.append(task(multitask=False, obs_type='with_goal', random_init=True, if_render=False, fix_task=True, task_idx=i%3))
+            else:
+                self._task_envs.append(task(multitask=False, obs_type='with_goal', if_render=False, random_init=True))
         self._active_task = None
 
     def reset(self, **kwargs):
