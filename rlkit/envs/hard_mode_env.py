@@ -4,12 +4,12 @@ import numpy as np
 
 
 class HardModeEnv(gym.Env, Serializable):
-	def __init__(self, task_list):
+    def __init__(self, task_list):
         Serializable.quick_init(self, locals())
-	    self._task_envs = [task(multitask=False, obs_type=plain, if_render=False. random_init=True) for task in task_list]
+        self._task_envs = [task(multitask=False, obs_type='with_goal', if_render=False, random_init=True) for task in task_list]
         self._active_task = None
 
-        def reset(self, **kwargs):
+    def reset(self, **kwargs):
         return self.active_env.reset(**kwargs)
 
     @property
