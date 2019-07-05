@@ -48,7 +48,7 @@ def get_success_rate(paths):
     for path in paths:
         infos = path["env_infos"]
         successes = [info["success"] for info in infos]
-        total_successes.append(sum(successes))
+        total_successes.append(max(successes))
     return np.mean(total_successes)
 
 def create_stats_ordered_dict(
