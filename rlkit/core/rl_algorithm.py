@@ -513,7 +513,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 env_info=env_info,
             )
         else:
-            print('task id', self.task_idx)
             self.replay_buffer.add_sample(
                 task=task_idx,
                 observation=observation,

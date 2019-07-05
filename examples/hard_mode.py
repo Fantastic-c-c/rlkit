@@ -48,7 +48,7 @@ def experiment(variant):
     recurrent = variant['algo_params']['recurrent']
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
     task_enc = encoder_model(
-            hidden_sizes=[200, 200, 200], # deeper net + higher dim space generalize better
+            hidden_sizes=[400, 400, 400], # deeper net + higher dim space generalize better
             input_size=obs_dim + action_dim + reward_dim,
             output_size=task_enc_output_dim,
     )
