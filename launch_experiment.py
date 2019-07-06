@@ -13,6 +13,7 @@ import pickle
 import datetime
 import traceback
 import torch
+import logging
 
 from rlkit.envs import ENVS
 from rlkit.envs.wrappers import NormalizedBoxEnv
@@ -159,8 +160,15 @@ def experiment(variant):
 
     # create logging directory
     # TODO support Docker
+    # rlkit logging for experiment stats
     exp_id = 'debug' if DEBUG else None
     experiment_log_dir = setup_logger(variant['env_name'], variant=variant, exp_id=exp_id, base_log_dir=variant['util_params']['base_log_dir'])
+    # python logging for debugging and errors
+    print(experiment_log_dir)
+    logging.basicConfig(filename=osp.join(experiment_log_dir, 'info.log'))
+    logger = logging.getLogger('exp')
+    logger.setLevel(logging.DEBUG)
+    logger.warning('launching experiment')
 
     # optionally save eval trajectories as pkl files
     if variant['algo_params']['dump_eval_paths']:
@@ -197,7 +205,7 @@ def main(config, gpu, docker, debug):
     start_time = datetime.datetime.now()
     try:
         experiment(variant)
-    except Exception as e: # won't catch Keyboard Interrupt! yay
+    except Exception as e: # shouldn't catch Keyboard Interrupt?!
         print(traceback.format_exc()) # print the trace to the terminal
         _send_email('exception raised', start_time)
     else:
