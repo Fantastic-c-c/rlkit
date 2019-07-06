@@ -147,10 +147,11 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             # TODO(KR) argh so ugly
             mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
             obs_enc, act_enc, rewards_enc, _, _ = mini_batch
-            self._take_step(indices, obs_enc, act_enc, rewards_enc)
+            grads = self._take_step(indices, obs_enc, act_enc, rewards_enc)
 
             # stop backprop
             self.policy.detach_z()
+            return grads
 
     def _take_step(self, indices, obs_enc, act_enc, rewards_enc):
 
@@ -272,6 +273,16 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
                 'Policy log std',
                 ptu.get_numpy(policy_log_std),
             ))
+        return self.get_gradients()
+
+    def get_gradients(self):
+        return  torch.cat((self.policy.policy.fc0.weight.grad.flatten(),
+                    self.policy.policy.fc1.weight.grad.flatten(),
+                    self.policy.policy.last_fc.weight.grad.flatten(),
+                    self.policy.qf1.fc0.weight.grad.flatten(),
+                    self.policy.qf1.fc1.weight.grad.flatten(),
+                    self.policy.qf1.fc2.weight.grad.flatten(),
+                    self.policy.qf1.last_fc.weight.grad.flatten(),))
 
     def sample_z_from_prior(self):
         self.policy.clear_z()

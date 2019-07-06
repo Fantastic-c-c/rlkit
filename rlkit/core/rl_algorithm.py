@@ -1,6 +1,7 @@
 import abc
 import time
 
+import torch
 import gtimer as gt
 import numpy as np
 
@@ -224,11 +225,32 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     raise Exception("Invalid option for computing train embedding {}".format(self.train_embedding_source))
 
             # Sample train tasks and compute gradient updates on parameters.
+            old_grads = []
+            
+            cos = torch.nn.CosineSimilarity(dim=0)
+            reachpushgrads = []
+            reachpickplacegrads = []
+            pushpickplacegrads = []
+            reachreachgrads = []
+            pushpushgrads = []
+            pickplacepickplacegrads = []
             for train_step in range(self.num_train_steps_per_itr):
                 indices = np.random.choice(self.train_tasks, self.meta_batch)
-                self._do_training(indices)
+                grads = []
+                for index in indices:
+                    grads.append(self._do_training([index]))
+                if old_grads:
+                    reachpushgrads.append(cos(grads[0], grads[1]).numpy())
+                    reachpickplacegrads.append(cos(grads[0], grads[2]).numpy())
+                    pushpickplacegrads.append(cos(grads[1], grads[2]).numpy())
+                    reachreachgrads.append(cos(grads[0], old_grads[0]).numpy())
+                    pushpushgrads.append(cos(grads[1], old_grads[1]).numpy())
+                    pickplacepickplacegrads.append(cos(grads[2], old_grads[2]).numpy())
+                old_grads = grads
                 self._n_train_steps_total += 1
-            # torch.save(self.)
+            # import pdb
+            # pdb.set_trace()
+            self.log_grads(reachpushgrads, reachpickplacegrads, pushpickplacegrads, reachreachgrads, pushpushgrads, pickplacepickplacegrads)
             gt.stamp('train')
 
             #self.training_mode(False)
@@ -238,6 +260,25 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             gt.stamp('eval')
 
             self._end_epoch()
+
+    def log_grads(self,
+        reachpushgrads,
+        reachpickplacegrads, 
+        pushpickplacegrads,
+        reachreachgrads,
+        pushpushgrads,
+        pickplacepickplacegrads):
+        # import pdb
+        # pdb.set_trace()
+        
+        self.eval_statistics['reach-push-grads'] = np.mean(reachpushgrads)
+        self.eval_statistics['reach-pickplace-grads'] = np.mean(reachpickplacegrads)
+        self.eval_statistics['push-pickplace-grads'] = np.mean(pushpickplacegrads)
+        self.eval_statistics['reach-reach-grads'] = np.mean(reachreachgrads)
+        self.eval_statistics['push-push-grads'] = np.mean(pushpushgrads)
+        self.eval_statistics['pickplace-pickplace-grads'] = np.mean(pickplacepickplacegrads)
+
+
 
     def pretrain(self):
         """

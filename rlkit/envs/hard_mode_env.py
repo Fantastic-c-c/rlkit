@@ -1,6 +1,8 @@
 from rlkit.core.serializable import Serializable
 import gym
 import numpy as np
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
+
 
 
 class HardModeEnv(gym.Env, Serializable):

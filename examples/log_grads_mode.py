@@ -10,7 +10,8 @@ import pathlib
 # from rlkit.envs.point_mass import PointEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.envs.multitask_env import MultiClassMultiTaskEnv
-from rlkit.envs.env_list import EASY_MODE_DICT, EASY_MODE_ARGS_KWARGS
+from rlkit.envs.hard_mode_env import HardModeEnv
+
 
 from rlkit.launchers.launcher_util import setup_logger
 from rlkit.torch.sac.policies import TanhGaussianPolicy
@@ -20,6 +21,7 @@ from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.env_lists import GRAD_MODE_LIST
 
 
 
@@ -30,10 +32,7 @@ def datetimestamp(divider=''):
 def experiment(variant):
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
-
-    env = MultiClassMultiTaskEnv(
-        task_env_cls_dict=EASY_MODE_DICT,
-        task_args_kwargs=EASY_MODE_ARGS_KWARGS)
+    env = HardModeEnv(GRAD_MODE_LIST)
 
 
     obs_dim = int(np.prod(env.observation_space.shape))
@@ -49,7 +48,7 @@ def experiment(variant):
     recurrent = variant['algo_params']['recurrent']
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
     task_enc = encoder_model(
-            hidden_sizes=[200, 200, 200], # deeper net + higher dim space generalize better
+            hidden_sizes=[400, 400, 400], # deeper net + higher dim space generalize better
             input_size=obs_dim + action_dim + reward_dim,
             output_size=task_enc_output_dim,
     )
@@ -104,15 +103,15 @@ def experiment(variant):
 @click.argument('gpu', default=0)
 @click.option('--docker', default=0)
 def main(gpu, docker):
-    max_path_length = 150
+    max_path_length = 200
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            meta_batch=16,
+            meta_batch=3,
             num_iterations=10000,
-            num_tasks_sample=7,
-            num_steps_per_task=10 * max_path_length,
-            num_train_steps_per_itr=10000,
+            num_tasks_sample=1,
+            num_steps_per_task=1 * max_path_length,
+            num_train_steps_per_itr=3,
             num_evals=5, # number of evals with separate task encodings
             num_steps_per_eval=3 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
@@ -141,11 +140,11 @@ def main(gpu, docker):
             render=False,
         ),
         net_size=300,
-        use_gpu=True,
+        use_gpu=False,
         gpu_id=gpu,
     )
 
-    exp_name = 'easy'
+    exp_name = 'hard'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)
