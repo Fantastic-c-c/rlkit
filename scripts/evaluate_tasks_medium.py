@@ -31,7 +31,7 @@ def datetimestamp(divider=''):
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
 def experiment(variant):
-    params = joblib.load('/home/dequillen_gmail_com/rlkit/output/metaworld/medium/params.pkl')
+    params = joblib.load('/home/deirdre/params.pkl')
 
     env = MultiClassMultiTaskEnv(
         task_env_cls_dict=MEDIUM_MODE_DICT,
@@ -84,7 +84,7 @@ def main(gpu, docker):
             num_tasks_sample=7,
             num_steps_per_task=10 * max_path_length,
             num_train_steps_per_itr=1,
-            num_evals=5, # number of evals with separate task encodings
+            num_evals=20, # number of evals with separate task encodings
             num_steps_per_eval=3 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
             embedding_batch_size=64,
