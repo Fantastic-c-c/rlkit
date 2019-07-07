@@ -179,6 +179,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         # This is calculating the embedding online, because every iteration
         # we clear the encoding buffer for the test tasks.
         for idx in self.eval_tasks:
+            print('eval task ', idx)
             self.task_idx = idx
             self.env.reset_task(idx)
 

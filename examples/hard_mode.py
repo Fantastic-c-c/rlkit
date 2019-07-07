@@ -32,7 +32,7 @@ def datetimestamp(divider=''):
 def experiment(variant):
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
-    env = HardModeEnv(HARD_MODE_LIST[:20])
+    env = HardModeEnv(HARD_MODE_LIST)
 
 
     obs_dim = int(np.prod(env.observation_space.shape))
@@ -137,7 +137,7 @@ def main(gpu, docker):
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
             render_eval_paths=False,
-            render=True,
+            render=False,
         ),
         net_size=300,
         use_gpu=True,
