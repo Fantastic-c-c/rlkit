@@ -1,6 +1,8 @@
 from rlkit.core.serializable import Serializable
 import gym
 import numpy as np
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_wall_6dof import SawyerReachPushPickPlaceWall6DOFEnv
 
 
 class HardModeEnv(gym.Env, Serializable):
@@ -8,7 +10,7 @@ class HardModeEnv(gym.Env, Serializable):
         Serializable.quick_init(self, locals())
         self._task_envs = []
         for i, task in enumerate(task_list):
-            if task is SawyerReachPushPickPlace6DOFEnv or env is SawyerReachPushPickPlaceWall6DOFEnv:
+            if task is SawyerReachPushPickPlace6DOFEnv or task is SawyerReachPushPickPlaceWall6DOFEnv:
             # TODO: this could cause flaws in task_idx if SawyerReachPushPickPlace6DOFEnv/SawyerReachPushPickPlaceWall6DOFEnv is not the first environment
                 self._task_envs.append(task(multitask=False, obs_type='with_goal', random_init=True, if_render=False, fix_task=True, task_idx=i%3))
             else:
