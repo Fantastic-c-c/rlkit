@@ -25,6 +25,10 @@ import rlkit.torch.pytorch_util as ptu
 
 from rlkit.envs.multitask_env import MultiClassMultiTaskEnv
 from rlkit.envs.medium_mode_env_list import MEDIUM_MODE_DICT, MEDIUM_MODE_ARGS_KWARGS
+from rlkit.envs.hard_mode_env import HardModeEnv
+from multiworld.envs.mujoco.sawyer_xyz.env_lists import HARD_MODE_LIST
+
+
 
 def datetimestamp(divider=''):
     now = datetime.datetime.now()
@@ -33,10 +37,7 @@ def datetimestamp(divider=''):
 def experiment(variant):
     params = joblib.load('/home/dequillen_gmail_com/rlkit/output/metaworld/medium/params.pkl')
 
-    env = MultiClassMultiTaskEnv(
-        task_env_cls_dict=MEDIUM_MODE_DICT,
-        task_args_kwargs=MEDIUM_MODE_ARGS_KWARGS)
-
+    env = HardModeEnv(HARD_MODE_LIST[])
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -83,7 +84,7 @@ def main(gpu, docker):
             num_iterations=10000,
             num_tasks_sample=7,
             num_steps_per_task=10 * max_path_length,
-            num_train_steps_per_itr=10000,
+            num_train_steps_per_itr=1,
             num_evals=5, # number of evals with separate task encodings
             num_steps_per_eval=3 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
@@ -116,7 +117,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'eval_medium'
+    exp_name = 'eval_hard'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='point-mass', base_log_dir=log_dir)
