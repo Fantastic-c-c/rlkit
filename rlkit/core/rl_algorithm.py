@@ -215,6 +215,12 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             gt.stamp('train')
 
             self.training_mode(False)
+            # collect policy stats every epoch
+            logger.record_tabular("Epoch", it_)
+            for key, value in self.eval_statistics.items():
+                logger.record_tabular(key, value)
+            logger.dump_tabular(with_prefix=False, with_timestamp=False)
+            self.eval_statistics = None
 
             # eval
             if it_ % self.eval_interval == 0:
