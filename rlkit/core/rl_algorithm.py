@@ -240,12 +240,12 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 for index in indices:
                     grads.append(self._do_training([index]))
                 if old_grads:
-                    reachpushgrads.append(cos(grads[0], grads[1]).numpy())
-                    reachpickplacegrads.append(cos(grads[0], grads[2]).numpy())
-                    pushpickplacegrads.append(cos(grads[1], grads[2]).numpy())
-                    reachreachgrads.append(cos(grads[0], old_grads[0]).numpy())
-                    pushpushgrads.append(cos(grads[1], old_grads[1]).numpy())
-                    pickplacepickplacegrads.append(cos(grads[2], old_grads[2]).numpy())
+                    reachpushgrads.append(cos(grads[0], grads[1]).cpu().numpy())
+                    reachpickplacegrads.append(cos(grads[0], grads[2]).cpu().numpy())
+                    pushpickplacegrads.append(cos(grads[1], grads[2]).cpu().numpy())
+                    reachreachgrads.append(cos(grads[0], old_grads[0]).cpu().numpy())
+                    pushpushgrads.append(cos(grads[1], old_grads[1]).cpu().numpy())
+                    pickplacepickplacegrads.append(cos(grads[2], old_grads[2]).cpu().numpy())
                 old_grads = grads
                 self._n_train_steps_total += 1
             # import pdb

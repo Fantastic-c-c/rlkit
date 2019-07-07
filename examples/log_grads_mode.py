@@ -109,9 +109,9 @@ def main(gpu, docker):
         algo_params=dict(
             meta_batch=3,
             num_iterations=10000,
-            num_tasks_sample=1,
-            num_steps_per_task=1 * max_path_length,
-            num_train_steps_per_itr=3,
+            num_tasks_sample=3,
+            num_steps_per_task=10 * max_path_length,
+            num_train_steps_per_itr=1000,
             num_evals=5, # number of evals with separate task encodings
             num_steps_per_eval=3 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
@@ -140,11 +140,11 @@ def main(gpu, docker):
             render=False,
         ),
         net_size=300,
-        use_gpu=False,
+        use_gpu=True,
         gpu_id=gpu,
     )
 
-    exp_name = 'hard'
+    exp_name = 'log-grads'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)
