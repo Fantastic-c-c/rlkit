@@ -32,19 +32,20 @@ def datetimestamp(divider=''):
 
 def experiment(variant):
     task_params = variant['task_params']
-    params = joblib.load('/home/deirdrequillen/output/half-cheetah-vel/save/cheetah-vel/3/params.pkl')
+    params = joblib.load('/home/deirdrequillen/corl_metaworld_exps/params.pkl')
 
-    env = NormalizedBoxEnv(HalfCheetahVelEnv(n_tasks=task_params['n_tasks']))
-    # env.render()
-    ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
+    env = MultiClassMultiTaskEnv(
+        task_env_cls_dict=MEDIUM_MODE_DICT,
+        task_args_kwargs=MEDIUM_MODE_ARGS_KWARGS)
 
-    tasks = env.get_all_task_idx()
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
-    latent_dim = 5
+    latent_dim = 7
     task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
     reward_dim = 1
+
+    tasks = env.get_all_task_idx()
 
     net_size = variant['net_size']
     # start with linear task encoding
@@ -60,8 +61,8 @@ def experiment(variant):
 
     algorithm = ProtoSoftActorCritic(
         env=env,
-        train_tasks=list(tasks[:-1]),
-        eval_tasks=list(tasks[-1:]),
+        train_tasks=list(tasks),
+        eval_tasks=list(tasks),
         nets=[agent, task_enc, policy, qf1, qf2, vf, rf],
         latent_dim=latent_dim,
         **variant['algo_params']
@@ -87,8 +88,8 @@ def main(gpu, docker):
             num_iterations=500, # meta-train epochs
             num_tasks_sample=5,
             num_steps_per_task=2 * max_path_length,
-            num_train_steps_per_itr=2000,
-            num_evals=2, # number of evals with separate task encodings
+            num_train_steps_per_itr=1,
+            num_evals=20, # numpber of evals with separate task encodings
             num_steps_per_eval=2 * max_path_length,
             batch_size=256, # to compute training grads from
             embedding_batch_size=100,
