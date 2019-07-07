@@ -31,11 +31,12 @@ class MultitaskSawyerPegEnv(Serializable, SawyerReachXYZEnv):
         self.ee_angle_highs = np.array([0.05, 0.05, np.pi * .75])
         self.ee_pos_lows = np.array([.671, -0.038, 0.195])
         self.ee_pos_highs = np.array([.787, .090, .270])
+        self.position_action_scale = .02 # max action is 2cm
 
 
         # generate random goals
         if n_tasks == 1:
-            self.goals = [np.array([.766, .0562, .1973])]
+            self.goals = [np.array([.762, .0530, .1973])]
             self._goal = self.goals[0]
 
         else:
@@ -103,7 +104,9 @@ class MultitaskSawyerPegEnv(Serializable, SawyerReachXYZEnv):
         #print(new_eulers)
         # clip angles to keep them safe
         if new_eulers[-1] < 0:
-            new_eulers[-1] = min(new_eulers[-1], -np.pi * .75)
+            # TODO: hack to prevent double solutions
+            new_eulers[-1] = -np.pi
+            #new_eulers[-1] = min(new_eulers[-1], -np.pi * .75)
         elif new_eulers[-1] > 0:
             new_eulers[-1] = max(new_eulers[-1], np.pi * .75)
         #print('new eulers after wrap, clip', new_eulers)
@@ -124,7 +127,7 @@ class MultitaskSawyerPegEnv(Serializable, SawyerReachXYZEnv):
         # see GPS paper for more details
         obs = obs[:3]
         dist = np.linalg.norm(obs - self._goal)
-        return -(1.0 * np.square(dist) + 0.4 * np.log(np.square(dist) + 1e-7))
+        return -(1.0 * np.square(dist) + 1.0 * np.log(np.square(dist) + 1e-5))
 
     def reset(self):
         print('resetting...')
