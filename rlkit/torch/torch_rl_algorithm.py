@@ -122,7 +122,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
     def collect_paths(self, idx, epoch, eval_task=False):
         self.task_idx = idx
-        dprint('Task:', idx)
+        print('Task:', idx)
         self.env.reset_task(idx)
         if eval_task:
             num_evals = self.num_evals
