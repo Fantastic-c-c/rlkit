@@ -14,10 +14,7 @@ import numpy as np
 import click
 import datetime
 import pathlib
-from gym.envs.mujoco import HalfCheetahEnv
 
-from rlkit.envs.half_cheetah_vel import HalfCheetahVelEnv
-from rlkit.envs.point_mass import PointEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
 from rlkit.torch.sac.policies import TanhGaussianPolicy
@@ -26,13 +23,15 @@ from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
 
+from rlkit.envs.multitask_env import MultiClassMultiTaskEnv
+from rlkit.envs.medium_mode_env_list import MEDIUM_MODE_DICT, MEDIUM_MODE_ARGS_KWARGS
+
 def datetimestamp(divider=''):
     now = datetime.datetime.now()
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
 def experiment(variant):
-    task_params = variant['task_params']
-    params = joblib.load('/home/dequillen_gmail_com/rlkit/output/metaworld/medium')
+    params = joblib.load('/home/dequillen_gmail_com/rlkit/output/metaworld/medium/params.pkl')
 
     env = MultiClassMultiTaskEnv(
         task_env_cls_dict=MEDIUM_MODE_DICT,
