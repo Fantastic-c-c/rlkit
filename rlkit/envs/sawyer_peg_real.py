@@ -1,5 +1,5 @@
 from sawyer_control.envs.sawyer_reaching import SawyerReachXYZEnv
-from sawyer_control.coordinates import quat_2_euler, euler_2_quat
+from sawyer_control.coordinates import quat_2_euler, euler_2_rot, euler_2_quat
 from pyquaternion import Quaternion
 from rlkit.core.serializable import Serializable
 import numpy as np
@@ -31,12 +31,15 @@ class MultitaskSawyerPegEnv(Serializable, SawyerReachXYZEnv):
         self.ee_angle_highs = np.array([0.05, 0.05, np.pi * .75])
         self.ee_pos_lows = np.array([.671, -0.038, 0.195])
         self.ee_pos_highs = np.array([.787, .090, .270])
-        self.position_action_scale = .02 # max action is 2cm
+        self.position_action_scale = .03 # max action is 2cm
 
 
         # generate random goals
         if n_tasks == 1:
-            self.goals = [np.array([.762, .0530, .1973])]
+            self.goals = [np.array([.762, .0540, .1973])]
+            # TODO fix me
+            self.goal_pose = np.array([.745, .052, .2071, .328, .944, .003, .023])
+
             self._goal = self.goals[0]
 
         else:
@@ -44,7 +47,7 @@ class MultitaskSawyerPegEnv(Serializable, SawyerReachXYZEnv):
 
         print('goals \n', self.goals)
         print(self._get_obs())
-        self.reset_task(0)
+        #self.reset_task(0)
 
         # logging
         #self.logger = logging.getLogger('exp.sawyer_peg_env')
@@ -122,12 +125,41 @@ class MultitaskSawyerPegEnv(Serializable, SawyerReachXYZEnv):
         angles = self.request_ik_angles(target_ee_pose, self._get_joint_angles())
         self.request_angle_action(angles, target_ee_pose, clip_joints=False)
 
-    def _compute_reward(self, action, obs):
-        # sort of an inverse huber here
-        # see GPS paper for more details
-        obs = obs[:3]
-        dist = np.linalg.norm(obs - self._goal)
-        return -(1.0 * np.square(dist) + 1.0 * np.log(np.square(dist) + 1e-5))
+    def _compute_reward(self, action, pose):
+        # penalize the full pose
+        # compute rotation matrix between goal and curent frame
+        goal_quat = Quaternion(self.goal_pose[3:])
+        curr_quat = Quaternion(pose[3:])
+        rotation = (curr_quat * goal_quat.inverse).rotation_matrix
+
+        # determine translation vector
+        translation = (pose[:3] - self.goal_pose[:3])[..., None]
+
+        # construct transformation matrix in homogenous coordinates
+        transformation = np.concatenate([rotation, translation], axis=1)
+        assert transformation.shape == (3, 4)
+        # pick three points roughly on the peg in the goal ee frame
+        # (include all three directions in order to penalize the full pose)
+        x = np.array([-.01, 0, -.01, 1])
+        y = np.array([0, -.01, -.01, 1])
+        z = np.array([0, 0, -.05, 1])
+
+        # transform each point into the current ee frame
+        x_t = transformation.dot(x)
+        y_t = transformation.dot(y)
+        z_t = transformation.dot(z)
+
+        # TODO debugging save these for inspection
+        points = np.array([x, y, z, x_t, y_t, z_t])
+
+        # stack points into one vector and compute distance
+        dist = np.linalg.norm(np.concatenate([x[:-1], y[:-1], z[:-1]]) - np.concatenate([x_t, y_t, z_t]))
+        # use cm as base unit
+        dist *= 100
+
+        # GPS paper cost function
+        gps_reward = -(1.0 * np.square(dist) + 1.0 * np.log(np.square(dist) + 1e-5))
+        return gps_reward, points
 
     def reset(self):
         print('resetting...')
@@ -147,10 +179,11 @@ class MultitaskSawyerPegEnv(Serializable, SawyerReachXYZEnv):
         self._move_by(action)
         pose = self._get_obs()
         # reward based on position only for now
-        reward = self._compute_reward(action, pose)
+        reward, points = self._compute_reward(action, pose)
         print('reward', reward)
         info = self._get_info()
         done = False
+        info['points'] = points
         return pose, reward, done, info
 
     def reset_task(self, idx):
