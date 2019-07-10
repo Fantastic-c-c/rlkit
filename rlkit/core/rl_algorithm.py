@@ -190,6 +190,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
             # sample data from train tasks
             print('epoch: {}, sampling training data'.format(it_))
+
             sample_tasks = np.random.choice(self.train_tasks, self.num_tasks_sample, replace=False)
             print('sampled tasks', sample_tasks)
             for idx in sample_tasks:
@@ -394,7 +395,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
                 p['rewards'] = sparse_rewards
 
-        goal = self.env._goal
+        goal = self.env._state_goal     ###################self.env._goal
         for path in paths:
             path['goal'] = goal # goal
 

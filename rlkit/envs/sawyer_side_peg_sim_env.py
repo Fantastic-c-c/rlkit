@@ -1,6 +1,7 @@
 from collections import OrderedDict
 import numpy as np
 from gym.spaces import  Dict , Box
+from . import register_env
 
 
 from multiworld.envs.env_util import get_stat_in_paths, \
@@ -11,6 +12,8 @@ from multiworld.envs.mujoco.sawyer_xyz.base import SawyerXYZEnv
 from pyquaternion import Quaternion
 from multiworld.envs.mujoco.utils.rotation import euler2quat
 
+
+@register_env('testing-env')
 class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
     def __init__(
             self,
@@ -19,10 +22,10 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
             obj_low=(-0.1, 0.6, 0.03),
             obj_high=(0.1, 0.7, 0.03),
             random_init=False,
-            tasks = [{'goal': np.array([0, 0.85, 0.015]), 'obj_init_pos':np.array([0, 0.6, 0.03])}],
+            tasks = [{'goal': np.array([0, 0.85, 0.015]), 'obj_init_pos':np.array([0, 0.6, 0.06])}],
             goal_low=(-0.1, 0.85, 0.05),
             goal_high=(0.1, 0.85, 0.05),
-            hand_init_pos = (0, 0.6, 0.2),
+            hand_init_pos = (0, 0.6, 0.06),
             liftThresh = 0.04,
             rotMode='fixed',#'fixed',
             rewMode='orig',
@@ -39,7 +42,7 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
             hand_low=hand_low,
             hand_high=hand_high,
             model_name=self.model_name,
-            **kwargs
+            # **kwargs
         )
         if obj_low is None:
             obj_low = self.hand_low
@@ -134,6 +137,20 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
         self.viewer.cam.elevation = -55
         self.viewer.cam.azimuth = 180
         self.viewer.cam.trackbodyid = -1
+
+    def get_all_task_idx(self):   ################
+        return range(len(self.tasks))
+
+    def reset_goal(self, direction):
+        return self.goals[direction]
+
+    def reset_task(self, idx):
+        self.reset()
+
+    def reset(self):
+        return self.reset_model()
+
+    #########################################33
 
     def step(self, action):
         if self.if_render:
@@ -275,6 +292,7 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
             self.do_simulation([-1,1], self.frame_skip)
             #self.do_simulation(None, self.frame_skip)
         rightFinger, leftFinger = self.get_site_pos('rightEndEffector'), self.get_site_pos('leftEndEffector')
+
         self.init_fingerCOM  =  (rightFinger + leftFinger)/2
         self.pickCompleted = False
 

@@ -76,7 +76,7 @@ def sim_policy(variant, num_trajs, save_video):
         paths = []
         for n in range(num_trajs):
             path = rollout(env, agent, max_path_length=variant['algo_params']['max_path_length'], accum_context=True, save_frames=save_video)
-            path['goal'] = env._goal
+            path['goal'] = env._state_goal  ##############original env._goal
             paths.append(path)
             if save_video:
                 video_frames += [t['frame'] for t in path['env_infos']]

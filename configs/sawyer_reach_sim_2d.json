@@ -1,12 +1,9 @@
 {
-    "env_name": "sawyer-reach-sim-2d",
-    "n_train_tasks": 80,
-    "n_eval_tasks": 20,
-    "env_params": {
-        "n_tasks": 100,
-        "randomize_tasks": true
-    }
-    ,
+    "env_name": "testing-env",
+    "n_train_tasks": 1,
+    "n_eval_tasks": 1,
+    "path_to_checkpoint": "output/testing-env/2019_07_09_13_31_36",
+    
     "algo_params": {
         "num_initial_steps": 150,
         "num_iterations": 500,
@@ -17,7 +14,7 @@
         "num_evals": 1,
         "num_steps_per_eval": 45,
         "max_path_length": 15,
-        "num_tasks_sample": 8,
+        "num_tasks_sample": 1,
         "reward_scale": 100.0,
         "kl_lambda": 0.1,
         "num_exp_traj_eval":2,

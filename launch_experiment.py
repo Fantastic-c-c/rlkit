@@ -92,8 +92,8 @@ def experiment(variant):
     if ptu.gpu_enabled():
         for net in [context_encoder, qf1, qf2, vf, policy]:
             net.to(ptu.device)
-
     # instantiate algorithm, creates optimizers
+
     algorithm = PEARLSoftActorCritic(
         env=env,
         train_tasks=list(tasks[:variant['n_train_tasks']]),
