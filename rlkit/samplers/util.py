@@ -43,7 +43,6 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
         # update the agent's current context
 
         goal = env._state_goal
-
         if accum_context:
             # agent.update_context([o, a, r, next_o, d, env_info])   ##commented out for all goal as context
             agent.update_context([o, a, r, next_o, d, env_info, goal])

@@ -45,6 +45,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             agent=nets[0],
             train_tasks=train_tasks,
             eval_tasks=eval_tasks,
+            goal_repeated=goal_repeated,
             **kwargs
         )
 
@@ -178,7 +179,10 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         context = self.prepare_encoder_data(obs, act, rewards)
         goal = batch['goals']
         if random.random() < self.probability:
+            corrupted = int(random.random() * 3)
+            goal[corrupted] = 0
             context = goal.repeat(1, self.goal_repeated).unsqueeze(0) #########################change context to goal
+
         return context
 
     ##### Training #####
@@ -194,9 +198,10 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         for i in range(num_updates):
             mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
             obs_enc, act_enc, rewards_enc, _, _, goals_enc = mini_batch
-
             context = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
             if random.random() < self.probability:
+                corrupted = int(random.random() * 3)
+                goals_enc[:, :, corrupted] = 0
                 context = goals_enc.repeat(1, 1, self.goal_repeated)  #########################change context to goal
 
             self._take_step(indices, context)

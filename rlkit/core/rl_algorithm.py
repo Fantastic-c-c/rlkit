@@ -21,6 +21,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             agent,
             train_tasks,
             eval_tasks,
+            goal_repeated,
             meta_batch=64,
             num_iterations=100,
             num_train_steps_per_itr=1000,
@@ -128,6 +129,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self._exploration_paths = []
 
         self.probability = 0.5
+        self.goal_repeated = goal_repeated
 
     def make_exploration_policy(self, policy):
          return policy
@@ -408,18 +410,25 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         return paths
 
     def _do_eval(self, indices, epoch):
-        final_returns = []
-        online_returns = []
+        final_returns_goal = []
+        online_returns_goal = []
+        final_returns_experience = []
+        online_returns_experience = []
         for idx in indices:
             runs, all_rets = [], []
             for r in range(self.num_evals):
                 paths = self.collect_paths(idx, epoch, r)
                 all_rets.append([eval_util.get_average_returns([p]) for p in paths])
                 runs.append(paths)
-            all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
-            final_returns.append(all_rets[-1])
-            online_returns.append(all_rets)
-        return final_returns, online_returns
+            all_rets = np.mean(np.stack(all_rets), axis=0)  # avg return per nth rollout
+
+            if self.agent.context.shape[2] == self.goal_repeated * 3: # true: using goal, ow: using experience
+                final_returns_goal.append(all_rets[-1])
+                online_returns_goal.append(all_rets)
+            else:
+                final_returns_experience.append(all_rets[-1])
+                online_returns_experience.append(all_rets)
+        return final_returns_goal, online_returns_goal, final_returns_experience, online_returns_experience   # goal, experience
 
     def evaluate(self, epoch):
         if self.eval_statistics is None:
@@ -440,11 +449,13 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         indices = np.random.choice(self.train_tasks, len(self.eval_tasks))
         eval_util.dprint('evaluating on {} train tasks'.format(len(indices)))
         ### eval train tasks with posterior sampled from the training replay buffer
-        train_returns = []
+        train_returns_goal = []
+        train_returns_experience = []
         for idx in indices:
             self.task_idx = idx
             self.env.reset_task(idx)
-            paths = []
+            paths_goal = []
+            paths_experience = []
             for _ in range(self.num_steps_per_eval // self.max_path_length):
                 context = self.prepare_context(idx)
                 self.agent.infer_posterior(context)
@@ -452,48 +463,73 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                                                         accum_context=False,
                                                         max_trajs=1,
                                                         resample=np.inf)
-                paths += p
+                if context.shape[2] == self.goal_repeated * 3:
+                    paths_goal += p
+                else:
+                    paths_experience += p
 
             if self.sparse_rewards:
-                for p in paths:
+                for p in paths_goal:
+                    sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
+                    p['rewards'] = sparse_rewards
+                for p in paths_experience:
                     sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
                     p['rewards'] = sparse_rewards
 
-            train_returns.append(eval_util.get_average_returns(paths))
-        train_returns = np.mean(train_returns)
+            train_returns_goal.append(eval_util.get_average_returns(paths_goal))
+            train_returns_experience.append(eval_util.get_average_returns(paths_experience))
+        train_returns_goal = np.mean(train_returns_goal)
+        train_returns_experience = np.mean(train_returns_experience)
+        # print(train_returns_experience, train_returns_goal)
         ### eval train tasks with on-policy data to match eval of test tasks
-        train_final_returns, train_online_returns = self._do_eval(indices, epoch)
-        eval_util.dprint('train online returns')
-        eval_util.dprint(train_online_returns)
+        train_final_returns_goal, train_online_returns_goal, train_final_returns_experience, train_online_returns_experience = self._do_eval(indices, epoch)
+        eval_util.dprint('train online returns (goal_corrupted)')
+        eval_util.dprint(train_online_returns_goal)
+        eval_util.dprint('train online returns (experience_corrupted)')
+        eval_util.dprint(train_online_returns_experience)
 
         ### test tasks
         eval_util.dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
-        test_final_returns, test_online_returns = self._do_eval(self.eval_tasks, epoch)
-        eval_util.dprint('test online returns')
-        eval_util.dprint(test_online_returns)
+        test_final_returns_goal, test_online_returns_goal, test_final_returns_experience, test_online_returns_experience = self._do_eval(self.eval_tasks, epoch)
+        eval_util.dprint('test online returns (goal_corrupted)')
+        eval_util.dprint(test_online_returns_goal)
+        eval_util.dprint('test online returns (experience_corrupted)')
+        eval_util.dprint(test_online_returns_experience)
 
         # save the final posterior
         self.agent.log_diagnostics(self.eval_statistics)
 
         if hasattr(self.env, "log_diagnostics"):
-            self.env.log_diagnostics(paths)
+            self.env.log_diagnostics(paths_goal)
+            self.env.log_diagnostics(paths_experience)
 
-        avg_train_return = np.mean(train_final_returns)
-        avg_test_return = np.mean(test_final_returns)
-        avg_train_online_return = np.mean(np.stack(train_online_returns), axis=0)
-        avg_test_online_return = np.mean(np.stack(test_online_returns), axis=0)
-        self.eval_statistics['AverageTrainReturn_all_train_tasks'] = train_returns
-        self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
-        self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
-        logger.save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
-        logger.save_extra_data(avg_test_online_return, path='online-test-epoch{}'.format(epoch))
+        avg_train_return_goal = np.mean(train_final_returns_goal)
+        avg_test_return_goal = np.mean(test_final_returns_goal)
+        avg_train_online_return_goal = np.mean(np.stack(train_online_returns_goal), axis=0)
+        avg_test_online_return_goal = np.mean(np.stack(test_online_returns_goal), axis=0)
+        self.eval_statistics['AverageTrainReturn_all_train_tasks_goal_corrupted'] = train_returns_goal
+        self.eval_statistics['AverageReturn_all_train_tasks_goal_corrupted'] = avg_train_return_goal
+        self.eval_statistics['AverageReturn_all_test_tasks_goal_corrupted'] = avg_test_return_goal
+        logger.save_extra_data(avg_train_online_return_goal, path='online-train-epoch{}'.format(epoch))
+        logger.save_extra_data(avg_test_online_return_goal, path='online-test-epoch{}'.format(epoch))
+
+        avg_train_return_experience = np.mean(train_final_returns_experience)
+        avg_test_return_experience = np.mean(test_final_returns_experience)
+        avg_train_online_return_experience = np.mean(np.stack(train_online_returns_experience), axis=0)
+        avg_test_online_return_experience = np.mean(np.stack(test_online_returns_experience), axis=0)
+        self.eval_statistics['AverageTrainReturn_all_train_tasks_experience_corrupted'] = train_returns_experience
+        self.eval_statistics['AverageReturn_all_train_tasks_experience_corrupted'] = avg_train_return_experience
+        self.eval_statistics['AverageReturn_all_test_tasks_experience_corrupted'] = avg_test_return_experience
+        logger.save_extra_data(avg_train_online_return_experience, path='online-train-epoch{}'.format(epoch))
+        logger.save_extra_data(avg_test_online_return_experience, path='online-test-epoch{}'.format(epoch))
 
         for key, value in self.eval_statistics.items():
             logger.record_tabular(key, value)
         self.eval_statistics = None
 
         if self.render_eval_paths:
-            self.env.render_paths(paths)
+            self.env.render_paths(paths_goal)
+            self.env.render_paths(paths_experience)
 
         if self.plotter:
             self.plotter.draw()
