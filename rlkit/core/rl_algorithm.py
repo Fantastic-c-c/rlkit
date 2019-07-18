@@ -167,7 +167,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 idx = np.random.randint(len(self.train_tasks))
                 self.task_idx = idx
                 self.env.reset_task(idx)
-                self.enc_replay_buffer.task_buffers[idx].clear()
 
                 # collect some trajectories with z ~ prior
                 if self.num_steps_prior > 0:
