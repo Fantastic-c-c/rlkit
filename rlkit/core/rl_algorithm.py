@@ -477,6 +477,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.env.log_diagnostics(paths)
 
         avg_train_return = np.mean(train_final_returns)
+        print("avg_train_return :ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff ", avg_train_return)
         avg_test_return = np.mean(test_final_returns)
         avg_train_online_return = np.mean(np.stack(train_online_returns), axis=0)
         avg_test_online_return = np.mean(np.stack(test_online_returns), axis=0)
