@@ -21,17 +21,19 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
             hand_high=(0.5, 1, 0.5),
             obj_low=(-0.1, 0.6, 0.03),
             obj_high=(0.1, 0.7, 0.03),
-            random_init=True,
+            random_init=False,
             tasks = [{'goal': np.array([0, 0.6, 0.09]), 'obj_init_pos':np.array([0, 0.6, 0.3])}],
             goal_low=(-0.1, 0.6, 0.09),  # -0.1  0.85 0.05
             goal_high=(0.1, 0.85, 0.09), #######################################
             hand_init_pos = (0, 0.65, 0.5),  # hand_init_pos y axis should be +0.05 bigger than y of goal to be directly above
             liftThresh = 0.04,
-            rotMode='rotz',#'fixed',
+            rotMode='fixed',#'fixed',
             rewMode='orig',
             multitask=False,
             multitask_num=1,
             if_render=False,
+            n_tasks=10,
+            randomize_tasks=False,
             **kwargs
     ):
         self.quick_init(locals())
@@ -59,7 +61,7 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
         self.random_init = random_init
         self.liftThresh = liftThresh
         self.max_path_length = 200#200#150
-        self.tasks = tasks
+        # self.tasks = tasks
         self.num_tasks = len(tasks)
         self.rewMode = rewMode
         self.rotMode = rotMode
@@ -104,13 +106,38 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
                     np.hstack((self.hand_low, obj_low, goal_low, np.zeros(multitask_num))),
                     np.hstack((self.hand_high, obj_high, goal_high, np.zeros(multitask_num))),
             )
-        self.reset()
+
+
+
+        ####################generate and save generated tasks############################
+        self.goal_low = goal_low
+        self.goal_high = goal_high
+        init_task_idx = 0
+
+        directions = list(range(n_tasks))
+        if randomize_tasks:
+            # goals = self.sample_goals(n_tasks)
+            goals = [1 * np.random.uniform(self.goal_low, self.goal_high) for _ in directions]
+        else:
+            # add more goals in n_tasks > 7
+            goals = [x['goal'] for x in tasks
+            ]  #use the task from the input
+            if (n_tasks > len(goals)):
+                raise NotImplementedError("We don't have enough goals defined")
+        self.goals = np.asarray(goals)
+        self.tasks = [{'direction': direction} for direction in directions]
+
+        # set the initial goal
+        self.reset_task(init_task_idx)
+
+
+        # self.reset()
 
 
 
     def get_goal(self):
         return {
-            'state_desired_goal': self._state_goal,
+            'state_desired_goal': self._state_goal,    #######################################3
     }
 
     @property
@@ -145,8 +172,40 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
     def reset_goal(self, direction):
         return self.goals[direction]
 
-    def reset_task(self, idx):
+    def reset_task(self, idx):   ## need to change _state_goal
+        self._task = self.tasks[idx]
+        self._goal = self.reset_goal(self._task['direction'])
+
+        self.set_goal(self._goal)
+
+        self.sim.model.body_pos[self.model.body_name2id('box')] = self._state_goal  # np.array(task['goal'])
+        self._state_goal = self.sim.model.site_pos[self.model.site_name2id('hole')] + self.sim.model.body_pos[
+            self.model.body_name2id('box')]
+        print(self._state_goal, " awwwwwwwwww  idx: ", idx, " self._goal: ", self._goal)
+        self.obj_init_pos = self.get_body_com('peg')
+        if self.random_init:
+            goal_pos = np.random.uniform(
+                self.obj_and_goal_space.low,
+                self.obj_and_goal_space.high,
+                size=(self.obj_and_goal_space.low.size),
+            )
+            while np.linalg.norm(goal_pos[:2] - goal_pos[-3:-1]) < 0.1:
+                goal_pos = np.random.uniform(
+                    self.obj_and_goal_space.low,
+                    self.obj_and_goal_space.high,
+                    size=(self.obj_and_goal_space.low.size),
+                )
+            self.obj_init_pos = np.concatenate((goal_pos[:2], [self.obj_init_pos[-1]]))
+            self.sim.model.body_pos[self.model.body_name2id('box')] = goal_pos[-3:]
+            self._state_goal = self.sim.model.site_pos[self.model.site_name2id('hole')] + self.sim.model.body_pos[
+                self.model.body_name2id('box')]  ##problematic, since using the xml data
+        # self._set_obj_xyz(self.obj_init_pos)
+
         self.reset()
+
+    def set_goal(self, goal):
+        self._state_goal = goal
+        # self._set_goal_marker(self._state_goal)  ?????????????/necessary??
 
     def reset(self):
         return self.reset_model()
@@ -261,32 +320,12 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
 
     def sample_task(self):
         task_idx = np.random.randint(0, self.num_tasks)
-        return self.tasks[task_idx]
+        return self.tasks[task_idx]   # return a directionary containing an index (direction)
 
 
-    def reset_model(self):
+    def reset_model(self):   ##
         self._reset_hand()
-        task = self.sample_task()
-        self.sim.model.body_pos[self.model.body_name2id('box')] = np.array(task['goal'])
-        self._state_goal = self.sim.model.site_pos[self.model.site_name2id('hole')] + self.sim.model.body_pos[self.model.body_name2id('box')]
-        print(self._state_goal)
-        self.obj_init_pos = task['obj_init_pos']
-        if self.random_init:
-            goal_pos = np.random.uniform(
-                self.obj_and_goal_space.low,
-                self.obj_and_goal_space.high,
-                size=(self.obj_and_goal_space.low.size),
-            )
-            while np.linalg.norm(goal_pos[:2] - goal_pos[-3:-1]) < 0.1:
-                goal_pos = np.random.uniform(
-                    self.obj_and_goal_space.low,
-                    self.obj_and_goal_space.high,
-                    size=(self.obj_and_goal_space.low.size),
-                )
-            self.obj_init_pos = np.concatenate((goal_pos[:2], [self.obj_init_pos[-1]]))
-            self.sim.model.body_pos[self.model.body_name2id('box')] = goal_pos[-3:]
-            self._state_goal = self.sim.model.site_pos[self.model.site_name2id('hole')] + self.sim.model.body_pos[self.model.body_name2id('box')]
-        # self._set_obj_xyz(self.obj_init_pos)
+        # task = self.sample_task()
         self.obj_init_pos = self.get_body_com('peg')
         self.objHeight = self.get_body_com('peg').copy()[2]
         self.heightTarget = self.objHeight + self.liftThresh
