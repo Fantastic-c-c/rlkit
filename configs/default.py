@@ -43,7 +43,7 @@ default_config = dict(
         dump_eval_paths=False, # whether to save evaluation trajectories
     ),
     util_params=dict(
-        base_log_dir='output',
+        base_log_dir='output/resample-z',
         use_gpu=True,
         gpu_id=0,
         debug=False, # debugging triggers printing and writes logs to debug directory
