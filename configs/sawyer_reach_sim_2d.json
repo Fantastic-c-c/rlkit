@@ -1,8 +1,12 @@
 {
     "env_name": "testing-env",
-    "n_train_tasks": 1,
-    "n_eval_tasks": 1,
-
+    "n_train_tasks": 5,
+    "n_eval_tasks": 6,
+"path_to_checkpoint": "output/testing-env/2019_07_24_13_18_19",
+    "env_params": {
+        "n_tasks": 100,
+        "randomize_tasks": true
+    },
     
     "algo_params": {
         "num_initial_steps": 150,
@@ -13,7 +17,7 @@
         "num_train_steps_per_itr": 1000,
         "num_evals": 1,
         "num_steps_per_eval": 45,
-        "max_path_length": 30,
+        "max_path_length": 35,
         "num_tasks_sample": 1,
         "reward_scale": 100.0,
         "kl_lambda": 0.1,

@@ -21,11 +21,11 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
             hand_high=(0.5, 1, 0.5),
             obj_low=(-0.1, 0.6, 0.03),
             obj_high=(0.1, 0.7, 0.03),
-            random_init=False,
-            tasks = [{'goal': np.array([-0.02, 0.6, 0.015]), 'obj_init_pos':np.array([0, 0.78, 0])}],
-            goal_low=(-0.1, 0.85, 0.05),
-            goal_high=(0.1, 0.85, 0.05),
-            hand_init_pos = (0, 0.8, 0.3),
+            random_init=True,
+            tasks = [{'goal': np.array([0, 0.6, 0.09]), 'obj_init_pos':np.array([0, 0.6, 0.3])}],
+            goal_low=(-0.1, 0.6, 0.09),  # -0.1  0.85 0.05
+            goal_high=(0.1, 0.85, 0.09), #######################################
+            hand_init_pos = (0, 0.65, 0.5),  # hand_init_pos y axis should be +0.05 bigger than y of goal to be directly above
             liftThresh = 0.04,
             rotMode='rotz',#'fixed',
             rewMode='orig',
@@ -107,6 +107,7 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
         self.reset()
 
 
+
     def get_goal(self):
         return {
             'state_desired_goal': self._state_goal,
@@ -157,7 +158,7 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
         # action[1] = 0
         # action[2] = 0
         # action[3] = 0
-        action[4] = 0
+
         print("------------------------------------------------------------")
         if self.if_render:
             self.render()
