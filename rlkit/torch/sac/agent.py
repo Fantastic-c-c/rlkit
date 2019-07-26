@@ -68,7 +68,7 @@ class PEARLAgent(nn.Module):
         self.register_buffer('z_vars', torch.zeros(1, latent_dim))
 
         self.goal_repeated = goal_repeated
-        self.probability = 0.5
+        self.probability = 1
 
         self.clear_z()
 
@@ -88,7 +88,8 @@ class PEARLAgent(nn.Module):
         # sample a new z from the prior
         self.sample_z()
         # reset the context collected so far
-        self.context = None
+        self.context_experience = None
+        self.context_goal = None
         # reset any hidden state in the encoder network (relevant for RNN)
         self.context_encoder_experience.reset(num_tasks)
         self.context_encoder_goal.reset(num_tasks)
@@ -110,16 +111,18 @@ class PEARLAgent(nn.Module):
         r = ptu.from_numpy(np.array([r])[None, None, ...])
         g = ptu.from_numpy(np.array(g)[None, None, ...]).repeat(1, 1, self.goal_repeated)
         experience = torch.cat([o, a, r], dim=2)
-        if self.context is None:
-            if random.random() < self.probability:
+        if random.random() < self.probability:
+            print("use goal")
+            if self.context_goal is None:
                 self.context = g
             else:
-                self.context = experience
-        else:
-            if self.context.shape[2] == experience.shape[2]:
-                self.context = torch.cat([self.context, experience], dim=1)
-            else:
                 self.context = torch.cat([self.context, g], dim=1)
+        else:
+            print("use experience")
+            if self.context_experience is None:
+                self.context = experience
+            else:
+                self.context = torch.cat([self.context, experience], dim=1)
 
     def compute_kl_div(self):
         ''' compute KL( q(z|c) || r(z) ) '''
@@ -132,9 +135,11 @@ class PEARLAgent(nn.Module):
     def infer_posterior(self, context):
         ''' compute q(z|c) as a function of input context and sample new z from it'''
         if context.shape[2] == self.context_encoder_experience.input_size:
+            print("infer z: experience")
             params = self.context_encoder_experience(context)
             params = params.view(context.size(0), -1, self.context_encoder_experience.output_size)
         else:
+            print("infer z: goal")
             params = self.context_encoder_goal(context)
             params = params.view(context.size(0), -1, self.context_encoder_goal.output_size)
         # with probabilistic z, predict mean and variance of q(z | c)

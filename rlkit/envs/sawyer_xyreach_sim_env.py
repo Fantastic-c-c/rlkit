@@ -107,6 +107,7 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
         return self.goals[direction]
 
     def reset_task(self, idx):
+        print(self._state_goal, " awwwwwwwwww  idx: ", idx)
         self._task = self.tasks[idx]
         self._goal = self.reset_goal(self._task['direction'])
 
