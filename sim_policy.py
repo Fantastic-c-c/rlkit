@@ -43,7 +43,7 @@ def sim_policy(variant, num_trajs, save_video):
 
     context_encoder_experience = encoder_model(
         hidden_sizes=[200, 200, 200],
-        input_size=obs_dim + action_dim + reward_dim,
+        input_size=3 * goal_repeated,
         output_size=context_encoder,
     )
 

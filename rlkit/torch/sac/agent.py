@@ -68,7 +68,9 @@ class PEARLAgent(nn.Module):
         self.register_buffer('z_vars', torch.zeros(1, latent_dim))
 
         self.goal_repeated = goal_repeated
+
         self.probability = 1
+
 
         self.clear_z()
 
@@ -111,6 +113,7 @@ class PEARLAgent(nn.Module):
         r = ptu.from_numpy(np.array([r])[None, None, ...])
         g = ptu.from_numpy(np.array(g)[None, None, ...]).repeat(1, 1, self.goal_repeated)
         experience = torch.cat([o, a, r], dim=2)
+
         if random.random() < self.probability:
             print("use goal")
             if self.context_goal is None:
@@ -123,6 +126,7 @@ class PEARLAgent(nn.Module):
                 self.context = experience
             else:
                 self.context = torch.cat([self.context, experience], dim=1)
+
 
     def compute_kl_div(self):
         ''' compute KL( q(z|c) || r(z) ) '''

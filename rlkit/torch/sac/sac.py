@@ -202,6 +202,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             if random.random() < self.probability:
                 corrupted = int(random.random() * 3)
                 goals_enc[:, :, corrupted] = 0
+
                 context = goals_enc.repeat(1, 1, self.goal_repeated)  #########################change context to goal
 
             self._take_step(indices, context)
