@@ -10,7 +10,9 @@ import pathlib
 # from rlkit.envs.point_mass import PointEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.envs.multitask_env import MultiClassMultiTaskEnv
-from rlkit.envs.medium_mode_env_list import MEDIUM_MODE_DICT, MEDIUM_MODE_ARGS_KWARGS
+from metaworld.envs.mujoco.sawyer_xyz.env_lists import MEDIUM_TRAIN_AND_TEST_LIST
+from rlkit.envs.ml10_env import MediumEnv
+
 
 
 from rlkit.launchers.launcher_util import setup_logger
@@ -20,7 +22,6 @@ from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
 
 
 def datetimestamp(divider=''):
@@ -30,9 +31,7 @@ def datetimestamp(divider=''):
 def experiment(variant):
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
-    env = MultiClassMultiTaskEnv(
-        task_env_cls_dict=MEDIUM_MODE_DICT,
-        task_args_kwargs=MEDIUM_MODE_ARGS_KWARGS)
+    env = MediumEnv(MEDIUM_TRAIN_AND_TEST_LIST)
 
 
     obs_dim = int(np.prod(env.observation_space.shape))
@@ -107,16 +106,16 @@ def main(gpu, docker):
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            meta_batch=16,
+            meta_batch=15,
             num_iterations=10000,
-            num_tasks_sample=7,
+            num_tasks_sample=15,
             num_steps_per_task=10 * max_path_length,
-            num_train_steps_per_itr=10000,
+            num_train_steps_per_itr=4000,
             num_evals=5, # number of evals with separate task encodings
-            num_steps_per_eval=3 * max_path_length,  # num transitions to eval on
+            num_steps_per_eval=10 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
-            embedding_batch_size=64,
-            embedding_mini_batch_size=64,
+            embedding_batch_size=256,
+            embedding_mini_batch_size=256,
             max_path_length=max_path_length,
             discount=0.99,
             soft_target_tau=0.005,
@@ -138,13 +137,14 @@ def main(gpu, docker):
             dump_eval_paths=False,
             render_eval_paths=False,
             render=True,
+            eval_per_itr=10,
         ),
         net_size=300,
         use_gpu=True,
         gpu_id=gpu,
     )
 
-    exp_name = 'medium'
+    exp_name = 'medium-mb15-ts15-rf1'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)

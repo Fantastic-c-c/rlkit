@@ -144,16 +144,22 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
     def log_statistics(self, paths, split=''):
         self.eval_statistics.update(eval_util.get_generic_path_information(
-            paths, stat_prefix="{}_task{}".format(split, self.task_idx),
+            paths, stat_prefix="_task{}".format(self.task_idx),
         ))
         # TODO(KR) what are these?
         self.eval_statistics.update(eval_util.get_generic_path_information(
             self._exploration_paths, stat_prefix="Exploration_task{}".format(self.task_idx),
         )) # something is wrong with these exploration paths i'm pretty sure...
         average_returns = eval_util.get_average_returns(paths)
-        self.eval_statistics['AverageReturn_{}_task{}'.format(split, self.task_idx)] = average_returns
+        self.eval_statistics['AverageReturn_task{}'.format(self.task_idx)] = average_returns
         success_rate = eval_util.get_success_rate(paths)
-        self.eval_statistics['Success_{}_task{}'.format(split, self.task_idx)] = success_rate
+        self.eval_statistics['Success_task{}'.format(self.task_idx)] = success_rate
+
+        if self.use_information_bottleneck:
+            z_mean = ptu.get_numpy(self.policy.z_dists[0].mean)
+            z_sig = ptu.get_numpy(self.policy.z_dists[0].variance)
+            self.eval_statistics['Z mean task {}'.format(self.task_idx)] = z_mean
+            self.eval_statistics['Z std task {}'.format(self.task_idx)] = z_sig
 
         # goal = self.env._goalgit
         # dprint('GoalPosition_{}_task'.format(split))
@@ -172,6 +178,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             dprint('task {} encoder RB size'.format(idx), self.enc_replay_buffer.task_buffers[idx]._size)
             paths = self.collect_paths(idx, epoch, eval_task=False)
             train_avg_returns.append(eval_util.get_average_returns(paths))
+            self.log_statistics(paths)
 
         ### test tasks
         dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
@@ -179,7 +186,6 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
         # This is calculating the embedding online, because every iteration
         # we clear the encoding buffer for the test tasks.
         for idx in self.eval_tasks:
-            print('eval task ', idx)
             self.task_idx = idx
             self.env.reset_task(idx)
 
@@ -206,11 +212,6 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
             test_avg_returns.append(eval_util.get_average_returns(test_paths))
 
-            if self.use_information_bottleneck:
-                z_mean = np.mean(np.abs(ptu.get_numpy(self.policy.z_dists[0].mean)))
-                z_sig = np.mean(ptu.get_numpy(self.policy.z_dists[0].variance))
-                self.eval_statistics['Z mean eval'] = z_mean
-                self.eval_statistics['Z variance eval'] = z_sig
 
             # TODO(KR) what does this do
             if hasattr(self.env, "log_diagnostics"):

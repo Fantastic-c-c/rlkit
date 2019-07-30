@@ -40,6 +40,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             save_replay_buffer=False,
             save_algorithm=False,
             save_environment=False,
+            eval_per_itr=1,
     ):
         """
         Base class for Meta RL Algorithms
@@ -92,6 +93,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.save_replay_buffer = save_replay_buffer
         self.save_algorithm = save_algorithm
         self.save_environment = save_environment
+        self.eval_per_itr = eval_per_itr
 
         self.eval_sampler = InPlacePathSampler(
             env=env,
@@ -234,7 +236,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             #self.training_mode(False)
 
             # eval
-            self._try_to_eval(it_)
+            if it_ % self.eval_per_itr == 0:
+                self._try_to_eval(it_)
             gt.stamp('eval')
 
             self._end_epoch()
