@@ -26,25 +26,33 @@ import rlkit.torch.pytorch_util as ptu
 from rlkit.envs.multitask_env import MultiClassMultiTaskEnv
 from rlkit.envs.medium_mode_env_list import MEDIUM_MODE_DICT, MEDIUM_MODE_ARGS_KWARGS
 
+np.random.seed(42)
+
 def datetimestamp(divider=''):
     now = datetime.datetime.now()
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
 def experiment(variant):
-    params = joblib.load('/home/deirdre/params.pkl')
+    params = joblib.load('/home/dequillen_gmail_com/rlkit/output/metaworld/reach2/params.pkl')
 
-    env = MultiClassMultiTaskEnv(
-        task_env_cls_dict=MEDIUM_MODE_DICT,
-        task_args_kwargs=MEDIUM_MODE_ARGS_KWARGS)
+    goal_low = np.array((0.1 - .05, 0.8 - .05, 0.2))
+    goal_high = np.array((0.1 + .05, 0.8 + .05, 0.2))
 
+    goals = np.random.uniform(low=goal_low, high=goal_high, size=(N_TASKS, len(goal_low))).tolist()
 
-    obs_dim = int(np.prod(env.observation_space.shape))
-    action_dim = int(np.prod(env.action_space.shape))
-    latent_dim = 7
-    task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
-    reward_dim = 1
+    task_args =[
+        {'goal': np.array(g), 'obj_init_pos':np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3, 'type':'push'}
+        for i, g in enumerate(goals)
+    ]
 
-    tasks = env.get_all_task_idx()
+    sawyer_env = SawyerReachPushPickPlace6DOFEnv(
+        random_init=False,
+        multitask=False,
+        obs_type='plain',
+        if_render=False,
+        tasks=task_args,
+    )
+    env = BabyModeWrapper(sawyer_env, task_args)
 
     net_size = variant['net_size']
     # start with linear task encoding
@@ -61,7 +69,7 @@ def experiment(variant):
     algorithm = ProtoSoftActorCritic(
         env=env,
         train_tasks=list(tasks),
-        eval_tasks=list(tasks),
+        eval_tasks=list(tasks)[50:],
         nets=[agent, task_enc, policy, qf1, qf2, vf, rf],
         latent_dim=latent_dim,
         **variant['algo_params']
@@ -116,7 +124,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'eval_medium'
+    exp_name = 'eval_baby'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='point-mass', base_log_dir=log_dir)
