@@ -34,6 +34,7 @@ class ProtoAgent(nn.Module):
     def __init__(self,
                  latent_dim,
                  nets,
+                 use_gpu,
                  **kwargs
     ):
         super().__init__()
@@ -47,6 +48,7 @@ class ProtoAgent(nn.Module):
         self.reward_scale = kwargs['reward_scale']
         self.sparse_rewards = kwargs['sparse_rewards']
         self.det_z = False
+        self.use_gpu = use_gpu
 
         # initialize task embedding to zero
         # (task, latent dim)
@@ -156,11 +158,11 @@ class ProtoAgent(nn.Module):
     def _update_target_network(self):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.tau)
 
-    def forward(self, obs, actions, next_obs, enc_data, obs_enc, act_enc, task_idx_one_hots):
+    def forward(self, obs, actions, next_obs, enc_data, obs_enc, act_enc, task_idx_one_hots, task_idx):
         self.set_z(enc_data)
-        return self.infer(obs, actions, next_obs, obs_enc, act_enc, task_idx_one_hots)
+        return self.infer(obs, actions, next_obs, obs_enc, act_enc, task_idx_one_hots, task_idx)
 
-    def infer(self, obs, actions, next_obs, obs_enc, act_enc, task_idx_one_hots):
+    def infer(self, obs, actions, next_obs, obs_enc, act_enc, task_idx_one_hots, task_idx):
         '''
         compute predictions of SAC networks for update
 
@@ -178,7 +180,6 @@ class ProtoAgent(nn.Module):
         rf_z = torch.cat(rf_z, dim=0)
 
 
-        # pdb.set_trace()
         r = self.rf(obs_enc.contiguous().view(obs_enc.size(0) * obs_enc.size(1), -1), 
                 act_enc.contiguous().view(act_enc.size(0) * act_enc.size(1), -1), 
                 rf_z)
@@ -190,29 +191,35 @@ class ProtoAgent(nn.Module):
         task_z = [z.repeat(b, 1) for z in task_z]
         task_z = torch.cat(task_z, dim=0)
 
+        self.task_idx_z = task_z
         # Q and V networks
-        # encoder will only get gradients from Q nets
-        q1 = self.qf1(obs, actions, task_z)
-        q2 = self.qf2(obs, actions, task_z)
-        v = self.vf(obs, task_z.detach())
+        # Encoder is getting no gradients from the networks
+        in_ = torch.cat([obs, actions, task_z.detach()], dim=1)
+        q1 = self.qf1(in_, normalized=True)
+        q2 = self.qf2(in_, normalized=True)
+
+        in_= torch.cat([obs, task_z.detach()], dim=1)
+        v = self.vf(in_, normalized=True)
 
         # run policy, get log probs and new actions
-        in_ = torch.cat([obs, task_z.detach()], dim=1)
+        
         policy_outputs = self.policy(in_, reparameterize=self.reparam, return_log_prob=True)
 
         # get targets for use in V and Q updates
         with torch.no_grad():
-            target_v_values = self.target_vf(next_obs, task_z)
+            in_ = torch.cat([next_obs, task_z], dim=1)
+            target_v_values = self.target_vf(in_, task_idx)
 
 # 
         return r, q1, q2, v, policy_outputs, target_v_values, task_z
 
-    def min_q(self, obs, actions, task_z):
+    def min_q(self, obs, actions, task_z, task_idx):
         t, b, _ = obs.size()
         obs = obs.view(t * b, -1)
 
-        q1 = self.qf1(obs, actions, task_z.detach())
-        q2 = self.qf2(obs, actions, task_z.detach())
+        in_= torch.cat([obs, actions, task_z.detach()], dim=1)
+        q1 = self.qf1(in_, task_idx)
+        q2 = self.qf2(in_, task_idx)
         min_q = torch.min(q1, q2)
         return min_q
 

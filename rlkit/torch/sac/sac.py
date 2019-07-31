@@ -19,6 +19,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
     def __init__(
             self,
             envs,
+            num_tasks,
             train_tasks,
             eval_tasks,
             latent_dim,
@@ -52,6 +53,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             **kwargs
         )
         deterministic_embedding=False
+        self.num_tasks = num_tasks
         self.soft_target_tau = soft_target_tau
         self.policy_mean_reg_weight = policy_mean_reg_weight
         self.policy_std_reg_weight = policy_std_reg_weight
@@ -72,6 +74,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.reparameterize = reparameterize
         self.use_information_bottleneck = use_information_bottleneck
         self.sparse_rewards = sparse_rewards
+
+        self.qf1, self.qf2, self.vf = nets[3:6]
 
         # TODO consolidate optimizers!
         self.policy_optimizer = optimizer_class(
@@ -119,7 +123,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             rewards.append(r)
             next_obs.append(no)
             terms.append(t)
-            i = np.zeros(7)
+            i = np.zeros(self.num_tasks)
             i[idx] = 1
             # pdb.set_trace()
             i = np.array(i)
@@ -147,17 +151,14 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         mb_size = self.embedding_mini_batch_size
         num_updates = self.embedding_batch_size // mb_size
 
-        batch = self.sample_data(indices, encoder=True)
-        task_idx_one_hots = batch[-1]
-        # zero out context and hidden encoder state
-        self.policy.clear_z(num_tasks=len(indices))
+        for task_idx in indices:
+            obs_enc, act_enc, rewards_enc, _, _, task_idx_one_hots = self.sample_data([task_idx], encoder=True)
+            # zero out context and hidden encoder state
+            self.policy.clear_z(num_tasks=len(indices))
 
-        for i in range(num_updates):
-            # TODO(KR) argh so ugly
 
-            mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch[:-1]]
-            obs_enc, act_enc, rewards_enc, _, _ = mini_batch
-            self._take_step(indices, obs_enc, act_enc, rewards_enc, task_idx_one_hots)
+            # print('calling training')
+            self._take_step([task_idx], obs_enc, act_enc, rewards_enc, task_idx_one_hots)
 
             # stop backprop
             self.policy.detach_z()
@@ -165,13 +166,14 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
     def _take_step(self, indices, obs_enc, act_enc, rewards_enc, task_idx_one_hots):
 
         num_tasks = len(indices)
+        task_idx = indices[0]
 
         # data is (task, batch, feat)
         obs, actions, rewards, next_obs, terms, task_idx_one_hots = self.sample_data(indices)
         enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
 
         # run inference in networks
-        r_pred, q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.policy(obs, actions, next_obs, enc_data, obs_enc, act_enc, task_idx_one_hots)
+        r_pred, q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.policy(obs, actions, next_obs, enc_data, obs_enc, act_enc, task_idx_one_hots, task_idx)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         # KL constraint on z if probabilistic
@@ -194,17 +196,22 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         rewards_flat = rewards.view(self.batch_size * num_tasks, -1)
         terms_flat = terms.view(self.batch_size * num_tasks, -1)
         q_target = rewards_flat + (1. - terms_flat) * self.discount * target_v_values
-        qf_loss = torch.mean((q1_pred - q_target) ** 2) + torch.mean((q2_pred - q_target) ** 2)
+        # pdb.set_trace()
+        q1_target, _, _ = self.qf1.popart_layers[task_idx].update_and_normalize(q_target)
+        q2_target, _, _ = self.qf2.popart_layers[task_idx].update_and_normalize(q_target)
+        qf_loss = torch.mean((q1_pred - q1_target) ** 2) + torch.mean((q2_pred - q2_target) ** 2)
         qf_loss.backward()
         self.qf1_optimizer.step()
         self.qf2_optimizer.step()
         self.context_optimizer.step()
 
         # compute min Q on the new actions
-        min_q_new_actions = self.policy.min_q(obs, new_actions, task_z)
+        min_q_new_actions = self.policy.min_q(obs, new_actions, task_z, task_idx)
 
         # vf update
         v_target = min_q_new_actions - log_pi
+        v_target, _, _ = self.vf.popart_layers[task_idx].update_and_normalize(v_target.detach())
+
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
         self.vf_optimizer.zero_grad()
         vf_loss.backward()

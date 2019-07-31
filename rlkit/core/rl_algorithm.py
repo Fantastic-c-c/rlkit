@@ -193,9 +193,11 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     env.reset()
                     # env = envs
                     print(env)
+                    idx_one_hot = np.zeros(len(tasks))
+                    idx_one_hot[idx] = 1
                     self.collect_data_sampling_from_prior(env=env, num_samples=self.max_path_length * 1,
                                                           resample_z_every_n=self.max_path_length,
-                                                          eval_task=False)
+                                                          eval_task=False, idx=idx_one_hot)
                 """
                 for idx in self.eval_tasks:
                     self.task_idx = idx
@@ -304,13 +306,14 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.policy.clear_z()
             self.collect_data(task_idx_one_hot=task_idx_one_hot, env=env, agent=self.policy, num_samples=num_samples, eval_task=eval_task,
                               add_to_enc_buffer=add_to_enc_buffer, render=render)
+
         else:
             # collects more data in batches of resample_z_every_n until done
             while num_samples > 0:
                 self.collect_data_sampling_from_prior(task_idx_one_hot=task_idx_one_hot, env=env, num_samples=min(resample_z_every_n, num_samples),
                                                       resample_z_every_n=None,
                                                       eval_task=eval_task,
-                                                      add_to_enc_buffer=add_to_enc_buffer, render=render)
+                                                      add_to_enc_buffer=add_to_enc_buffer, render=render, idx=idx)
                 num_samples -= resample_z_every_n
 
     def collect_data_from_task_posterior(self, task_idx_one_hot, env, idx, num_samples=1, resample_z_every_n=None, eval_task=False,

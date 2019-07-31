@@ -1,85 +1,59 @@
-class PopArtLayer(torch.nn.Module):
-    """
-    Automatic network output scale adjuster, which is supposed to keep
-    the output of the network up to date as we keep updating moving
-    average and variance of discounted returns.
-    Part of the PopArt algorithm described in DeepMind's paper
-    "Learning values across many orders of magnitude"
-    (https://arxiv.org/abs/1602.07714)
-    """
-    def __init__(self, beta=1e-4, epsilon=1e-4, stable_rate=0.1,
-                 min_steps=1000, **kwargs):
-        """
-        :param beta: a value in range (0..1) controlling sensitivity to changes
-        :param epsilon: a minimal possible value replacing standard deviation
-                if the original one is zero.
-        :param stable_rate: Pop-part of the algorithm will kick in only when
-            the amplitude of changes in standard deviation will drop
-            to this value (stabilizes). This protects pop-adjustments from
-            being activated too soon, which would lead to weird values
-            of `W` and `b` and numerical instability.
-        :param min_steps: Minimal number of steps before it even begins
-            possible for Pop-part to become activated (an extra precaution
-            in addition to the `stable_rate`).
-        :param kwargs: any extra Keras layer parameters, like name, etc.
-        """
+import torch
+import numpy as np
+from torch import nn as nn
+import pdb
+from functools import reduce
+
+class PopArtLayer(nn.Module):
+    def __init__(
+            self,
+            in_size=1,
+            output_size=1,
+            beta=1e-4,
+            epsilon=1e-4,
+            stable_rate=0.1,
+            min_steps=1000,
+            use_gpu=False,
+            **kwargs
+    ):        
+        super(PopArtLayer, self).__init__()
+        # Popart params
+        self.mean = 0
+        self.mean_of_square = 0
+        self.step = 0
+        self.pop_is_active = 0
+        if use_gpu:
+            device = torch.device('cuda:0')
+        else:
+            device = torch.device('cpu')
+
+        self.kernel = torch.randn(in_size, output_size, dtype=torch.float32, requires_grad=True, device=device)
+        self.bias = torch.randn(output_size, dtype=torch.float32, requires_grad=True, device=device)
+
         self.beta = beta
         self.epsilon = epsilon
         self.stable_rate = stable_rate
         self.min_steps = min_steps
-        super().__init__(**kwargs)
 
-    # noinspection PyAttributeOutsideInit
-    def build(self, input_shape):
+    def forward(self, h):
+        return h*self.kernel + self.bias
 
-        # Q: what is the size of these variables?
-        # Q: should they be tensors?
-        self.kernel = torch.tensor(shape=(), dtype='float32', initializer='ones')
-        self.bias = self.add_weight(
-            name='bias', shape=(), dtype='float32',
-            initializer='zeros', trainable=False)
-        self.mean = self.add_weight(
-            name='mean', shape=(), dtype='float32',
-            initializer='zeros', trainable=False)
-        self.mean_of_square = self.add_weight(
-            name='mean_of_square', shape=(), dtype='float32',
-            initializer='zeros', trainable=False)
-        self.step = self.add_weight(
-            name='step', shape=(), dtype='float32',
-            initializer='zeros', trainable=False)
-        self.pop_is_active = self.add_weight(
-            name='pop_is_active', shape=(), dtype='float32',
-            initializer='zeros', trainable=False)
-        return super().build(input_shape)
-
-    def call(self, inputs, **kwargs):
-        return self.kernel * inputs + self.bias
-
-    def compute_output_shape(self, input_shape):
-        return input_shape
-
-    def de_normalize(self, x: np.ndarray) -> np.ndarray:
-        """
-        Converts previously normalized data into original values.
-        """
-        online_mean, online_mean_of_square = [self.mean, self.mean_of_square]
-        std_dev = np.sqrt(online_mean_of_square - np.square(online_mean))
-        return (x * (std_dev if std_dev > 0 else self.epsilon)
-                + online_mean)
-
-    def pop_art_update(self, x: np.ndarray) -> Tuple[float, float]:
+    def pop_art_update(self, x):
         """
         Performs ART (Adaptively Rescaling Targets) update,
         adjusting normalization parameters with respect to new targets x.
         Updates running mean, mean of squares and returns
         new mean and standard deviation for later use.
         """
-        assert len(x.shape) == 2, "Must be 2D (batch_size, time_steps)"
+        # assert len(x.shape) == 2, "Must be 2D (batch_size, time_steps)"
+        x = x[:, 0]
         beta = self.beta
-        (old_kernel, old_bias, old_online_mean,
-         old_online_mean_of_square, step, pop_is_active) = 
-            [self.kernel, self.bias, self.mean,
-             self.mean_of_square, self.step, self.pop_is_active]
+        old_kernel = self.kernel
+        old_bias = self.bias
+        old_online_mean = self.mean
+        old_online_mean_of_square = self.mean_of_square
+        step = self.step
+        pop_is_active = self.pop_is_active
 
         def update_rule(old, new):
             """
@@ -92,14 +66,24 @@ class PopArtLayer(torch.nn.Module):
             adj_beta = beta / (1 - (1 - beta)**step)
             return (1 - adj_beta) * old + adj_beta * new
 
-        x_means = np.stack([x.mean(axis=0), np.square(x).mean(axis=0)], axis=1)
+        def update_rule_static_beta(old, new):
+            return (1 - self.beta) * old + self.beta * new
+
+        x_means = np.stack([x.mean(), np.square(x).mean()])
+
         # Updating normalization parameters (for ART)
-        online_mean, online_mean_of_square = reduce(
-            update_rule, x_means,
-            np.array([old_online_mean, old_online_mean_of_square]))
+
+        online_mean = update_rule_static_beta(old_online_mean, x.mean())
+        online_mean_of_square = update_rule(old_online_mean_of_square, np.square(x).mean())
+        
+        # online_mean, online_mean_of_square = reduce(
+        #     update_rule, x_means,
+        #     np.array([old_online_mean, old_online_mean_of_square]))
+
+        # pdb.set_trace()
         old_std_dev = np.sqrt(
-            old_online_mean_of_square - np.square(old_online_mean))
-        std_dev = np.sqrt(online_mean_of_square - np.square(online_mean))
+            max(old_online_mean_of_square - np.square(old_online_mean), self.epsilon))
+        std_dev = np.sqrt(max(online_mean_of_square - np.square(online_mean), self.epsilon))
         old_std_dev = old_std_dev if old_std_dev > 0 else std_dev
         # Performing POP (Preserve the Output Precisely) update
         # but only if we are not in the beginning of the training
@@ -119,18 +103,24 @@ class PopArtLayer(torch.nn.Module):
         else:
             new_kernel, new_bias = old_kernel, old_bias
         # Saving updated parameters into graph variables
-        var_update = [
-            (self.kernel, new_kernel),
-            (self.bias, new_bias),
-            (self.mean, online_mean),
-            (self.mean_of_square, online_mean_of_square),
-            (self.step, step),
-            (self.pop_is_active, pop_is_active)]
-        K.batch_set_value(var_update)
+
+        self.kernel = torch.Tensor(new_kernel)
+        self.bias = torch.Tensor(new_bias)
+        self.mean = online_mean
+        self.mean_of_square = online_mean_of_square
+        self.step = step
+        self.pop_is_active = pop_is_active
         return online_mean, std_dev
 
-    def update_and_normalize(self, x: np.ndarray) -> Tuple[np.ndarray,
-                                                           float, float]:
+    def de_normalize(self, x: np.ndarray) -> np.ndarray:
+        """
+        Converts previously normalized data into original values.
+        """
+        std_dev = np.sqrt(self.mean_of_square - np.square(self.mean))
+        return (x * (std_dev if std_dev > 0 else self.epsilon)
+                + self.mean)
+
+    def update_and_normalize(self, x: np.ndarray):
         """
         Normalizes given tensor `x` and updates parameters associated
         with PopArt: running means (art) and network's output scaling (pop).

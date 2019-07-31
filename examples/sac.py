@@ -12,7 +12,7 @@ from rlkit.envs.point_mass import PointEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
 from rlkit.torch.sac.policies import TanhGaussianPolicy
-from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
+from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder, PopArtFlattenMlp
 from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
@@ -23,6 +23,9 @@ def datetimestamp(divider=''):
 
 def experiment(variant):
     env = NormalizedBoxEnv(PointEnv(**variant['task_params']))
+    
+    tasks = [env]
+
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
     tasks = env.get_all_task_idx()
@@ -42,17 +45,17 @@ def experiment(variant):
             input_size=obs_dim + action_dim + reward_dim,
             output_size=task_enc_output_dim,
     )
-    qf1 = FlattenMlp(
+    qf1 = PopArtFlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
         input_size=obs_dim + action_dim + latent_dim,
         output_size=1,
     )
-    qf2 = FlattenMlp(
+    qf2 = PopArtFlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
         input_size=obs_dim + action_dim + latent_dim,
         output_size=1,
     )
-    vf = FlattenMlp(
+    vf = PopArtFlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
         input_size=obs_dim + latent_dim,
         output_size=1,
@@ -77,7 +80,7 @@ def experiment(variant):
     )
 
     algorithm = ProtoSoftActorCritic(
-        env=env,
+        envs=tasks,
         train_tasks=list(tasks[:-20]),
         eval_tasks=list(tasks[-20:]),
         nets=[agent, task_enc, policy, qf1, qf2, vf, rf],
@@ -97,7 +100,7 @@ def main(gpu, docker):
     # noinspection PyTypeChecker
     variant = dict(
         task_params=dict(
-            n_tasks=120,
+            n_tasks=1,
             randomize_tasks=True,
         ),
         algo_params=dict(
@@ -132,7 +135,7 @@ def main(gpu, docker):
             dump_eval_paths=False,
         ),
         net_size=300,
-        use_gpu=True,
+        use_gpu=False,
         gpu_id=gpu,
     )
 

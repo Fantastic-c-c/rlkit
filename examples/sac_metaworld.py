@@ -12,32 +12,48 @@ import pathlib
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
 from rlkit.torch.sac.policies import TanhGaussianPolicy
-from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
+from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder, PopArtFlattenMlp
 from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
 
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_assembly_peg_6dof import SawyerNutAssembly6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_bin_picking_6dof import SawyerBinPicking6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_book_place import SawyerBookPlace6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_box_close_6dof import SawyerBoxClose6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_assembly_peg_6dof import SawyerNutAssembly6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_bin_picking_6dof import SawyerBinPicking6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_book_place import SawyerBookPlace6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_box_close_6dof import SawyerBoxClose6DOFEnv
 
 
 
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYZEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYZEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_hand_insert import SawyerHandInsert6DOFEnv
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_sweep import SawyerSweep6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_hammer_6dof import SawyerHammer6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_laptop_close_6dof import SawyerLaptopClose6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_sweep_into_goal import SawyerSweepIntoGoal6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_button_press_topdown_6dof import SawyerButtonPressTopdown6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place_6dof import SawyerPickAndPlace6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_6dof import SawyerDoor6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_drawer_close_6dof import SawyerDrawerClose6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_hammer_6dof import SawyerHammer6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_laptop_close_6dof import SawyerLaptopClose6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_sweep_into_goal import SawyerSweepIntoGoal6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_button_press_topdown_6dof import SawyerButtonPressTopdown6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_pick_and_place_6dof import SawyerPickAndPlace6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_door_6dof import SawyerDoor6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_drawer_close_6dof import SawyerDrawerClose6DOFEnv
+
+USE_GPU=False
 
 
+# Initialize copies of each environment with random goals.
+TASKS = [
+SawyerHandInsert6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=0),
+SawyerSweep6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=1),
+# SawyerHammer6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=2),
+# SawyerBookPlace6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=3),
+# # SawyerNutAssembly6DOFEnv(rotMode='rotz', num_obs_space_obj_positions=3),
+# SawyerLaptopClose6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=4),
+# # SawyerSweepIntoGoal6DOFEnv(rotMode='rotz', multitask=True, multitask_num=8, task_idx=4),
+# # SawyerDrawerClose6DOFEnv(rotMode='rotz', multitask=True, multitask_num=8, task_idx=5),
+# SawyerButtonPressTopdown6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=5),
+# SawyerPickAndPlace6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=6)
+]
+NUM_TASKS = len(TASKS)
 
 def datetimestamp(divider=''):
     now = datetime.datetime.now()
@@ -46,28 +62,16 @@ def datetimestamp(divider=''):
 def experiment(variant):
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
-    # Initialize copies of each environment with random goals.
-    tasks = [
-    SawyerHandInsert6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=0),
-    SawyerSweep6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=1),
-    SawyerHammer6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=2),
-    SawyerBookPlace6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=3),
-    # SawyerNutAssembly6DOFEnv(rotMode='rotz', num_obs_space_obj_positions=3),
-    SawyerLaptopClose6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=4),
-    # SawyerSweepIntoGoal6DOFEnv(rotMode='rotz', multitask=True, multitask_num=8, task_idx=4),
-    # SawyerDrawerClose6DOFEnv(rotMode='rotz', multitask=True, multitask_num=8, task_idx=5),
-    SawyerButtonPressTopdown6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=5),
-    SawyerPickAndPlace6DOFEnv(rotMode='rotz', multitask=True, multitask_num=7, task_idx=6)
-    ]
 
 
-    for env in tasks:
+
+    for env in TASKS:
         print('env.observation_space.shape', env.observation_space.shape)
         print('env.action_space.shape))', env.action_space.shape)
 
-    obs_dim = int(np.prod(tasks[0].observation_space.shape))
-    action_dim = int(np.prod(tasks[0].action_space.shape))
-    latent_dim = 7
+    obs_dim = int(np.prod(TASKS[0].observation_space.shape))
+    action_dim = int(np.prod(TASKS[0].action_space.shape))
+    latent_dim = 2
     task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
     reward_dim = 1
 
@@ -80,21 +84,28 @@ def experiment(variant):
             input_size=obs_dim + action_dim + reward_dim,
             output_size=task_enc_output_dim,
     )
-    qf1 = FlattenMlp(
+
+    qf1 = PopArtFlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
         input_size=obs_dim + action_dim + latent_dim,
         output_size=1,
+        num_tasks=NUM_TASKS,
     )
-    qf2 = FlattenMlp(
+
+    qf2 = PopArtFlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
         input_size=obs_dim + action_dim + latent_dim,
         output_size=1,
+        num_tasks=NUM_TASKS,
     )
-    vf = FlattenMlp(
+
+    vf = PopArtFlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
         input_size=obs_dim + latent_dim,
         output_size=1,
+        num_tasks=NUM_TASKS,
     )
+
     policy = TanhGaussianPolicy(
         hidden_sizes=[net_size, net_size, net_size],
         obs_dim=obs_dim + latent_dim,
@@ -111,15 +122,17 @@ def experiment(variant):
     agent = ProtoAgent(
         latent_dim,
         [task_enc, policy, qf1, qf2, vf, rf],
+        use_gpu=USE_GPU,
         **variant['algo_params']
     )
 
     algorithm = ProtoSoftActorCritic(
-        envs=tasks,
-        train_tasks=list(tasks),
-        eval_tasks=list(tasks),
+        envs=TASKS,
+        train_tasks=list(TASKS),
+        eval_tasks=list(TASKS),
         nets=[agent, task_enc, policy, qf1, qf2, vf, rf],
         latent_dim=latent_dim,
+        num_tasks = NUM_TASKS,
         **variant['algo_params']
     )
     if ptu.gpu_enabled():
@@ -135,7 +148,7 @@ def main(gpu, docker):
     # noinspection PyTypeChecker
     variant = dict(
         task_params=dict(
-            n_tasks=1,
+            n_tasks=NUM_TASKS,
             randomize_tasks=True,
         ),
         algo_params=dict(
@@ -161,7 +174,7 @@ def main(gpu, docker):
             reparameterize=True,
             kl_lambda=.1,
             rf_loss_scale=1.,
-            use_information_bottleneck=True,
+            use_information_bottleneck=False,
             train_embedding_source='online_exploration_trajectories',
             # embedding_source should be chosen from
             # {'initial_pool', 'online_exploration_trajectories', 'online_on_policy_trajectories'}
@@ -173,11 +186,11 @@ def main(gpu, docker):
             task_idx_for_render=None,
         ),
         net_size=300,
-        use_gpu=True,
+        use_gpu=USE_GPU,
         gpu_id=gpu,
     )
 
-    exp_name = '7tasks-rs1-vis'
+    exp_name = 'test'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)
