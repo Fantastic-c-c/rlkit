@@ -124,28 +124,30 @@ class ProtoAgent(nn.Module):
          - by updating hidden state for recurrent encoder
         '''
         z = self.z
-        num_z = self.num_z
+        # num_z = self.num_z
 
-        # TODO this only works for single task (t == 1)
-        new_z = self.task_enc(in_)
-        if new_z.size(0) != 1:
-            raise Exception('incremental update for more than 1 task not supported')
-        if self.recurrent:
-            z = new_z
-        else:
-            new_z = new_z[0] # batch x feat
-            num_updates = new_z.size(0)
-            for i in range(num_updates):
-                num_z += 1
-                z += (new_z[i][None] - z) / num_z
-        if self.use_ib:
-            z = self.information_bottleneck(z)
+        # # TODO this only works for single task (t == 1)
+        # new_z = self.task_enc(in_)
+        # if new_z.size(0) != 1:
+        #     raise Exception('incremental update for more than 1 task not supported')
+        # if self.recurrent:
+        #     z = new_z
+        # else:
+        #     new_z = new_z[0] # batch x feat
+        #     num_updates = new_z.size(0)
+        #     for i in range(num_updates):
+        #         num_z += 1
+        #         z += (new_z[i][None] - z) / num_z
+        # if self.use_ib:
+        #     z = self.information_bottleneck(z)
 
-    def get_action(self, obs, deterministic=False):
+    def get_action(self, obs, task_idx_one_hots, deterministic=False):
         ''' sample action from the policy, conditioned on the task embedding '''
         z = self.z
+        pdb.set_trace()
+        self.z = ptu.from_numpy(task_idx_one_hots)
         obs = ptu.from_numpy(obs[None])
-        in_ = torch.cat([obs, z], dim=1)
+        in_ = torch.cat([obs, self.z], dim=1)
         return self.policy.get_action(in_, deterministic=deterministic)
 
     def set_num_steps_total(self, n):
@@ -165,8 +167,9 @@ class ProtoAgent(nn.Module):
         regularize encoder with reward prediction from latent task embedding
         '''
 
-        task_z = self.z
+        # task_z = self.z
         task_z = torch.tensor(task_idx_one_hots, dtype=torch.float32, device=torch.device('cuda:0'))
+        self.z = task_z
         # pdb.set_trace()
 
 
