@@ -33,14 +33,14 @@ def experiment(variant):
 
     env = MediumEnv(MEDIUM_TRAIN_AND_TEST_LIST)
 
+    tasks = env.get_all_task_idx()
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
-    latent_dim = 7
+    latent_dim = len(tasks)
     task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
     reward_dim = 1
 
-    tasks = env.get_all_task_idx()
 
     net_size = variant['net_size']
     # start with linear task encoding
@@ -111,7 +111,7 @@ def main(gpu, docker):
             num_tasks_sample=15,
             num_steps_per_task=10 * max_path_length,
             num_train_steps_per_itr=4000,
-            num_evals=5, # number of evals with separate task encodings
+            num_evals=1, # number of evals with separate task encodings
             num_steps_per_eval=10 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
             embedding_batch_size=256,
@@ -128,7 +128,7 @@ def main(gpu, docker):
             reparameterize=True,
             kl_lambda=.1,
             rf_loss_scale=1.,
-            use_information_bottleneck=True,
+            use_information_bottleneck=False,
             train_embedding_source='online_exploration_trajectories',
             # embedding_source should be chosen from
             # {'initial_pool', 'online_exploration_trajectories', 'online_on_policy_trajectories'}
@@ -144,7 +144,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'medium-mb15-ts15-rf1'
+    exp_name = 'medium-multitask'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)

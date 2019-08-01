@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 import rlkit.torch.pytorch_util as ptu
 from rlkit.torch.core import np_ify, torch_ify
-
+import pdb
 
 def _product_of_gaussians(mus, sigmas_squared):
     '''
@@ -58,13 +58,14 @@ class ProtoAgent(nn.Module):
             self.z_dists = [torch.distributions.Normal(ptu.zeros(self.latent_dim), ptu.ones(self.latent_dim))]
 
     def clear_z(self, num_tasks=1):
-        if self.use_ib:
-            self.z_dists = [torch.distributions.Normal(ptu.zeros(self.latent_dim), ptu.ones(self.latent_dim)) for _ in range(num_tasks)]
-            z = [d.rsample() for d in self.z_dists]
-            self.z = torch.stack(z)
-        else:
-            self.z = self.z.new_full((num_tasks, self.latent_dim), 0)
-        self.task_enc.reset(num_tasks) # clear hidden state in recurrent case
+        pass
+    #     if self.use_ib:
+    #         self.z_dists = [torch.distributions.Normal(ptu.zeros(self.latent_dim), ptu.ones(self.latent_dim)) for _ in range(num_tasks)]
+    #         z = [d.rsample() for d in self.z_dists]
+    #         self.z = torch.stack(z)
+    #     else:
+    #         self.z = self.z.new_full((num_tasks, self.latent_dim), 0)
+    #     self.task_enc.reset(num_tasks) # clear hidden state in recurrent case
 
     def detach_z(self):
         self.z = self.z.detach()
@@ -74,17 +75,18 @@ class ProtoAgent(nn.Module):
     def update_context(self, inputs):
         ''' update task embedding with a single transition '''
         # TODO there should be one generic method for preparing data for the encoder!!!
-        o, a, r, no, d = inputs
-        if self.sparse_rewards:
-            r = ptu.sparsify_rewards(r)
-        r = r / self.reward_scale
-        o = ptu.from_numpy(o[None, None, ...])
-        a = ptu.from_numpy(o[None, None, ...])
-        r = ptu.from_numpy(np.array([r])[None, None, ...])
-        # TODO: we can make this a bit more efficient by simply storing the natural params of the current posterior and add the new sample to update
-        # then in the info bottleneck, we compute the the normal after computing the mean/variance from the natural params stored
-        data = torch.cat([o, a, r], dim=2)
-        self.update_z(data)
+        pass
+        # o, a, r, no, d = inputs
+        # if self.sparse_rewards:
+        #     r = ptu.sparsify_rewards(r)
+        # r = r / self.reward_scale
+        # o = ptu.from_numpy(o[None, None, ...])
+        # a = ptu.from_numpy(o[None, None, ...])
+        # r = ptu.from_numpy(np.array([r])[None, None, ...])
+        # # TODO: we can make this a bit more efficient by simply storing the natural params of the current posterior and add the new sample to update
+        # # then in the info bottleneck, we compute the the normal after computing the mean/variance from the natural params stored
+        # data = torch.cat([o, a, r], dim=2)
+        # self.update_z(data)
 
     def information_bottleneck(self, z):
         # assume input and output to be task x batch x feat
@@ -108,13 +110,14 @@ class ProtoAgent(nn.Module):
 
     def set_z(self, in_):
         ''' compute latent task embedding only from this input data '''
-        new_z = self.task_enc(in_)
-        new_z = new_z.view(in_.size(0), -1, self.task_enc.output_size)
-        if self.use_ib:
-            new_z = self.information_bottleneck(new_z)
-        else:
-            new_z = torch.mean(new_z, dim=1)
-        self.z = new_z
+        pass
+        # new_z = self.task_enc(in_)
+        # new_z = new_z.view(in_.size(0), -1, self.task_enc.output_size)
+        # if self.use_ib:
+        #     new_z = self.information_bottleneck(new_z)
+        # else:
+        #     new_z = torch.mean(new_z, dim=1)
+        # self.z = new_z
 
     def update_z(self, in_):
         '''
@@ -122,26 +125,28 @@ class ProtoAgent(nn.Module):
          - by running mean for prototypical encoder
          - by updating hidden state for recurrent encoder
         '''
-        z = self.z
-        num_z = self.num_z
+        pass
+        # z = self.z
+        # num_z = self.num_z
 
-        # TODO this only works for single task (t == 1)
-        new_z = self.task_enc(in_)
-        if new_z.size(0) != 1:
-            raise Exception('incremental update for more than 1 task not supported')
-        if self.recurrent:
-            z = new_z
-        else:
-            new_z = new_z[0] # batch x feat
-            num_updates = new_z.size(0)
-            for i in range(num_updates):
-                num_z += 1
-                z += (new_z[i][None] - z) / num_z
-        if self.use_ib:
-            z = self.information_bottleneck(z)
+        # # TODO this only works for single task (t == 1)
+        # new_z = self.task_enc(in_)
+        # if new_z.size(0) != 1:
+        #     raise Exception('incremental update for more than 1 task not supported')
+        # if self.recurrent:
+        #     z = new_z
+        # else:
+        #     new_z = new_z[0] # batch x feat
+        #     num_updates = new_z.size(0)
+        #     for i in range(num_updates):
+        #         num_z += 1
+        #         z += (new_z[i][None] - z) / num_z
+        # if self.use_ib:
+        #     z = self.information_bottleneck(z)
 
-    def get_action(self, obs, deterministic=False):
+    def get_action(self, obs, task_idx_one_hot, deterministic=False):
         ''' sample action from the policy, conditioned on the task embedding '''
+        self.z = torch.unsqueeze(ptu.from_numpy(task_idx_one_hot), dim=0)
         z = self.z
         obs = ptu.from_numpy(obs[None])
         in_ = torch.cat([obs, z], dim=1)
@@ -153,17 +158,18 @@ class ProtoAgent(nn.Module):
     def _update_target_network(self):
         ptu.soft_update_from_to(self.vf, self.target_vf, self.tau)
 
-    def forward(self, obs, actions, next_obs, enc_data, obs_enc, act_enc):
+    def forward(self, obs, actions, next_obs, enc_data, obs_enc, act_enc, task_idx_one_hot):
         self.set_z(enc_data)
-        return self.infer(obs, actions, next_obs, obs_enc, act_enc)
+        return self.infer(obs, actions, next_obs, obs_enc, act_enc, task_idx_one_hot)
 
-    def infer(self, obs, actions, next_obs, obs_enc, act_enc):
+    def infer(self, obs, actions, next_obs, obs_enc, act_enc, task_idx_one_hot):
         '''
         compute predictions of SAC networks for update
 
         regularize encoder with reward prediction from latent task embedding
         '''
 
+        self.z = ptu.from_numpy(task_idx_one_hot)
         task_z = self.z
 
         # auxiliary reward regression

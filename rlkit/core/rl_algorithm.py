@@ -72,6 +72,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.exploration_policy = policy # Can potentially use a different policy purely for exploration rather than also solving tasks, currently not being used
         self.train_tasks = train_tasks
         self.eval_tasks = eval_tasks
+        self.num_tasks = len(self.train_tasks) + len(self.eval_tasks)
         self.meta_batch = meta_batch
         self.num_iterations = num_iterations
         self.num_train_steps_per_itr = num_train_steps_per_itr
@@ -149,6 +150,13 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             idx = np.random.randint(len(self.train_tasks))
         return idx
 
+    def idx_to_one_hot(self, idx):
+        # Returns a numpy array
+        num_tasks = len(self.train_tasks) + len(self.eval_tasks)
+        task_idx_one_hot = np.zeros(num_tasks)
+        task_idx_one_hot[idx] = 1
+        return task_idx_one_hot
+
     def train(self):
         '''
         meta-training loop
@@ -174,7 +182,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 for idx in self.train_tasks:
                     self.task_idx = idx
                     self.env.reset_task(idx)
-                    self.collect_data_sampling_from_prior(num_samples=self.max_path_length * 1,
+                    self.collect_data_sampling_from_prior(idx=idx, num_samples=self.max_path_length * 1,
                                                           resample_z_every_n=self.max_path_length,
                                                           eval_task=False)
                 """
@@ -208,7 +216,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     # sample data from posterior to train RL algorithm
                     # self.enc_replay_buffer.task_buffers[idx].clear()
                     # resamples using current policy, conditioned on prior
-                    self.collect_data_sampling_from_prior(num_samples=self.num_steps_per_task,
+                    self.collect_data_sampling_from_prior(idx=idx, num_samples=self.num_steps_per_task,
                                                           resample_z_every_n=self.max_path_length,
                                                           add_to_enc_buffer=True)
 
@@ -266,17 +274,17 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         pass
 
     # TODO: maybe find a better name for resample_z_every_n?
-    def collect_data_sampling_from_prior(self, num_samples=1, resample_z_every_n=None, eval_task=False,
+    def collect_data_sampling_from_prior(self, idx, num_samples=1, resample_z_every_n=None, eval_task=False,
                                          add_to_enc_buffer=True):
         # do not resample z if resample_z_every_n is None
         if resample_z_every_n is None:
             self.policy.clear_z()
-            self.collect_data(self.policy, num_samples=num_samples, eval_task=eval_task,
+            self.collect_data(idx, self.policy, num_samples=num_samples, eval_task=eval_task,
                               add_to_enc_buffer=add_to_enc_buffer)
         else:
             # collects more data in batches of resample_z_every_n until done
             while num_samples > 0:
-                self.collect_data_sampling_from_prior(num_samples=min(resample_z_every_n, num_samples),
+                self.collect_data_sampling_from_prior(idx=idx, num_samples=min(resample_z_every_n, num_samples),
                                                       resample_z_every_n=None,
                                                       eval_task=eval_task,
                                                       add_to_enc_buffer=add_to_enc_buffer)
@@ -287,7 +295,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         # do not resample z if resample_z_every_n is None
         if resample_z_every_n is None:
             self.sample_z_from_posterior(idx, eval_task=eval_task)
-            self.collect_data(self.policy, num_samples=num_samples, eval_task=eval_task,
+            self.collect_data(idx, self.policy, num_samples=num_samples, eval_task=eval_task,
                               add_to_enc_buffer=add_to_enc_buffer)
         else:
             # collects more data in batches of resample_z_every_n until done
@@ -301,7 +309,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
     # split number of prior and posterior samples
     def collect_data_online(self, idx, num_samples, eval_task=False, add_to_enc_buffer=True):
-        self.collect_data_sampling_from_prior(num_samples=num_samples,
+        self.collect_data_sampling_from_prior(idx, num_samples=num_samples,
                                               resample_z_every_n=self.max_path_length,
                                               eval_task=eval_task,
                                               add_to_enc_buffer=True)
@@ -315,13 +323,13 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     # TODO: since switching tasks now resets the environment, we are not correctly handling episodes terminating
     # correctly. We also aren't using the episodes anywhere, but we should probably change this to make it gather paths
     # until we have more samples than num_samples, to make sure every episode cleanly terminates when intended.
-    def collect_data(self, agent, num_samples=1, eval_task=False, add_to_enc_buffer=True):
+    def collect_data(self, idx, agent, num_samples=1, eval_task=False, add_to_enc_buffer=True):
         '''
         collect data from current env in batch mode
         with given policy
         '''
         for _ in range(num_samples):
-            action, agent_info = self._get_action_and_info(agent, self.train_obs)
+            action, agent_info = self._get_action_and_info(idx, agent, self.train_obs)
             if self.render:
                 self.env.render()
             next_ob, raw_reward, terminal, env_info = (
@@ -417,14 +425,15 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def _can_train(self):
         return all([self.replay_buffer.num_steps_can_sample(idx) >= self.batch_size for idx in self.train_tasks])
 
-    def _get_action_and_info(self, agent, observation):
+    def _get_action_and_info(self, idx, agent, observation):
         """
         Get an action to take in the environment.
         :param observation:
         :return:
         """
         agent.set_num_steps_total(self._n_env_steps_total)
-        return agent.get_action(observation,)
+        task_idx_one_hot = self.idx_to_one_hot(idx)
+        return agent.get_action(observation, task_idx_one_hot)
 
     def _start_epoch(self, epoch):
         self._epoch_start_time = time.time()

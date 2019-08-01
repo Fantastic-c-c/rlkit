@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def rollout(env, agent, max_path_length=np.inf, animated=False, is_online=False):
+def rollout(task_idx_one_hot, env, agent, max_path_length=np.inf, animated=False, is_online=False):
     """
     The following value for the following keys will be a 2D array, with the
     first dimension corresponding to the time dimension.
@@ -35,7 +35,7 @@ def rollout(env, agent, max_path_length=np.inf, animated=False, is_online=False)
     if animated:
         env.render()
     while path_length < max_path_length:
-        a, agent_info = agent.get_action(o)
+        a, agent_info = agent.get_action(o, task_idx_one_hot)
         next_o, r, d, env_info = env.step(a)
         if is_online:
             agent.update_context([o, a, r, next_o, d])

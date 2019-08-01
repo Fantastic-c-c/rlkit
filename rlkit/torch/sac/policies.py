@@ -135,8 +135,8 @@ class MakeDeterministic(Wrapper, Policy):
         super().__init__(stochastic_policy)
         self.stochastic_policy = stochastic_policy
 
-    def get_action(self, observation):
-        return self.stochastic_policy.get_action(observation,
+    def get_action(self, observation, idx):
+        return self.stochastic_policy.get_action(observation, idx,
                                                  deterministic=True)
 
     def get_actions(self, observations):

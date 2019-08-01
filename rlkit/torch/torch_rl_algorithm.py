@@ -73,8 +73,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             self.sample_z_from_posterior(idx, eval_task=eval_task)
 
         dprint('task encoding ', self.policy.z)
-
-        test_paths = self.eval_sampler.obtain_samples(deterministic=deterministic, is_online=is_online)
+        task_idx_one_hot = self.idx_to_one_hot(idx)
+        test_paths = self.eval_sampler.obtain_samples(task_idx_one_hot, deterministic=deterministic, is_online=is_online)
         if self.sparse_rewards:
             for p in test_paths:
                 p['rewards'] = ptu.sparsify_rewards(p['rewards'])
@@ -122,7 +122,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
 
     def collect_paths(self, idx, epoch, eval_task=False):
         self.task_idx = idx
-        print('Task:', idx)
+        dprint('Task:', idx)
         self.env.reset_task(idx)
         if eval_task:
             num_evals = self.num_evals
@@ -160,6 +160,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             z_sig = ptu.get_numpy(self.policy.z_dists[0].variance)
             self.eval_statistics['Z mean task {}'.format(self.task_idx)] = z_mean
             self.eval_statistics['Z std task {}'.format(self.task_idx)] = z_sig
+        self.eval_statistics['Z {}'.format(self.task_idx)] = ptu.get_numpy(self.policy.z)
 
         # goal = self.env._goalgit
         # dprint('GoalPosition_{}_task'.format(split))
@@ -195,7 +196,7 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             elif self.eval_embedding_source == 'online_exploration_trajectories':
                 self.eval_enc_replay_buffer.task_buffers[idx].clear()
                 # task embedding sampled from prior and held fixed
-                self.collect_data_sampling_from_prior(num_samples=self.num_steps_per_task,
+                self.collect_data_sampling_from_prior(idx=idx, num_samples=self.num_steps_per_task,
                                                       resample_z_every_n=self.max_path_length,
                                                       eval_task=True)
             elif self.eval_embedding_source == 'online_on_policy_trajectories':

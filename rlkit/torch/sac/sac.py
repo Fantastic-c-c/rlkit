@@ -102,6 +102,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # sample from replay buffer for each task
         # TODO(KR) this is ugly af
         obs, actions, rewards, next_obs, terms = [], [], [], [], []
+        task_idx_one_hots = []
         for idx in indices:
             if encoder:
                 batch = self.get_encoding_batch(idx=idx)
@@ -117,12 +118,18 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             rewards.append(r)
             next_obs.append(no)
             terms.append(t)
+            i = np.zeros(self.num_tasks)
+            i[idx] = 1
+            # pdb.set_trace()
+            i = np.array(i)
+            task_idx_one_hots.append(i)
         obs = torch.cat(obs, dim=0)
         actions = torch.cat(actions, dim=0)
         rewards = torch.cat(rewards, dim=0)
         next_obs = torch.cat(next_obs, dim=0)
         terms = torch.cat(terms, dim=0)
-        return [obs, actions, rewards, next_obs, terms]
+        task_idx_one_hots = np.array(task_idx_one_hots)
+        return [obs, actions, rewards, next_obs, terms, task_idx_one_hots]
 
     def prepare_encoder_data(self, obs, act, rewards):
         ''' prepare task data for encoding '''
@@ -139,29 +146,31 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         num_updates = self.embedding_batch_size // mb_size
 
         batch = self.sample_data(indices, encoder=True)
+        task_idx_one_hots_enc = batch[-1]
 
         # zero out context and hidden encoder state
         self.policy.clear_z(num_tasks=len(indices))
 
         for i in range(num_updates):
             # TODO(KR) argh so ugly
-            mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
+            mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch[:-1]]
             obs_enc, act_enc, rewards_enc, _, _ = mini_batch
-            self._take_step(indices, obs_enc, act_enc, rewards_enc)
+            self._take_step(indices, obs_enc, act_enc, rewards_enc, task_idx_one_hots_enc)
 
             # stop backprop
             self.policy.detach_z()
 
-    def _take_step(self, indices, obs_enc, act_enc, rewards_enc):
+    def _take_step(self, indices, obs_enc, act_enc, rewards_enc, task_idx_one_hots_enc):
 
         num_tasks = len(indices)
 
         # data is (task, batch, feat)
-        obs, actions, rewards, next_obs, terms = self.sample_data(indices)
+        obs, actions, rewards, next_obs, terms, task_idx_one_hots = self.sample_data(indices)
         enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
 
+        # T
         # run inference in networks
-        r_pred, q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.policy(obs, actions, next_obs, enc_data, obs_enc, act_enc)
+        r_pred, q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.policy(obs, actions, next_obs, enc_data, obs_enc, act_enc, task_idx_one_hots_enc)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
 
         # KL constraint on z if probabilistic
