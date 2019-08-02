@@ -22,10 +22,10 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
             obj_low=(-0.1, 0.6, 0.03),
             obj_high=(0.1, 0.7, 0.03),
             random_init=False,
-            tasks = [{'goal': np.array([0, 0.6, 0.09]), 'obj_init_pos':np.array([0, 0.6, 0.3])}],
-            goal_low=(-0.1, 0.6, 0.09),  # -0.1  0.85 0.05
-            goal_high=(0.1, 0.85, 0.09), #######################################
-            hand_init_pos = (0, 0.65, 0.5),  # hand_init_pos y axis should be +0.05 bigger than y of goal to be directly above
+            tasks = [{'goal': np.array([0, 0.6, 0.09]), 'obj_init_pos':np.array([0, 0.6, 0.3])}], ## if want to change the depth of the goal without changing the pos of the box, change xml instead
+            goal_low=(-0.05, 0.6, 0.09),
+            goal_high=(0.05, 0.7, 0.09),
+            hand_init_pos = (0, 0.65, 0.3),  # hand_init_pos y axis should be +0.05 bigger than y of goal to be directly above, 0.24 when peg is just above the box
             liftThresh = 0.04,
             rotMode='fixed',#'fixed',
             rewMode='orig',
@@ -33,7 +33,7 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
             multitask_num=1,
             if_render=False,
             n_tasks=10,
-            randomize_tasks=False,
+            randomize_tasks=True,  ## randomize_tasks si currently passed in from the configs file; if True, generate tasks randomly, else use the tasks above
             **kwargs
     ):
         self.quick_init(locals())
@@ -115,6 +115,7 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
         init_task_idx = 0
 
         directions = list(range(n_tasks))
+
         if randomize_tasks:
             # goals = self.sample_goals(n_tasks)
             goals = [1 * np.random.uniform(self.goal_low, self.goal_high) for _ in directions]
@@ -137,7 +138,7 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
 
     def get_goal(self):
         return {
-            'state_desired_goal': self._state_goal,    #######################################3
+            'state_desired_goal': self._state_goal,
     }
 
     @property
@@ -166,7 +167,7 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
         self.viewer.cam.azimuth = 180
         self.viewer.cam.trackbodyid = -1
 
-    def get_all_task_idx(self):   ################
+    def get_all_task_idx(self):
         return range(len(self.tasks))
 
     def reset_goal(self, direction):
@@ -179,9 +180,10 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
         self.set_goal(self._goal)
 
         self.sim.model.body_pos[self.model.body_name2id('box')] = self._state_goal  # np.array(task['goal'])
+
         self._state_goal = self.sim.model.site_pos[self.model.site_name2id('hole')] + self.sim.model.body_pos[
-            self.model.body_name2id('box')]
-        print(self._state_goal, " awwwwwwwwww  idx: ", idx, " self._goal: ", self._goal)
+            self.model.body_name2id('box')]        ## z coordinate of hole: -0.06
+
         self.obj_init_pos = self.get_body_com('peg')
         if self.random_init:
             goal_pos = np.random.uniform(
@@ -198,19 +200,18 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
             self.obj_init_pos = np.concatenate((goal_pos[:2], [self.obj_init_pos[-1]]))
             self.sim.model.body_pos[self.model.body_name2id('box')] = goal_pos[-3:]
             self._state_goal = self.sim.model.site_pos[self.model.site_name2id('hole')] + self.sim.model.body_pos[
-                self.model.body_name2id('box')]  ##problematic, since using the xml data
+                self.model.body_name2id('box')]
         # self._set_obj_xyz(self.obj_init_pos)
 
         self.reset()
 
     def set_goal(self, goal):
         self._state_goal = goal
-        # self._set_goal_marker(self._state_goal)  ?????????????/necessary??
+        # self._set_goal_marker(self._state_goal)  is this necessary??
 
     def reset(self):
         return self.reset_model()
 
-    #########################################33
 
     def step(self, action):
         # action[0] = 0
@@ -235,7 +236,7 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
             self.set_xyz_action_rot(action[:7])
 
         action[-1] = -1
-        print("@@@@@@@ rotation: ", action[3])
+        # print("rotation: ", action[3])
         self.do_simulation([action[-1], -action[-1]])
         # The marker seems to get reset every time you do a simulation
         ob = self._get_obs()
@@ -337,28 +338,27 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
 
     def _reset_hand(self):
         for _ in range(10):
-            # import pdb; pdb.set_trace()
             from multiworld.envs.env_util import quat_to_zangle, zangle_to_quat
 
             self.data.set_mocap_pos('mocap', self.hand_init_pos)
             self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
 
             ##########################init rotate around z axis#######################
-            zangle_delta = np.pi/4
-            new_mocap_zangle = quat_to_zangle(self.data.mocap_quat[0]) + zangle_delta
-
-            new_mocap_zangle = np.clip(
-                new_mocap_zangle,
-                -3.0,
-                3.0,
-            )
-            if new_mocap_zangle < 0:
-                new_mocap_zangle += 2 * np.pi
-
-            self.data.set_mocap_quat('mocap', zangle_to_quat(new_mocap_zangle))
+            # zangle_delta = np.pi/4
+            # new_mocap_zangle = quat_to_zangle(self.data.mocap_quat[0]) + zangle_delta
+            #
+            # new_mocap_zangle = np.clip(
+            #     new_mocap_zangle,
+            #     -3.0,
+            #     3.0,
+            # )
+            # if new_mocap_zangle < 0:
+            #     new_mocap_zangle += 2 * np.pi
+            #
+            # self.data.set_mocap_quat('mocap', zangle_to_quat(new_mocap_zangle))
             #########################################################################
 
-            self.do_simulation([-1,1], self.frame_skip)
+            self.do_simulation([-1, 1], self.frame_skip)
 
 
             #self.do_simulation(None, self.frame_skip)
@@ -408,8 +408,6 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
         print("boxLeftPos: ", boxLeftPos, "     boxRightPos: ", boxRightPos)
         print("pegLeftPos: ", pegLeftPos, "     pegRightPos: ", pegRightPos)
         print("objPos: ", objPos, "  pegHead: ", pegHeadPos, "  placingGoal: ", placingGoal)
-
-        # print("\npegHeadPos: ", pegHeadPos, "\nobjPos:      ", objPos, "\nplacingGoal: ", placingGoal, "\nfingerCOM:  ", fingerCOM, "\nplacingDist: ", placingDist)
 
         def reachReward():
             # reachDistxy = np.linalg.norm(np.concatenate((objPos[:-1], [self.init_fingerCOM[-1]])) - fingerCOM)
@@ -488,21 +486,12 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
         placeRew = placeReward()
         # assert ((placeRew >=0) and (pickRew>=0))
 
-        # print("distanceRew : ", distanceRew)
-        # print("abs(objPos[0]-placingGoal[0]): ", abs(objPos[0]-placingGoal[0]), "   objPos[1]-placingGoal[1]: ", abs(objPos[1]-placingGoal[1]))
-        # print("first: ", -placingDist * 10, "   second: ", depthRew, "   objPos[2]: ", objPos[2])
         import math
         totalDist = placingDistHead + leftDist + rightDist
         reward = -(50*totalDist ** 4 + math.log10(50*totalDist ** 2 + 0.0001)) * 0.1
         print("leftDist: ", leftDist, "    rightDist: ", rightDist, "    placingDistHead: ", placingDistHead)
         print("totalDist: ", totalDist)
-        # reward = -totalDist * 10
-        # reward = -placingDist * 10 + placeReward()
-        # dist2d = abs(objPos[0]-placingGoal[0]) + abs(objPos[1]-placingGoal[1])
-        # depth = objPos[2]
-        # print("dist2d:  ", dist2d)
-        # print("-dist2d * 20:  ", -dist2d * 20, "      - depth * 10 : ", - depth * 10)
-        # reward = -dist2d * 20 - depth * 10
+
         print("*** ",reward, " ***")
         return [reward, reachRew, reachDist, pickRew, placeRew, placingDist]
 
