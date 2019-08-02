@@ -101,6 +101,19 @@ def experiment(variant):
         for net in [context_encoder, qf1, qf2, vf, policy]:
             net.to(ptu.device)
 
+
+    # debugging triggers a lot of printing and logs to a debug directory
+    DEBUG = variant['util_params']['debug']
+    os.environ['DEBUG'] = str(int(DEBUG))
+    # create logger and logging directory
+
+    # TODO support Docker
+    exp_id = 'debug' if DEBUG else None
+    # train logger is the main logger
+    logger, experiment_log_dir = setup_logger(variant['env_name'], variant=variant, exp_id=exp_id, base_log_dir=variant['util_params']['base_log_dir'])
+    # eval logger keeps track of evaluations
+    eval_logger, _ = setup_logger(variant['env_name'], variant=variant, exp_id=exp_id, base_log_dir=variant['util_params']['base_log_dir'], text_log_file="eval.log", tabular_log_file="eval_progress.csv", log_dir_name=experiment_log_dir)
+
     # instantiate algorithm, creates optimizers
     algorithm = PEARLSoftActorCritic(
         env=env,
@@ -108,6 +121,7 @@ def experiment(variant):
         eval_tasks=list(tasks[-variant['n_eval_tasks']:]),
         nets=[agent, qf1, qf2, vf],
         latent_dim=latent_dim,
+        loggers=[logger, eval_logger],
         **variant['algo_params']
     )
 
@@ -154,17 +168,7 @@ def experiment(variant):
     if ptu.gpu_enabled():
         algorithm.to()
 
-    # debugging triggers a lot of printing and logs to a debug directory
-    DEBUG = variant['util_params']['debug']
-    os.environ['DEBUG'] = str(int(DEBUG))
-
-    # create logging directory
-    # TODO support Docker
-    # rlkit logging for experiment stats
-    exp_id = 'debug' if DEBUG else None
-    experiment_log_dir = setup_logger(variant['env_name'], variant=variant, exp_id=exp_id, base_log_dir=variant['util_params']['base_log_dir'])
-    # python logging for debugging and errors
-    print(experiment_log_dir)
+    # TODO (doesn't work) python logging for debugging and errors
     logging.basicConfig(filename=osp.join(experiment_log_dir, 'info.log'))
     logger = logging.getLogger('exp')
     logger.setLevel(logging.DEBUG)
