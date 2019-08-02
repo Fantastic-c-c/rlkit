@@ -93,6 +93,16 @@ def experiment(variant):
         for net in [context_encoder, qf1, qf2, vf, policy]:
             net.to(ptu.device)
 
+
+    # debugging triggers a lot of printing and logs to a debug directory
+    DEBUG = variant['util_params']['debug']
+    os.environ['DEBUG'] = str(int(DEBUG))
+    # create logger and logging directory
+
+    # TODO support Docker
+    exp_id = 'debug' if DEBUG else None
+    logger, experiment_log_dir = setup_logger(variant['env_name'], variant=variant, exp_id=exp_id, base_log_dir=variant['util_params']['base_log_dir'])
+
     # instantiate algorithm, creates optimizers
     algorithm = PEARLSoftActorCritic(
         env=env,
@@ -100,6 +110,7 @@ def experiment(variant):
         eval_tasks=list(tasks[-variant['n_eval_tasks']:]),
         nets=[agent, qf1, qf2, vf],
         latent_dim=latent_dim,
+        logger=logger,
         **variant['algo_params']
     )
 
@@ -160,15 +171,6 @@ def experiment(variant):
     ptu.set_gpu_mode(variant['util_params']['use_gpu'], variant['util_params']['gpu_id'])
     if ptu.gpu_enabled():
         algorithm.to()
-
-    # debugging triggers a lot of printing and logs to a debug directory
-    DEBUG = variant['util_params']['debug']
-    os.environ['DEBUG'] = str(int(DEBUG))
-
-    # create logging directory
-    # TODO support Docker
-    exp_id = 'debug' if DEBUG else None
-    experiment_log_dir = setup_logger(variant['env_name'], variant=variant, exp_id=exp_id, base_log_dir=variant['util_params']['base_log_dir'])
 
     # optionally save eval trajectories as pkl files
     if variant['algo_params']['dump_eval_paths']:

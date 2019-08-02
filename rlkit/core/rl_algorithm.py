@@ -7,7 +7,7 @@ import os.path as osp
 import gtimer as gt
 import numpy as np
 
-from rlkit.core import logger, eval_util
+from rlkit.core import eval_util
 from rlkit.data_management.env_replay_buffer import MultiTaskReplayBuffer
 from rlkit.data_management.path_builder import PathBuilder
 from rlkit.samplers.in_place import InPlacePathSampler
@@ -50,6 +50,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             dump_eval_paths=False,
             skip_init_data_collection=False,
             plotter=None,
+            logger=None,
     ):
         """
         :param env: training env
@@ -95,6 +96,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.dump_eval_paths = dump_eval_paths
         self.skip_init_data_collection = skip_init_data_collection
         self.plotter = plotter
+        self.logger = logger
 
         self.sampler = InPlacePathSampler(
             env=env,
@@ -164,16 +166,16 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             params = self.get_epoch_snapshot(-1)
             import time
             s = time.time()
-            logger.save_itr_params(-1, params)
+            self.logger.save_itr_params(-1, params)
             e = time.time()
             print('time to snapshot', e - s)
             # optionally save the current replay buffer
             s = time.time()
             if self.save_replay_buffer:
                 for task, data_dict in self.replay_buffer.export_data():
-                    logger.save_with_numpy(data_dict, d='sac_replay_buffer', path='{}'.format(task))
+                    self.logger.save_with_numpy(data_dict, d='sac_replay_buffer', path='{}'.format(task))
                 for task, data_dict in self.enc_replay_buffer.export_data():
-                    logger.save_with_numpy(data_dict, d='enc_replay_buffer', path='{}'.format(task))
+                    self.logger.save_with_numpy(data_dict, d='enc_replay_buffer', path='{}'.format(task))
             e = time.time()
             print('time to save rb', e - s)
             # initial data collection
@@ -186,7 +188,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 # save the initial replay buffer
                 print('saving the initial replay buffer')
                 for task, data_dict in self.replay_buffer.export_data():
-                    logger.save_with_numpy(data_dict, d='init_buffer', path='{}'.format(task))
+                    self.logger.save_with_numpy(data_dict, d='init_buffer', path='{}'.format(task))
 
             # sample data from train tasks
             print('epoch: {}, sampling training data'.format(it_))
@@ -261,6 +263,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         gt.stamp('sample')
 
     def _try_to_eval(self, epoch):
+        logger = self.logger
         logger.save_extra_data(self.get_extra_data_to_save(epoch))
         if self._can_evaluate():
             self.evaluate(epoch)
@@ -336,14 +339,14 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self._epoch_start_time = time.time()
         self._exploration_paths = []
         self._do_train_time = 0
-        logger.push_prefix('Iteration #%d | ' % epoch)
+        self.logger.push_prefix('Iteration #%d | ' % epoch)
 
     def _end_epoch(self):
-        logger.log("Epoch Duration: {0}".format(
+        self.logger.log("Epoch Duration: {0}".format(
             time.time() - self._epoch_start_time
         ))
-        logger.log("Started Training: {0}".format(self._can_train()))
-        logger.pop_prefix()
+        self.logger.log("Started Training: {0}".format(self._can_train()))
+        self.logger.pop_prefix()
 
     ##### Snapshotting utils #####
     def get_epoch_snapshot(self, epoch):
@@ -400,7 +403,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
         # save the paths for visualization, only useful for point mass
         if self.dump_eval_paths and epoch % 5 == 0:
-            logger.save_extra_data(paths, path='eval_trajectories/task{}-epoch{}-run{}'.format(idx, epoch, run))
+            self.logger.save_extra_data(paths, path='eval_trajectories/task{}-epoch{}-run{}'.format(idx, epoch, run))
 
         return paths
 
@@ -430,7 +433,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             prior_paths, _ = self.sampler.obtain_samples(deterministic=self.eval_deterministic, max_samples=self.max_path_length * 20,
                                                         accum_context=False,
                                                         resample=1)
-            logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
+            self.logger.save_extra_data(prior_paths, path='eval_trajectories/prior-epoch{}'.format(epoch))
 
         ### train tasks
         # eval on a subset of train tasks for speed
@@ -482,11 +485,11 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.eval_statistics['AverageTrainReturn_all_train_tasks'] = train_returns
         self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
         self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
-        logger.save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
-        logger.save_extra_data(avg_test_online_return, path='online-test-epoch{}'.format(epoch))
+        self.logger.save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
+        self.logger.save_extra_data(avg_test_online_return, path='online-test-epoch{}'.format(epoch))
 
         for key, value in self.eval_statistics.items():
-            logger.record_tabular(key, value)
+            self.logger.record_tabular(key, value)
         self.eval_statistics = None
 
         if self.render_eval_paths:
