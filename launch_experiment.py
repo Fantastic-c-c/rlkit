@@ -101,7 +101,10 @@ def experiment(variant):
 
     # TODO support Docker
     exp_id = 'debug' if DEBUG else None
+    # train logger is the main logger
     logger, experiment_log_dir = setup_logger(variant['env_name'], variant=variant, exp_id=exp_id, base_log_dir=variant['util_params']['base_log_dir'])
+    # eval logger keeps track of evaluations
+    eval_logger, _ = setup_logger(variant['env_name'], variant=variant, exp_id=exp_id, base_log_dir=variant['util_params']['base_log_dir'], text_log_file="eval.log", tabular_log_file="eval_progress.csv", log_dir_name=experiment_log_dir)
 
     # instantiate algorithm, creates optimizers
     algorithm = PEARLSoftActorCritic(
@@ -110,7 +113,7 @@ def experiment(variant):
         eval_tasks=list(tasks[-variant['n_eval_tasks']:]),
         nets=[agent, qf1, qf2, vf],
         latent_dim=latent_dim,
-        logger=logger,
+        loggers=[logger, eval_logger],
         **variant['algo_params']
     )
 

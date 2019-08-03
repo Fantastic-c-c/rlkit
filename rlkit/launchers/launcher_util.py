@@ -231,6 +231,7 @@ def setup_logger(
         log_dir=None,
         git_info=None,
         script_name=None,
+        log_dir_name=None,
 ):
     """
     Set up logger to have some reasonable default settings.
@@ -257,14 +258,18 @@ def setup_logger(
     :param log_dir:
     :param git_info:
     :param script_name: If set, save the script name to this.
+    :param log_dir_name: If set, set log_dir to this.
     :return:
     """
     # make the logger object
     logger = Logger()
     first_time = log_dir is None
     if first_time:
-        log_dir = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
-                                 base_log_dir=base_log_dir)
+        if log_dir_name is None:
+            log_dir = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
+                                    base_log_dir=base_log_dir)
+        else:
+            log_dir = log_dir_name
 
     if variant is not None:
         logger.log("Variant:")
