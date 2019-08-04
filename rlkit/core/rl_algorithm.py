@@ -92,6 +92,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.save_environment = save_environment
 
         self.eval_statistics = None
+        self.train_statistics = None
         self.render_eval_paths = render_eval_paths
         self.dump_eval_paths = dump_eval_paths
         self.skip_init_data_collection = skip_init_data_collection
@@ -156,6 +157,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self._current_path_builder = PathBuilder()
         logger = self.loggers[0]
 
+        if self.train_statistics is None:
+            self.train_statistics = OrderedDict()
+
         # at each iteration, we first collect data from tasks, perform meta-updates, then try to evaluate
         for it_ in gt.timed_for(
                 range(self.num_iterations),
@@ -196,6 +200,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             print('epoch: {}, sampling training data'.format(it_))
             sample_tasks = np.random.choice(self.train_tasks, self.num_tasks_sample, replace=False)
             print('sampled tasks', sample_tasks)
+            all_rets = []
             # TODO: score sampled data here as a proxy for eval
             for idx in sample_tasks:
                 self.task_idx = idx
@@ -204,13 +209,19 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
                 # collect some trajectories with z ~ prior
                 if self.num_steps_prior > 0:
-                    self.collect_data(self.num_steps_prior, 1, np.inf)
+                    _ = self.collect_data(self.num_steps_prior, 1, np.inf)
                 # collect some trajectories with z ~ posterior
                 if self.num_steps_posterior > 0:
-                    self.collect_data(self.num_steps_posterior, 1, self.update_post_train)
+                     rets = self.collect_data(self.num_steps_posterior, 1, self.update_post_train)
+                     all_rets += rets
                 # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
                 if self.num_extra_rl_steps_posterior > 0:
-                    self.collect_data(self.num_extra_rl_steps_posterior, 1, self.update_post_train, add_to_enc_buffer=False)
+                    rets = self.collect_data(self.num_extra_rl_steps_posterior, 1, self.update_post_train, add_to_enc_buffer=False)
+                    all_rets += rets
+
+            # log returns from data collection
+            avg_data_collection_returns = np.mean(all_rets)
+            self.loggers[0].record_tabular('AvgDataCollectionReturns', avg_data_collection_returns)
 
             print('training')
             # sample train tasks and compute gradient updates on parameters
@@ -221,6 +232,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             gt.stamp('train')
 
             self.training_mode(False)
+            self.train_statistics = None
 
             # eval
             started_eval = False
@@ -252,6 +264,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.agent.clear_z()
 
         num_transitions = 0
+        all_rets = []
+        posterior_samples = False
         while num_transitions < num_samples:
             paths, n_samples = self.sampler.obtain_samples(max_samples=num_samples - num_transitions,
                                                                 max_trajs=update_posterior_rate,
@@ -259,13 +273,18 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                                                                 resample=resample_z_rate)
             num_transitions += n_samples
             self.replay_buffer.add_paths(self.task_idx, paths)
+            # compute returns on collected samples
+            if posterior_samples:
+                all_rets += [eval_util.get_average_returns([p]) for p in paths]
             if add_to_enc_buffer:
                 self.enc_replay_buffer.add_paths(self.task_idx, paths)
             if update_posterior_rate != np.inf:
                 context = self.prepare_context(self.task_idx)
                 self.agent.infer_posterior(context)
+                posterior_samples = True
         self._n_env_steps_total += num_transitions
         gt.stamp('sample')
+        return all_rets
 
     def _try_to_eval(self, epoch, started_eval=False):
         logger = self.loggers[1]
