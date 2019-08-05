@@ -112,11 +112,11 @@ def main(gpu, docker):
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            meta_batch=15,
+            meta_batch=2,
             num_iterations=10000,
-            num_tasks_sample=15,
+            num_tasks_sample=2,
             num_steps_per_task=10 * max_path_length,
-            num_train_steps_per_itr=4000,
+            num_train_steps_per_itr=1,
             num_evals=5, # number of evals with separate task encodings
             num_steps_per_eval=10 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
@@ -146,11 +146,11 @@ def main(gpu, docker):
             eval_per_itr=10,
         ),
         net_size=300,
-        use_gpu=True,
+        use_gpu=False,
         gpu_id=gpu,
     )
 
-    exp_name = 'medium-rf1-deterministic-sampling-and-metabatch'
+    exp_name = 'medium-test'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)

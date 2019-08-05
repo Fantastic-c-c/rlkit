@@ -1,6 +1,8 @@
 import abc
 import time
 
+
+import random
 import gtimer as gt
 import numpy as np
 
@@ -72,6 +74,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.exploration_policy = policy # Can potentially use a different policy purely for exploration rather than also solving tasks, currently not being used
         self.train_tasks = train_tasks
         self.eval_tasks = eval_tasks
+        self.num_tasks = len(self.eval_tasks + self.train_tasks)
         self.meta_batch = meta_batch
         self.num_iterations = num_iterations
         self.num_train_steps_per_itr = num_train_steps_per_itr
@@ -188,8 +191,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 """
 
             # Sample data from train tasks.
-            for i in range(self.num_tasks_sample):
-                idx = np.random.randint(len(self.train_tasks))
+            # for i in range(self.num_tasks_sample):
+            #     idx = np.random.randint(len(self.train_tasks))
+            random.shuffle(self.train_tasks)
+            for i in self.train_tasks:
                 self.task_idx = idx
                 self.env.reset_task(idx)
                 print('collecting from posterior')
@@ -227,8 +232,11 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
             # Sample train tasks and compute gradient updates on parameters.
             for train_step in range(self.num_train_steps_per_itr):
-                indices = np.random.choice(self.train_tasks, self.meta_batch)
-                self._do_training(indices)
+                # indices = np.random.choice(self.train_tasks, self.meta_batch)
+                random.shuffle(self.train_tasks)
+                indices = self.train_tasks
+                for index in indices:
+                    self._do_training([index])
                 self._n_train_steps_total += 1
             # torch.save(self.)
             gt.stamp('train')

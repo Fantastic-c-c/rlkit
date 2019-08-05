@@ -178,6 +178,8 @@ class MetaTorchRLAlgorithm(MetaRLAlgorithm, metaclass=abc.ABCMeta):
             dprint('task {} encoder RB size'.format(idx), self.enc_replay_buffer.task_buffers[idx]._size)
             paths = self.collect_paths(idx, epoch, eval_task=False)
             train_avg_returns.append(eval_util.get_average_returns(paths))
+            # import pdb
+            # pdb.set_trace()
             self.log_statistics(paths)
 
         ### test tasks
