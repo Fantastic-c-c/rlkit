@@ -132,7 +132,7 @@ def main(gpu, docker):
             reward_scale=10.,
             sparse_rewards=False,
             reparameterize=True,
-            kl_lambda=.1,
+            kl_lambda=1,
             rf_loss_scale=1.,
             use_information_bottleneck=True,
             train_embedding_source='online_exploration_trajectories',
