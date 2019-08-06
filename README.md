@@ -1,4 +1,4 @@
-README last updated on: 06/20/2019
+README last updated on: 08/05/2019
 
 # rlkit
 Meta-learning with SAC in PyTorch, forked from the original [RLkit](https://github.com/vitchyr/rlkit).
@@ -15,62 +15,45 @@ $ conda env create -f environment.yml
 $ source activate pearl
 (pearl) $ python launch_experiment.py ./configs/point-robot.json
 ```
-Note that you'll need to [get your own MuJoCo key](https://www.roboti.us/license.html) if you want to use MuJoCo.
 
-## Real World Experiments
-We are using this version of [sawyer_control](https://github.com/larrywyang/sawyer_control) on branch `reaching`.
+## Starting Experiments
+We are using the [sawyer_control](https://github.com/mdalal2020/sawyer_control) repo with some changes to send velocity commands to the robot rather than positions, and to run the controller at a fixed frequency.
 You must run `saw` in every shell before running any script that interacts with ROS (so anything that interacts with `sawyer_control`).
+There are three things to do to run an experiment. Do them in three separate terminal panes.
 
-### Enabling the Controller
+#### Enable the robot
 1. `cd ~/catkin_ws`
-2. Make sure you are not in a conda env! If you are, type `sd` to exit it. Then run `exp_nodes` to start the controller
-3. Open a new terminal: `enable` to enable the robot
-* To disable the robot, you can run `disable`
-* Note: sometimes the IK controller will fail and you will see an error message. The
-robot controller is still running even after this so you do not need to restart it.
+2. `saw`
+3. `enable`
 
-### Running the script
-1. run `saw`
-2. run `sa pearl` to enter conda env (you are in Python 3 now)
-3. `cd ~/rlkit`
-4. `python launch_experiment.py configs/sawyer_reach_real_3d.json`
+#### Start the server
+1. `cd ~/catkin_ws`
+2. `saw`
+3. if you are in any kind of conda env, you must exit it! Type `sd` to exit.
+4. Run `exp_nodes` to start the server. Adding logging lines like `rospy.logerr(msg)` to code will result in printing to this terminal.
 
-### Debugging
-1. If ros master node cannot be found, reboot the robot's computer
-2. If you can't enable, check e-stop button, try again
-3. If the robot starts moving weirdly reboot exp_nodes
-4. If the program hangs, it's probably because you forgot to run `saw` somewhere and your script can't communicate with ROS.
+#### Launch experiment script
+1. `cd ~/rlkit`
+2. `saw`
+3. `sa pearl` to start conda env
+3. `python launch_experiment.py ./configs/[CONFIG_NAME_HERE].json`
 
-### Other Stuff
-This is deprecated. See the base env in `sawyer_control` for the bounds.
-To define the safety bounds of the Sawyer you can run:
-1. `cd ~/ros_ws`
-2. `./lordi.sh` (or whatever robot you are going to use). You need to start a
-separate terminal for the script (in addition to the controller script)
-3. `cd ~/Documents/sawyer_pearl`
-4. `python print_cartesian_positions.py`. The coordinates of the end-effector (as well as its orientation) will be displayed.
-Make sure you are looking at the end-effector position and not its orientation.
-The x-value is forward and back, the y-value is left and right, the z-value is up and down.
-5. Make the necessary edits to `~/ros_ws/src/sawyer_control/src/sawyer_control/configs/pearl_lordi_config.py`
+## Ending Experiments
+When you are done working with the robot for the day, remember to turn it off! Turn it off by pressing and holding the power button on the robot computer until the light goes out.
+When I leave it for just a few hours, I disable the robot (type `disable` in a shell).
 
-If you want to define a torque safety box, you can look at `base_config` in the `sawyer_control` repor for an example.
+## Debugging
+1. If you press E-stop to stop the robot doing something unsafe, *re-enable the robot right away!!* If you do not do it right away, the robot can get stuck in an error mode that is very difficult to fix. To disable E-stop mode, press down on the E-stop button and twist. Then try to enable the robot. Move the robot around manually to make sure no joints are stuck.
+2. If the program hangs, it's probably because you forgot to run `saw` somewhere and your script can't communicate with ROS.
+3. If you changed something in `sawyer_control`, restart `exp_nodes` just to be sure.
+4. If you change anything about the ROS messages, you need to re-run `catkin_make`
+5. If ros master node cannot be found, reboot the robot's computer
+6. If the robot starts moving weirdly reboot `exp_nodes`
 
-## Visualizing a policy and seeing results
-During training, the results will be saved to a file called under
-```
-LOCAL_LOG_DIR/<exp_prefix>/<foldername>
-```
- - `LOCAL_LOG_DIR` is the directory set by `rlkit.launchers.config.LOCAL_LOG_DIR`. Default name is 'output'.
- - `<foldername>` is auto-generated and based off of the date.
-
-Alternatively, if you don't want to clone all of `rllab`, a repository containing only viskit can be found [here](https://github.com/vitchyr/viskit).
-Then you can similarly visualize results with.
-```bash
-python viskit/viskit/frontend.py LOCAL_LOG_DIR/<exp_prefix>/
-```
-
-## SAC Algorithm-Specific Comments
-The SAC implementation provided here only uses Gaussian policy, rather than a Gaussian mixture model, as described in the original SAC paper.
+## Development
+The peg insertion environment is found in `envs/sawyer_peg_real.py`.
+This environment inherits from `sawyer_base_env.py` in `sawyer_control`.
+Other important files in `sawyer_control` are `angle_action_server.py` - contains the controller as well as the functions that send the actions to ROS.
 
 ## Credits
 A lot of the coding infrastructure is based on [rllab](https://github.com/rll/rllab).
