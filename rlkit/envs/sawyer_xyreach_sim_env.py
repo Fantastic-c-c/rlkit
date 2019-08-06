@@ -9,7 +9,7 @@ from collections import OrderedDict
 import numpy as np
 from gym.spaces import Box, Dict
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
+from metaworld.metaworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
 
 import time
 

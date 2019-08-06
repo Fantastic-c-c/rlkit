@@ -4,13 +4,21 @@ from gym.spaces import  Dict , Box
 from . import register_env
 
 
-from multiworld.envs.env_util import get_stat_in_paths, \
+# from multiworld.envs.env_util import get_stat_in_paths, \
+#     create_stats_ordered_dict, get_asset_full_path
+# from multiworld.core.multitask_env import MultitaskEnv
+# from multiworld.envs.mujoco.sawyer_xyz.base import SawyerXYZEnv
+#
+# from pyquaternion import Quaternion
+# from multiworld.envs.mujoco.utils.rotation import euler2quat
+
+from metaworld.metaworld.envs.env_util import get_stat_in_paths, \
     create_stats_ordered_dict, get_asset_full_path
-from multiworld.core.multitask_env import MultitaskEnv
-from multiworld.envs.mujoco.sawyer_xyz.base import SawyerXYZEnv
+from metaworld.metaworld.core.multitask_env import MultitaskEnv
+from metaworld.metaworld.envs.mujoco.sawyer_xyz.base import SawyerXYZEnv
 
 from pyquaternion import Quaternion
-from multiworld.envs.mujoco.utils.rotation import euler2quat
+from metaworld.metaworld.envs.mujoco.utils.rotation import euler2quat
 
 
 @register_env('testing-env')
@@ -27,13 +35,13 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
             goal_high=(0.05, 0.7, 0.09),
             hand_init_pos = (0, 0.65, 0.3),  # hand_init_pos y axis should be +0.05 bigger than y of goal to be directly above, 0.24 when peg is just above the box
             liftThresh = 0.04,
-            rotMode='fixed',#'fixed',
+            rotMode='rotz',#'fixed',
             rewMode='orig',
             multitask=False,
             multitask_num=1,
             if_render=False,
             n_tasks=10,
-            randomize_tasks=True,  ## randomize_tasks si currently passed in from the configs file; if True, generate tasks randomly, else use the tasks above
+            randomize_tasks=True,  ## randomize_tasks is currently passed in from the configs file; if True, generate tasks randomly, else use the tasks above
             **kwargs
     ):
         self.quick_init(locals())
@@ -76,7 +84,7 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
                 np.array([1, 1, 1, 1]),
             )
         elif rotMode == 'rotz':
-            self.action_rot_scale = 1./50
+            self.action_rot_scale = 1./35
             self.action_space = Box(
                 np.array([-1, -1, -1, -np.pi, -1]),
                 np.array([1, 1, 1, np.pi, 1]),
@@ -236,7 +244,7 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
             self.set_xyz_action_rot(action[:7])
 
         action[-1] = -1
-        # print("rotation: ", action[3])
+        print("rotation: ", action[3])
         self.do_simulation([action[-1], -action[-1]])
         # The marker seems to get reset every time you do a simulation
         ob = self._get_obs()
@@ -344,18 +352,18 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
             self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
 
             ##########################init rotate around z axis#######################
-            # zangle_delta = np.pi/4
-            # new_mocap_zangle = quat_to_zangle(self.data.mocap_quat[0]) + zangle_delta
-            #
-            # new_mocap_zangle = np.clip(
-            #     new_mocap_zangle,
-            #     -3.0,
-            #     3.0,
-            # )
-            # if new_mocap_zangle < 0:
-            #     new_mocap_zangle += 2 * np.pi
-            #
-            # self.data.set_mocap_quat('mocap', zangle_to_quat(new_mocap_zangle))
+            zangle_delta = np.pi/4
+            new_mocap_zangle = quat_to_zangle(self.data.mocap_quat[0]) + zangle_delta
+
+            new_mocap_zangle = np.clip(
+                new_mocap_zangle,
+                -3.0,
+                3.0,
+            )
+            if new_mocap_zangle < 0:
+                new_mocap_zangle += 2 * np.pi
+
+            self.data.set_mocap_quat('mocap', zangle_to_quat(new_mocap_zangle))
             #########################################################################
 
             self.do_simulation([-1, 1], self.frame_skip)
