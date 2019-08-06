@@ -12,16 +12,16 @@ from . import register_env
 # from pyquaternion import Quaternion
 # from multiworld.envs.mujoco.utils.rotation import euler2quat
 
-from metaworld.metaworld.envs.env_util import get_stat_in_paths, \
+from metaworld.envs.env_util import get_stat_in_paths, \
     create_stats_ordered_dict, get_asset_full_path
-from metaworld.metaworld.core.multitask_env import MultitaskEnv
-from metaworld.metaworld.envs.mujoco.sawyer_xyz.base import SawyerXYZEnv
+from metaworld.core.multitask_env import MultitaskEnv
+from metaworld.envs.mujoco.sawyer_xyz.base import SawyerXYZEnv
 
 from pyquaternion import Quaternion
-from metaworld.metaworld.envs.mujoco.utils.rotation import euler2quat
+from metaworld.envs.mujoco.utils.rotation import euler2quat
 
 
-@register_env('testing-env')
+@register_env('peg-insert')
 class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
     def __init__(
             self,
@@ -346,7 +346,7 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
 
     def _reset_hand(self):
         for _ in range(10):
-            from multiworld.envs.env_util import quat_to_zangle, zangle_to_quat
+            from metaworld.envs.env_util import quat_to_zangle, zangle_to_quat
 
             self.data.set_mocap_pos('mocap', self.hand_init_pos)
             self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))

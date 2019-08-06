@@ -2,10 +2,10 @@ import abc
 import numpy as np
 import mujoco_py
 
-from metaworld.metaworld.core.serializable import Serializable
-from metaworld.metaworld.envs.mujoco.mujoco_env import MujocoEnv
+from metaworld.core.serializable import Serializable
+from metaworld.envs.mujoco.mujoco_env import MujocoEnv
 from pyquaternion import Quaternion
-from metaworld.metaworld.envs.env_util import quat_to_zangle, zangle_to_quat
+from metaworld.envs.env_util import quat_to_zangle, zangle_to_quat
 
 import copy
 
