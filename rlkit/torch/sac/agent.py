@@ -69,9 +69,6 @@ class PEARLAgent(nn.Module):
 
         self.goal_repeated = goal_repeated
 
-        self.probability = 1
-
-
         self.clear_z()
 
     def clear_z(self, num_tasks=1):
@@ -103,7 +100,7 @@ class PEARLAgent(nn.Module):
             self.context_encoder_experience.hidden = self.context_encoder_experience.hidden.detach()  ##new
             self.context_encoder_goal.hidden = self.context_encoder_goal.hidden.detach()    ##new
 
-    def update_context(self, inputs):
+    def update_context(self, inputs, use_experience=True):
         ''' append single transition to the current context '''
         o, a, r, no, d, info, g = inputs
         if self.sparse_rewards:
@@ -114,18 +111,20 @@ class PEARLAgent(nn.Module):
         g = ptu.from_numpy(np.array(g)[None, None, ...]).repeat(1, 1, self.goal_repeated)
         experience = torch.cat([o, a, r], dim=2)
 
-        if random.random() < self.probability:
-            print("use goal")
+        if not use_experience:
+            # print("use goal")
             if self.context_goal is None:
-                self.context = g
+                self.context_goal = g
             else:
-                self.context = torch.cat([self.context, g], dim=1)
+                self.context_goal = torch.cat([self.context_goal, g], dim=1)
         else:
-            print("use experience")
+            # print("use experience")
             if self.context_experience is None:
-                self.context = experience
+                self.context_experience = experience
             else:
-                self.context = torch.cat([self.context, experience], dim=1)
+                self.context_experience = torch.cat([self.context_experience, experience], dim=1)
+
+
 
 
     def compute_kl_div(self):
@@ -136,16 +135,39 @@ class PEARLAgent(nn.Module):
         kl_div_sum = torch.sum(torch.stack(kl_divs))
         return kl_div_sum
 
-    def infer_posterior(self, context):
+    def infer_posterior(self, context, context2=None):
         ''' compute q(z|c) as a function of input context and sample new z from it'''
-        if context.shape[2] == self.context_encoder_experience.input_size:
-            print("infer z: experience")
-            params = self.context_encoder_experience(context)
-            params = params.view(context.size(0), -1, self.context_encoder_experience.output_size)
+        params1 = None
+        params2 = None
+        if context is not None:
+            if context.shape[2] == self.context_encoder_experience.input_size:
+                # print("infer z: experience")
+                params1 = self.context_encoder_experience(context)
+                params1 = params1.view(context.size(0), -1, self.context_encoder_experience.output_size)
+            else:
+                # print("infer z: goal")
+                params1 = self.context_encoder_goal(context)
+                params1 = params1.view(context.size(0), -1, self.context_encoder_goal.output_size)
+
+        if context2 is not None:
+            if context2.shape[2] == self.context_encoder_experience.input_size:
+                # print("infer z: experience")
+                params2 = self.context_encoder_experience(context2)
+                params2 = params2.view(context2.size(0), -1, self.context_encoder_experience.output_size)
+            else:
+                # print("infer z: goal")
+                params2 = self.context_encoder_goal(context2)
+                params2 = params2.view(context2.size(0), -1, self.context_encoder_goal.output_size)
+
+        if params1 is not None and params2 is not None:
+            params = torch.cat([params1, params2], dim=1)
+        elif params2 is None:
+            params = params1
         else:
-            print("infer z: goal")
-            params = self.context_encoder_goal(context)
-            params = params.view(context.size(0), -1, self.context_encoder_goal.output_size)
+            params = params2
+
+
+
         # with probabilistic z, predict mean and variance of q(z | c)
         if self.use_ib:
             mu = params[..., :self.latent_dim]
@@ -153,7 +175,9 @@ class PEARLAgent(nn.Module):
             z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
             self.z_means = torch.stack([p[0] for p in z_params])
             self.z_vars = torch.stack([p[1] for p in z_params])
-        # sum rather than product of gaussians structure
+            import pdb;pdb.set_trace()
+        # sum rather than product of gaussians struct
+        # ure
         else:
             self.z_means = torch.mean(params, dim=1)
         self.sample_z()

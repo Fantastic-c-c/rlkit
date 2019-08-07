@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=False, save_frames=False):
+def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=False, save_frames=False, use_experience=None):
     """
     The following value for the following keys will be a 2D array, with the
     first dimension corresponding to the time dimension.
@@ -24,6 +24,9 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
     :param save_frames: if True, save video of rollout
     :return:
     """
+
+    ## default: use experience as context; if use_experience = False, then use goal as context  !!!!only applies to when updating agent context
+
     observations = []
     actions = []
     rewards = []
@@ -34,9 +37,11 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
     next_o = None
     path_length = 0
     goals = [] #new
+    use_experiences = [] ## will be either all true or all false (consistent throughout the trajectory)
 
     if animated:
         env.render()
+
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
@@ -44,9 +49,9 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
 
         goal = env._state_goal
 
-        if accum_context:
+        if accum_context:  ## if accum_context, use_experience will be either True or False
             # agent.update_context([o, a, r, next_o, d, env_info])   ##commented out for all goal as context
-            agent.update_context([o, a, r, next_o, d, env_info, goal])
+            agent.update_context([o, a, r, next_o, d, env_info, goal], use_experience)
 
         observations.append(o)
         rewards.append(r)
@@ -54,6 +59,8 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
         actions.append(a)
         agent_infos.append(agent_info)
         path_length += 1
+
+        use_experiences.append(use_experience)
 
 
         goals.append(goal)
@@ -92,6 +99,7 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
         agent_infos=agent_infos,
         env_infos=env_infos,
         goals=goals,
+        use_experiences=use_experiences,
     )
 
 

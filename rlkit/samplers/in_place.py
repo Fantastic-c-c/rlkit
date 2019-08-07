@@ -2,6 +2,7 @@ import numpy as np
 
 from rlkit.samplers.util import rollout
 from rlkit.torch.sac.policies import MakeDeterministic
+import random
 
 
 class InPlacePathSampler(object):
@@ -27,7 +28,7 @@ class InPlacePathSampler(object):
     def shutdown_worker(self):
         pass
 
-    def obtain_samples(self, deterministic=False, max_samples=np.inf, max_trajs=np.inf, accum_context=True, resample=1):
+    def obtain_samples(self, deterministic=False, max_samples=np.inf, max_trajs=np.inf, accum_context=True, resample=1, prob_goal_as_context=0):
         """
         Obtains samples in the environment until either we reach either max_samples transitions or
         num_traj trajectories.
@@ -39,8 +40,20 @@ class InPlacePathSampler(object):
         n_steps_total = 0
         n_trajs = 0
         while n_steps_total < max_samples and n_trajs < max_trajs:
-            path = rollout(
-                self.env, policy, max_path_length=self.max_path_length, accum_context=accum_context)
+            if accum_context:
+                if random.random() < prob_goal_as_context:
+                    # print("obtain_samples  use goal", prob_goal_as_context)
+                    path = rollout(
+                        self.env, policy, max_path_length=self.max_path_length, accum_context=accum_context,
+                        use_experience=False)
+                else:
+                    # print("obtain_samples  use experience", prob_goal_as_context)
+                    path = rollout(
+                        self.env, policy, max_path_length=self.max_path_length, accum_context=accum_context,
+                        use_experience=True)
+            else:
+                path = rollout(
+                    self.env, policy, max_path_length=self.max_path_length, accum_context=accum_context) ##if not accum_context, then in rollout,use_experience should just be the default None
             # save the latent context that generated this trajectory
             # TODO: this was for some random eval thing? shouldn't be here
             path['context'] = policy.z.detach().cpu().numpy()

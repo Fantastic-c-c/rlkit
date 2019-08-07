@@ -16,6 +16,8 @@ from launch_experiment import deep_update_dict
 from rlkit.torch.sac.policies import MakeDeterministic
 from rlkit.samplers.util import rollout
 
+import random
+
 
 def sim_policy(variant, num_trajs, save_video):
     '''
@@ -40,10 +42,11 @@ def sim_policy(variant, num_trajs, save_video):
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
 
     goal_repeated = 10
+    prob_goal_as_context = 0.5
 
     context_encoder_experience = encoder_model(
         hidden_sizes=[200, 200, 200],
-        input_size=3 * goal_repeated,
+        input_size=obs_dim + action_dim + reward_dim,
         output_size=context_encoder,
     )
 
@@ -87,13 +90,18 @@ def sim_policy(variant, num_trajs, save_video):
         agent.clear_z()
         paths = []
         for n in range(num_trajs):
-            path = rollout(env, agent, max_path_length=variant['algo_params']['max_path_length'], accum_context=True, save_frames=save_video)
+            if random.random() < prob_goal_as_context:   ##########
+                path = rollout(env, agent, max_path_length=variant['algo_params']['max_path_length'],
+                               accum_context=True, save_frames=save_video, use_experience=False)
+            else:
+                path = rollout(env, agent, max_path_length=variant['algo_params']['max_path_length'],
+                               accum_context=True, save_frames=save_video, use_experience=True)
             path['goal'] = env._goal
             paths.append(path)
             if save_video:
                 video_frames += [t['frame'] for t in path['env_infos']]
             if n >= variant['algo_params']['num_exp_traj_eval']:
-                agent.infer_posterior(agent.context)
+                agent.infer_posterior(agent.context_experience, agent.context_goal)
         all_rets.append([sum(p['rewards']) for p in paths])
         file_name = osp.join(data_dir, 'sim_policy', '{}.pkl'.format(idx))
         with open(file_name, 'wb') as f:
