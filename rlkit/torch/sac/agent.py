@@ -175,7 +175,6 @@ class PEARLAgent(nn.Module):
             z_params = [_product_of_gaussians(m, s) for m, s in zip(torch.unbind(mu), torch.unbind(sigma_squared))]
             self.z_means = torch.stack([p[0] for p in z_params])
             self.z_vars = torch.stack([p[1] for p in z_params])
-            import pdb;pdb.set_trace()
         # sum rather than product of gaussians struct
         # ure
         else:
