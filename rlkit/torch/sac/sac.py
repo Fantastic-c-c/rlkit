@@ -322,7 +322,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
     @property
     def networks(self):
-        return self.policy.networks + [self.policy]
+        return self.policy.networks + [self.policy] + [self.alpha_network]
 
     def get_epoch_snapshot(self, epoch):
         snapshot = super().get_epoch_snapshot(epoch)

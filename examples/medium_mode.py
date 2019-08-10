@@ -16,7 +16,7 @@ from rlkit.envs.ml10_env import MediumEnv
 
 
 from rlkit.launchers.launcher_util import setup_logger
-from rlkit.torch.sac.policies import TanhGaussianPolicy
+from rlkit.torch.sac.policies import TanhGaussianPolicy, MultiHeadTanhGaussianPolicy
 from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder, MultiHeadMlp
 from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
@@ -155,7 +155,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'medium-multitask-alpha'
+    exp_name = 'medium-multitask-alpha-multihead'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)
