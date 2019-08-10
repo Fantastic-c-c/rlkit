@@ -17,7 +17,7 @@ from rlkit.envs.ml10_env import MediumEnv
 
 from rlkit.launchers.launcher_util import setup_logger
 from rlkit.torch.sac.policies import TanhGaussianPolicy
-from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
+from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder, MultiHeadMlp
 from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
@@ -52,26 +52,30 @@ def experiment(variant):
             input_size=obs_dim + action_dim + reward_dim,
             output_size=task_enc_output_dim,
     )
-    qf1 = FlattenMlp(
+    qf1 = MultiHeadMlp(
         hidden_sizes=[net_size, net_size, net_size],
         input_size=obs_dim + action_dim + latent_dim,
         output_size=1,
+        num_tasks=num_tasks,
     )
-    qf2 = FlattenMlp(
+    qf2 = MultiHeadMlp(
         hidden_sizes=[net_size, net_size, net_size],
         input_size=obs_dim + action_dim + latent_dim,
         output_size=1,
+        num_tasks=num_tasks,
     )
-    vf = FlattenMlp(
+    vf = MultiHeadMlp(
         hidden_sizes=[net_size, net_size, net_size],
         input_size=obs_dim + latent_dim,
         output_size=1,
+        num_tasks=num_tasks,
     )
-    policy = TanhGaussianPolicy(
+    policy = MultiHeadTanhGaussianPolicy(
         hidden_sizes=[net_size, net_size, net_size],
         obs_dim=obs_dim + latent_dim,
         latent_dim=latent_dim,
         action_dim=action_dim,
+        num_tasks=num_tasks,
     )
 
     rf = FlattenMlp(

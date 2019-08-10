@@ -80,6 +80,80 @@ class Mlp(PyTorchModule):
             return output
 
 
+class MultiHeadMlp(PyTorchModule):
+    def __init__(
+            self,
+            hidden_sizes,
+            output_size,
+            input_size,
+            num_tasks,
+            init_w=3e-3,
+            hidden_activation=F.relu,
+            output_activation=identity,
+            hidden_init=ptu.fanin_init,
+            b_init_value=0.1,
+            layer_norm=False,
+            layer_norm_kwargs=None,
+    ):
+        self.save_init_params(locals())
+        super().__init__()
+
+        if layer_norm_kwargs is None:
+            layer_norm_kwargs = dict()
+
+        self.input_size = input_size
+        self.output_size = output_size
+        self.hidden_sizes = hidden_sizes
+        self.hidden_activation = hidden_activation
+        self.output_activation = output_activation
+        self.layer_norm = layer_norm
+        self.num_tasks = num_tasks
+        self.fcs = []
+        self.layer_norms = []
+        in_size = input_size
+
+        for i, next_size in enumerate(hidden_sizes):
+            fc = nn.Linear(in_size, next_size)
+            in_size = next_size
+            hidden_init(fc.weight)
+            fc.bias.data.fill_(b_init_value)
+            self.__setattr__("fc{}".format(i), fc)
+            self.fcs.append(fc)
+
+            if self.layer_norm:
+                ln = LayerNorm(next_size)
+                self.__setattr__("layer_norm{}".format(i), ln)
+                self.layer_norms.append(ln)
+
+        self.last_fc = nn.Linear(in_size, output_size * self.num_tasks)
+        self.last_fc.weight.data.uniform_(-init_w, init_w)
+        self.last_fc.bias.data.uniform_(-init_w, init_w)
+
+    def forward(self, input, task_idx_one_hot, return_preactivations=False):
+        h = input
+        for i, fc in enumerate(self.fcs):
+            h = fc(h)
+            if self.layer_norm and i < len(self.fcs) - 1:
+                h = self.layer_norms[i](h)
+            h = self.hidden_activation(h)
+        preactivation = self.last_fc(h)
+
+        # print('size of preactivation in network', preactivation.size())
+        # print('size of task_idx_one_hot in network', ptu.from_numpy(task_idx_one_hot).size())
+
+        batch_size = preactivation.size()[0]
+        task_idx_one_hot = ptu.from_numpy(task_idx_one_hot).repeat(batch_size, 1).unsqueeze(dim=2)
+
+        preactivation = preactivation.view(batch_size, self.output_size, self.num_tasks)
+        preactivation = torch.bmm(preactivation, task_idx_one_hot)
+        preactivation = preactivation.squeeze(dim=2)
+        output = self.output_activation(preactivation)
+        if return_preactivations:
+            return output, preactivation
+        else:
+            return output
+
+
 class FlattenMlp(Mlp):
     """
     if there are multiple inputs, concatenate along dim 1
