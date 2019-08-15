@@ -196,7 +196,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             for idx in sample_tasks:
                 self.task_idx = idx
                 self.env.reset_task(idx)
-                #self.enc_replay_buffer.task_buffers[idx].clear()
+                self.enc_replay_buffer.task_buffers[idx].clear()
 
                 # collect some trajectories with z ~ prior
                 if self.num_steps_prior > 0:
