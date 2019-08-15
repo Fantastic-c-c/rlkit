@@ -260,35 +260,22 @@ def pop_prefix():
     global _prefix_str
     _prefix_str = ''.join(_prefixes)
 
-def save_weights(weights, names):
-    ''' save network weights to given paths '''
-    # NOTE: breaking abstraction by adding torch dependence here
-    for w, n in zip(weights, names):
-        torch.save(w, n)
 
 def save_itr_params(itr, params_dict):
-    ''' snapshot model parameters '''
-    # NOTE: assumes dict is ordered, should fix someday
-    names = params_dict.keys()
-    params = params_dict.values()
+    ''' snapshot model parameters for all networks '''
     if _snapshot_dir:
         if _snapshot_mode == 'all':
             # save for every training iteration
-            file_names = [osp.join(_snapshot_dir, n + '_itr_%d.pth' % itr) for n in names]
-            save_weights(params, file_names)
+            torch.save(params_dict, osp.join(_snapshot_dir, 'checkpoint_itr_{}.pth.tar'.format(itr)))
         elif _snapshot_mode == 'last':
-            # TODO make the other options like this
             torch.save(params_dict, osp.join(_snapshot_dir, 'checkpoint.pth.tar'))
         elif _snapshot_mode == "gap":
             if itr % _snapshot_gap == 0:
-                file_names = [osp.join(_snapshot_dir, n + '_itr_%d.pth' % itr) for n in names]
-                save_weights(params, file_names)
+                torch.save(params_dict, osp.join(_snapshot_dir, 'checkpoint_itr_{}.pth.tar'.format(itr)))
         elif _snapshot_mode == "gap_and_last":
             if itr % _snapshot_gap == 0:
-                file_names = [osp.join(_snapshot_dir, n + '_itr_%d.pth' % itr) for n in names]
-                save_weights(params, file_names)
-            file_names = [osp.join(_snapshot_dir, n + '.pth') for n in names]
-            save_weights(params, file_names)
+                torch.save(params_dict, osp.join(_snapshot_dir, 'checkpoint_itr_{}.pth.tar'.format(itr)))
+            torch.save(params_dict, osp.join(_snapshot_dir, 'checkpoint.pth.tar'))
         elif _snapshot_mode == 'none':
             pass
         else:
