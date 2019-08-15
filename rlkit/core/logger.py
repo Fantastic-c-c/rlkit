@@ -234,9 +234,53 @@ class Logger(object):
     def get_table_dict(self):
         return dict(self._tabular)
 
+    def dump_tabular(*args, **kwargs):
+        wh = kwargs.pop("write_header", None)
+        if len(_tabular) > 0:
+            if _log_tabular_only:
+                table_printer.print_tabular(_tabular)
+            else:
+                for line in tabulate(_tabular).split('\n'):
+                    log(line, *args, **kwargs)
+            tabular_dict = dict(_tabular)
+            # Also write to the csv files
+            # This assumes that the keys in each iteration won't change!
+            for tabular_fd in list(_tabular_fds.values()):
+                writer = csv.DictWriter(tabular_fd,
+                                        fieldnames=list(tabular_dict.keys()))
+                if wh or (wh is None and tabular_fd not in _tabular_header_written):
+                    writer.writeheader()
+                    _tabular_header_written.add(tabular_fd)
+                writer.writerow(tabular_dict)
+                tabular_fd.flush()
+            del _tabular[:]
 
-    def get_table_key_set(self):
-        return set(key for key, value in self._tabular)
+
+    def pop_prefix():
+        del _prefixes[-1]
+        global _prefix_str
+        _prefix_str = ''.join(_prefixes)
+
+
+    def save_itr_params(itr, params_dict):
+        ''' snapshot model parameters for all networks '''
+        if _snapshot_dir:
+            if _snapshot_mode == 'all':
+                # save for every training iteration
+                torch.save(params_dict, osp.join(_snapshot_dir, 'checkpoint_itr_{}.pth.tar'.format(itr)))
+            elif _snapshot_mode == 'last':
+                torch.save(params_dict, osp.join(_snapshot_dir, 'checkpoint.pth.tar'))
+            elif _snapshot_mode == "gap":
+                if itr % _snapshot_gap == 0:
+                    torch.save(params_dict, osp.join(_snapshot_dir, 'checkpoint_itr_{}.pth.tar'.format(itr)))
+            elif _snapshot_mode == "gap_and_last":
+                if itr % _snapshot_gap == 0:
+                    torch.save(params_dict, osp.join(_snapshot_dir, 'checkpoint_itr_{}.pth.tar'.format(itr)))
+                torch.save(params_dict, osp.join(_snapshot_dir, 'checkpoint.pth.tar'))
+            elif _snapshot_mode == 'none':
+                pass
+            else:
+                raise NotImplementedError
 
 
     @contextmanager
