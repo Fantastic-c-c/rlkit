@@ -24,18 +24,15 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             vf_lr=1e-3,
             context_lr=1e-3,
             kl_lambda=1.,
-            policy_mean_reg_weight=1e-3,
-            policy_std_reg_weight=1e-3,
-            policy_pre_activation_weight=0.,
             optimizer_class=optim.Adam,
             recurrent=False,
             use_information_bottleneck=True,
             use_next_obs_in_context=False,
             sparse_rewards=False,
+            auto_entropy=True,
+            target_entropy=None,
 
             soft_target_tau=1e-2,
-            plotter=None,
-            render_eval_paths=False,
             **kwargs
     ):
         super().__init__(
@@ -47,11 +44,6 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         )
 
         self.soft_target_tau = soft_target_tau
-        self.policy_mean_reg_weight = policy_mean_reg_weight
-        self.policy_std_reg_weight = policy_std_reg_weight
-        self.policy_pre_activation_weight = policy_pre_activation_weight
-        self.plotter = plotter
-        self.render_eval_paths = render_eval_paths
 
         self.recurrent = recurrent
         self.latent_dim = latent_dim
@@ -62,8 +54,21 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         self.kl_lambda = kl_lambda
 
         self.use_information_bottleneck = use_information_bottleneck
-        self.sparse_rewards = sparse_rewards
         self.use_next_obs_in_context = use_next_obs_in_context
+        self.sparse_rewards = sparse_rewards
+        self.auto_entropy = auto_entropy
+
+        # automatic entropy tuning removes the need to tune the reward scale
+        if self.auto_entropy:
+            if target_entropy:
+                self.target_entropy = target_entropy
+            else:
+                self.target_entropy = -np.prod(self.env.action_space.shape).item() # heuristic value from Tuomas
+            self.log_alpha = ptu.zeros(1, requires_grad=True)
+            self.alpha_optimizer = optimizer_class(
+                    [self.log_alpha],
+                    lr=policy_lr,
+                )
 
         self.qf1, self.qf2, self.vf = nets[1:]
         self.target_vf = self.vf.copy()
@@ -233,22 +238,20 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         self.vf_optimizer.step()
         self._update_target_network()
 
+        # optional learned alpha update
+        if self.auto_entropy:
+            alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+            self.alpha_optimizer.zero_grad()
+            alpha_loss.backward()
+            self.alpha_optimizer.step()
+            alpha = self.log_alpha.exp()
+        else:
+            alpha_loss = 0
+            alpha = 1
+
         # policy update
         # n.b. policy update includes dQ/da
-        log_policy_target = min_q_new_actions
-
-        policy_loss = (
-                log_pi - log_policy_target
-        ).mean()
-
-        mean_reg_loss = self.policy_mean_reg_weight * (policy_mean**2).mean()
-        std_reg_loss = self.policy_std_reg_weight * (policy_log_std**2).mean()
-        pre_tanh_value = policy_outputs[-1]
-        pre_activation_reg_loss = self.policy_pre_activation_weight * (
-            (pre_tanh_value**2).sum(dim=1).mean()
-        )
-        policy_reg_loss = mean_reg_loss + std_reg_loss + pre_activation_reg_loss
-        policy_loss = policy_loss + policy_reg_loss
+        policy_loss = (alpha * log_pi - min_q_new_actions).mean()
 
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
@@ -292,6 +295,9 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
                 'Policy log std',
                 ptu.get_numpy(policy_log_std),
             ))
+            if self.auto_entropy:
+                self.eval_statistics['Alpha'] = alpha.item()
+                self.eval_statistics['Alpha Loss'] = alpha_loss.item()
 
     def get_epoch_snapshot(self, epoch):
         # NOTE: overriding parent method which also optionally saves the env
