@@ -52,9 +52,14 @@ def experiment(variant):
         input_size=obs_dim + action_dim + latent_dim,
         output_size=1,
     )
-    vf = FlattenMlp(
+    target_qf1 = FlattenMlp(
         hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + latent_dim,
+        input_size=obs_dim + action_dim + latent_dim,
+        output_size=1,
+    )
+    target_qf2 = FlattenMlp(
+        hidden_sizes=[net_size, net_size, net_size],
+        input_size=obs_dim + action_dim + latent_dim,
         output_size=1,
     )
     policy = TanhGaussianPolicy(
@@ -73,7 +78,7 @@ def experiment(variant):
         env=env,
         train_tasks=list(tasks[:variant['n_train_tasks']]),
         eval_tasks=list(tasks[-variant['n_eval_tasks']:]),
-        nets=[agent, qf1, qf2, vf],
+        nets=[agent, qf1, qf2, target_qf1, target_qf2],
         latent_dim=latent_dim,
         **variant['algo_params']
     )
@@ -84,9 +89,8 @@ def experiment(variant):
         context_encoder.load_state_dict(torch.load(os.path.join(path, 'context_encoder.pth')))
         qf1.load_state_dict(torch.load(os.path.join(path, 'qf1.pth')))
         qf2.load_state_dict(torch.load(os.path.join(path, 'qf2.pth')))
-        vf.load_state_dict(torch.load(os.path.join(path, 'vf.pth')))
-        # TODO hacky, revisit after model refactor
-        algorithm.networks[-2].load_state_dict(torch.load(os.path.join(path, 'target_vf.pth')))
+        target_qf1.load_state_dict(torch.load(os.path.join(path, 'target_qf2.pth')))
+        target_qf2.load_state_dict(torch.load(os.path.join(path, 'target_qf2.pth')))
         policy.load_state_dict(torch.load(os.path.join(path, 'policy.pth')))
 
     # optional GPU mode

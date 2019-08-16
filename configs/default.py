@@ -30,7 +30,6 @@ default_config = dict(
         soft_target_tau=0.005, # for SAC target network update
         policy_lr=3E-4,
         qf_lr=3E-4,
-        vf_lr=3E-4,
         context_lr=3e-4,
         reward_scale=5., # scale rewards before constructing Bellman update, effectively controls weight on the entropy of the policy
         sparse_rewards=False, # whether to sparsify rewards as determined in env
