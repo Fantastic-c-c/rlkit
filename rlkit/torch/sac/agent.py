@@ -131,6 +131,9 @@ class PEARLAgent(nn.Module):
         self.sample_z()
 
     def sample_z(self):
+        # TODO zero out task variables
+        self.z = torch.zeros_like(self.z_means)
+        return
         if self.use_ib:
             posteriors = [torch.distributions.Normal(m, torch.sqrt(s)) for m, s in zip(torch.unbind(self.z_means), torch.unbind(self.z_vars))]
             z = [d.rsample() for d in posteriors]
