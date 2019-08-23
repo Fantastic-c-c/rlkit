@@ -8,12 +8,12 @@ from pyquaternion import Quaternion
 from . import register_env
 from metaworld.envs.env_util import get_stat_in_paths, \
     create_stats_ordered_dict, get_asset_full_path
-from metaworld.envs.mujoco.sawyer_xyz.base import SawyerXYZEnv
+from rlkit.envs.sawyer_base import SawyerXYZEnv
 from metaworld.envs.mujoco.utils.rotation import euler2quat
 from metaworld.envs.env_util import quat_to_zangle, zangle_to_quat
 
 
-@register_env('peg-insert')
+@register_env('peg-insert-mocap')
 class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
     def __init__(
             self,
@@ -36,16 +36,7 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
             randomize_tasks=False,  # if True, generate tasks randomly, else use the tasks above
             **kwargs
     ):
-        self.quick_init(locals())
-        SawyerXYZEnv.__init__(
-            self,
-            frame_skip=5,
-            action_scale=1./100, # actions are 1cm maximum
-            hand_low=hand_low,
-            hand_high=hand_high,
-            model_name=self.model_name,
-            # **kwargs
-        )
+        super(SawyerPegInsertionTopdown6DOFEnv, self).__init__()
         self.max_path_length = max_path_length
         self.rotMode = rotMode
         self.hand_init_pos = np.array(hand_init_pos)
