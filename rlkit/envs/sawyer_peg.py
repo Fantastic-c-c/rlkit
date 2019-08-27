@@ -15,10 +15,11 @@ class SawyerPegInsertionEnv(MujocoEnv):
     def __init__(self, max_path_length=30, n_tasks=1, randomize_tasks=False):
         self.max_path_length = max_path_length
         self.frame_skip = 5
-        self.action_scale = 0.1
+        self.action_scale = 1
 
+        # TODO hack dummy variables
+        self.action_mid, self.action_range = np.zeros(7), np.zeros(7)
         xml_path = 'sawyer_peg_insertion.xml'
-        # TODO check these args are what we want
         super(SawyerPegInsertionEnv, self).__init__(
                 xml_path,
                 frame_skip=self.frame_skip, # sim rate / control rate ratio
@@ -26,11 +27,18 @@ class SawyerPegInsertionEnv(MujocoEnv):
         # set the reset position as defined in XML
         self.init_qpos = self.sim.model.key_qpos[0].copy()
 
-        # set the action space to be the joint limits
+        # set the action space to be -1, 1
+        #self.action_space = Box(low=-np.ones(7), high=np.ones(7))
+
+        # set the observation space to be the joint limits
         ctrl_range = self.model.actuator_ctrlrange.copy()
         low = ctrl_range[:, 0]
         high = ctrl_range[:, 1]
         self.action_space = Box(low=low, high=high)
+        self.action_mid = np.mean(ctrl_range, axis=1)
+        self.action_range = (ctrl_range[:, 1] - ctrl_range[:, 0]) * .1
+
+        # TODO multitask stuff
         self._goal = self.data.site_xpos[self.model.site_name2id('goal_p1')].copy()
 
     def get_obs(self):
@@ -58,7 +66,8 @@ class SawyerPegInsertionEnv(MujocoEnv):
     def step(self, action):
         ''' apply the 7DoF action provided by the policy '''
         # for now, the sim rate is 5 times the control rate
-        new_angles = self._get_joint_angles() + action * self.action_scale
+        #new_angles = self.prev_qpos + action * self.action_scale
+        new_angles = self.action_mid + action * self.action_range
         self.do_simulation(new_angles, self.frame_skip)
         obs = self.get_obs()
         reward = self.compute_reward()
