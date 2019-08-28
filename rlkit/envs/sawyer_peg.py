@@ -15,31 +15,31 @@ class SawyerPegInsertionEnv(MujocoEnv):
     def __init__(self, max_path_length=30, n_tasks=1, randomize_tasks=False):
         self.max_path_length = max_path_length
         self.frame_skip = 5
-        self.action_scale = 1
+        self.action_scale = .1
 
-        # TODO hack dummy variables
-        self.action_mid, self.action_range = np.zeros(7), np.zeros(7)
         xml_path = 'sawyer_peg_insertion.xml'
+        self.prev_qpos = None
         super(SawyerPegInsertionEnv, self).__init__(
                 xml_path,
                 frame_skip=self.frame_skip, # sim rate / control rate ratio
                 automatically_set_obs_and_action_space=True)
         # set the reset position as defined in XML
         self.init_qpos = self.sim.model.key_qpos[0].copy()
+        self.prev_qpos = self.init_qpos.copy()
 
         # set the action space to be -1, 1
-        #self.action_space = Box(low=-np.ones(7), high=np.ones(7))
+        self.action_space = Box(low=-np.ones(7), high=np.ones(7))
 
-        # set the observation space to be the joint limits
+        # set the observation space to be the joint limits and the ee position limits
         ctrl_range = self.model.actuator_ctrlrange.copy()
-        low = ctrl_range[:, 0]
-        high = ctrl_range[:, 1]
-        self.action_space = Box(low=low, high=high)
-        self.action_mid = np.mean(ctrl_range, axis=1)
-        self.action_range = (ctrl_range[:, 1] - ctrl_range[:, 0]) * .1
+        low = np.concatenate([ctrl_range[:, 0], np.array([-10, -10, -10])])
+        high = np.concatenate([ctrl_range[:, 1], np.array([10, 10, 10])])
+        self.observation_space = Box(low=low, high=high)
 
         # TODO multitask stuff
         self._goal = self.data.site_xpos[self.model.site_name2id('goal_p1')].copy()
+
+        self.reset()
 
     def get_obs(self):
         ''' state observation is joint angles + ee pose '''
@@ -52,6 +52,7 @@ class SawyerPegInsertionEnv(MujocoEnv):
 
     def _get_ee_pose(self):
         ''' ee pose is xyz position + orientation quaternion '''
+        # TODO this is only position right now!
         ee_id = self.model.body_names.index('end_effector')
         return self.data.body_xpos[ee_id].copy()
 
@@ -65,10 +66,14 @@ class SawyerPegInsertionEnv(MujocoEnv):
 
     def step(self, action):
         ''' apply the 7DoF action provided by the policy '''
+        # TODO hack bc parent class calls step()
+        if self.prev_qpos is not None:
+            new_angles = self.prev_qpos + action * self.action_scale
+        else:
+            new_angles = self._get_joint_angles() + action * self.action_scale
         # for now, the sim rate is 5 times the control rate
-        #new_angles = self.prev_qpos + action * self.action_scale
-        new_angles = self.action_mid + action * self.action_range
         self.do_simulation(new_angles, self.frame_skip)
+        self.prev_qpos = new_angles #self._get_joint_angles()
         obs = self.get_obs()
         reward = self.compute_reward()
         done = False
