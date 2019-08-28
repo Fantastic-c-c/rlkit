@@ -15,7 +15,7 @@ class SawyerPegInsertionEnv(MujocoEnv):
     def __init__(self, max_path_length=30, n_tasks=1, randomize_tasks=False):
         self.max_path_length = max_path_length
         self.frame_skip = 5
-        self.action_scale = .1
+        self.action_scale = 100
 
         xml_path = 'sawyer_peg_insertion.xml'
         self.prev_qpos = None
@@ -29,12 +29,8 @@ class SawyerPegInsertionEnv(MujocoEnv):
 
         # set the action space to be -1, 1
         self.action_space = Box(low=-np.ones(7), high=np.ones(7))
-
-        # set the observation space to be the joint limits and the ee position limits
-        ctrl_range = self.model.actuator_ctrlrange.copy()
-        low = np.concatenate([ctrl_range[:, 0], np.array([-10, -10, -10])])
-        high = np.concatenate([ctrl_range[:, 1], np.array([10, 10, 10])])
-        self.observation_space = Box(low=low, high=high)
+        obs_size = len(self.get_obs())
+        self.observation_space = Box(low=-np.ones(obs_size) * 100, high=np.ones(obs_size) * 100)
 
         # TODO multitask stuff
         self._goal = self.data.site_xpos[self.model.site_name2id('goal_p1')].copy()
@@ -42,13 +38,17 @@ class SawyerPegInsertionEnv(MujocoEnv):
         self.reset()
 
     def get_obs(self):
-        ''' state observation is joint angles + ee pose '''
+        ''' state observation is joint angles + joint velocities + ee pose '''
         angles = self._get_joint_angles()
+        velocities = self._get_joint_velocities()
         ee_pose = self._get_ee_pose()
-        return np.concatenate([angles, ee_pose])
+        return np.concatenate([angles, velocities, ee_pose])
 
     def _get_joint_angles(self):
         return self.data.qpos.copy()
+
+    def _get_joint_velocities(self):
+        return self.data.qvel.copy()
 
     def _get_ee_pose(self):
         ''' ee pose is xyz position + orientation quaternion '''
@@ -66,14 +66,9 @@ class SawyerPegInsertionEnv(MujocoEnv):
 
     def step(self, action):
         ''' apply the 7DoF action provided by the policy '''
-        # TODO hack bc parent class calls step()
-        if self.prev_qpos is not None:
-            new_angles = self.prev_qpos + action * self.action_scale
-        else:
-            new_angles = self._get_joint_angles() + action * self.action_scale
+        torques = action * self.action_scale
         # for now, the sim rate is 5 times the control rate
-        self.do_simulation(new_angles, self.frame_skip)
-        self.prev_qpos = new_angles #self._get_joint_angles()
+        self.do_simulation(torques, self.frame_skip)
         obs = self.get_obs()
         reward = self.compute_reward()
         done = False
@@ -99,7 +94,7 @@ class SawyerPegInsertionEnv(MujocoEnv):
         dist = np.linalg.norm(stacked_goal_points - stacked_peg_points)
         # hack to get the right scale for the desired cost fn. shape
         # the best shape is when the dist is in [-5, 5]
-        dist *= 30
+        dist *= 3
 
         # use GPS cost function: log + quadratic encourages precision near insertion
         return -(dist ** 2 + math.log10(dist ** 2 + 1e-5))
@@ -110,7 +105,7 @@ class SawyerPegInsertionEnv(MujocoEnv):
         self.viewer.cam.lookat[0] = 0.4
         self.viewer.cam.lookat[1] = 0.75
         self.viewer.cam.lookat[2] = 0.4
-        self.viewer.cam.distance = 0.4
+        self.viewer.cam.distance = 0.2
         self.viewer.cam.elevation = -55
         self.viewer.cam.azimuth = 180
         self.viewer.cam.trackbodyid = -1

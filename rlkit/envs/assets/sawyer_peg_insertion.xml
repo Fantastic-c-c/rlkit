@@ -8,6 +8,7 @@
 
     <!-- import all the assets: robot parts, textures -->
     <compiler meshdir="meshes" texturedir="textures"/>
+    <option gravity="0 0 0" />
     <asset>
         <mesh name="pedestal" file="pedestal.stl" />
         <mesh name="base" file="base.stl" />
@@ -220,13 +221,13 @@
 
     <!-- define joint position actuators -->
     <actuator>
-        <position name="j0" joint="right_j0" kp=5000 ctrlrange="-.4 .15"/>
-        <position name="j1" joint="right_j1" kp=5000 ctrlrange="-1.5 -0"/>
-        <position name="j2" joint="right_j2" kp=5000 ctrlrange="-.5 .5"/>
-        <position name="j3" joint="right_j3" kp=500 ctrlrange="1.25 2.4"/>
-        <position name="j4" joint="right_j4" kp=500 ctrlrange="-1 1"/>
-        <position name="j5" joint="right_j5" kp=500 ctrlrange="0 1"/>
-        <position name="j6" joint="right_j6" kp=500 ctrlrange="-1 1"/>
+        <motor name="j0" joint="right_j0" ctrlrange="-10 10"/>
+        <motor name="j1" joint="right_j1" ctrlrange="-10 10"/>
+        <motor name="j2" joint="right_j2" ctrlrange="-10 10"/>
+        <motor name="j3" joint="right_j3" ctrlrange="-10 10"/>
+        <motor name="j4" joint="right_j4" ctrlrange="-10 10"/>
+        <motor name="j5" joint="right_j5" ctrlrange="-10 10"/>
+        <motor name="j6" joint="right_j6" ctrlrange="-10 10"/>
     </actuator>
 
 </mujoco>
