@@ -96,7 +96,7 @@ class SawyerPegInsertionEnv(MujocoEnv):
         dist = np.linalg.norm(stacked_goal_points - stacked_peg_points)
         # hack to get the right scale for the desired cost fn. shape
         # the best shape is when the dist is in [-5, 5]
-        dist *= 3
+        dist *= 10
 
         # use GPS cost function: log + quadratic encourages precision near insertion
         return -(dist ** 2 + math.log10(dist ** 2 + 1e-5))
