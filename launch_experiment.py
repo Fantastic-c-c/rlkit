@@ -63,7 +63,7 @@ def experiment(variant):
         obs_dim=obs_dim + latent_dim,
         latent_dim=latent_dim,
         action_dim=action_dim,
-        init_w=1e-1,
+        init_w=.5,
     )
     agent = PEARLAgent(
         latent_dim,
