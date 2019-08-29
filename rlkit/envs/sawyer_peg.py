@@ -15,7 +15,6 @@ class SawyerPegInsertionEnv(MujocoEnv):
     def __init__(self, max_path_length=30, n_tasks=1, randomize_tasks=False):
         self.max_path_length = max_path_length
         self.frame_skip = 5
-        self.action_scale = 100
 
         xml_path = 'sawyer_peg_insertion.xml'
         self.prev_qpos = None
@@ -27,10 +26,13 @@ class SawyerPegInsertionEnv(MujocoEnv):
         self.init_qpos = self.sim.model.key_qpos[0].copy()
         self.prev_qpos = self.init_qpos.copy()
 
-        # set the action space to be -1, 1
-        self.action_space = Box(low=-np.ones(7), high=np.ones(7))
+        # set the action space to be the control range
+        # if wrapped in NormalizedBoxEnv, actions will be automatically scaled to this range
+        bounds = self.model.actuator_ctrlrange.copy()
+        self.action_space = Box(low=bounds[:, 0], high=bounds[:, 1])
+        # set the observation space to be inf because we don't care
         obs_size = len(self.get_obs())
-        self.observation_space = Box(low=-np.ones(obs_size) * 100, high=np.ones(obs_size) * 100)
+        self.observation_space = Box(low=-np.ones(obs_size) * np.inf, high=np.ones(obs_size) * np.inf)
 
         # TODO multitask stuff
         self._goal = self.data.site_xpos[self.model.site_name2id('goal_p1')].copy()
@@ -66,7 +68,7 @@ class SawyerPegInsertionEnv(MujocoEnv):
 
     def step(self, action):
         ''' apply the 7DoF action provided by the policy '''
-        torques = action * self.action_scale
+        torques = action
         # for now, the sim rate is 5 times the control rate
         self.do_simulation(torques, self.frame_skip)
         obs = self.get_obs()
