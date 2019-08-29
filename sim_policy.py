@@ -62,7 +62,8 @@ def sim_policy(variant, num_trajs, save_video):
     # load trained weights (otherwise simulate random policy)
     data_dir = variant['path_to_checkpoint']
     if data_dir is not None:
-        checkpoint = torch.load(osp.join(data_dir, 'checkpoint.pth.tar'))
+        itr = variant['itr']
+        checkpoint = torch.load(osp.join(data_dir, 'checkpoint_itr_{}.pth.tar'.format(itr)))
         context_encoder.load_state_dict(checkpoint['context_encoder_weights'])
         policy.load_state_dict(checkpoint['policy_weights'])
 
