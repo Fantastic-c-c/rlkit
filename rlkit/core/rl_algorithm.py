@@ -419,6 +419,38 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
         return paths
 
+    # def _do_eval(self, indices, epoch):
+    #     final_returns_experience= []
+    #     online_returns_experience= []
+    #     final_returns_goal = []
+    #     online_returns_goal = []
+    #     for idx in indices:
+    #         runs, all_rets_experience, all_rets_goal = [], [], []
+    #         for r in range(self.num_evals):
+    #             paths = self.collect_paths(idx, epoch, r)
+    #             all_rets_experience.append(
+    #                 [eval_util.get_average_returns([p]) for p in paths if p['use_experiences'][0]])
+    #             all_rets_goal.append(
+    #                 [eval_util.get_average_returns([p]) for p in paths if p['use_experiences'][0] is False])
+    #             runs.append(paths)
+    #
+    #         all_rets_experience = np.mean(np.stack(all_rets_experience), axis=0)  # avg return per nth rollout
+    #         all_rets_goal = np.mean(np.stack(all_rets_goal), axis=0)  # an array of length
+    #
+    #         # all_rets_experience = [np.mean(subarray) for subarray in all_rets_experience if len(subarray) > 0]
+    #         # all_rets_goal = [np.mean(subarray) for subarray in all_rets_goal if len(subarray) > 0]
+    #
+    #         print("len(exp): ", len(all_rets_experience), "len(goal): ", len(all_rets_goal))
+    #         if len(all_rets_experience) != 0:
+    #             final_returns_experience.append(all_rets_experience[-1])
+    #         online_returns_experience.append(all_rets_experience)
+    #
+    #         if len(all_rets_goal) != 0:
+    #             final_returns_goal.append(all_rets_goal[-1])
+    #         online_returns_goal.append(all_rets_goal)
+    #
+    #     return final_returns_experience, online_returns_experience, final_returns_goal, online_returns_goal ## returns for experience, goal
+
     def _do_eval(self, indices, epoch):
         final_returns_experience= []
         online_returns_experience= []
@@ -434,21 +466,25 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     [eval_util.get_average_returns([p]) for p in paths if p['use_experiences'][0] is False])
                 runs.append(paths)
 
-            all_rets_experience = np.mean(np.stack(all_rets_experience), axis=0)  # avg return per nth rollout
-            all_rets_goal = np.mean(np.stack(all_rets_goal), axis=0)
+            # all_rets_experience = np.mean(np.stack(all_rets_experience), axis=0)  # avg return per nth rollout
+            # all_rets_goal = np.mean(np.stack(all_rets_goal), axis=0)
+
+            avg_last_ret_experience = np.mean([p[-1] for p in all_rets_experience if len(p) > 0]) #a number, avg of the final returns
+            avg_last_ret_goal = np.mean([p[-1] for p in all_rets_goal if len(p) > 0])
 
             # all_rets_experience = [np.mean(subarray) for subarray in all_rets_experience if len(subarray) > 0]
             # all_rets_goal = [np.mean(subarray) for subarray in all_rets_goal if len(subarray) > 0]
 
-            print("len(exp): ", len(all_rets_experience), "len(goal): ", len(all_rets_goal))
-            if len(all_rets_experience) != 0:
-                final_returns_experience.append(all_rets_experience[-1])
-            online_returns_experience.append(all_rets_experience)
 
-            if len(all_rets_goal) != 0:
-                final_returns_goal.append(all_rets_goal[-1])
-            online_returns_goal.append(all_rets_goal)
+            final_returns_experience.append(avg_last_ret_experience)
+            online_returns_experience.append([])
 
+            final_returns_goal.append(avg_last_ret_goal)
+            online_returns_goal.append([])
+
+        #final_returns: an array of numbers, the length is determined by if
+        #online_returns: an array of array(each of length self.num_evals), the length is currently fixed, so the subarray might be empty
+        # import pdb; pdb.set_trace()
         return final_returns_experience, online_returns_experience, final_returns_goal, online_returns_goal ## returns for experience, goal
 
     def evaluate(self, epoch):
