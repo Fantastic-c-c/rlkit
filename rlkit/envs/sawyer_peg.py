@@ -7,24 +7,23 @@ from rlkit.envs.mujoco_env import MujocoEnv
 from . import register_env
 
 
-@register_env('peg-insert')
-class SawyerPegInsertionEnv(MujocoEnv):
+@register_env('torque-reach')
+class SawyerTorqueReachingEnv(MujocoEnv):
     '''
-    Top down peg insertion with 7DoF joint position control
+    Reaching to a desired pose with 7 DoF joint torque control
     '''
-    def __init__(self, max_path_length=30, n_tasks=1, randomize_tasks=False):
+    def __init__(self, xml_path=None, max_path_length=30, n_tasks=1, randomize_tasks=False):
         self.max_path_length = max_path_length
         self.frame_skip = 5
 
-        xml_path = 'sawyer_peg_insertion.xml'
-        self.prev_qpos = None
-        super(SawyerPegInsertionEnv, self).__init__(
+        if xml_path is None:
+            xml_path = 'sawyer_reach.xml'
+        super(SawyerTorqueReachingEnv, self).__init__(
                 xml_path,
                 frame_skip=self.frame_skip, # sim rate / control rate ratio
                 automatically_set_obs_and_action_space=True)
         # set the reset position as defined in XML
         self.init_qpos = self.sim.model.key_qpos[0].copy()
-        self.prev_qpos = self.init_qpos.copy()
 
         # set the action space to be the control range
         # if wrapped in NormalizedBoxEnv, actions will be automatically scaled to this range
@@ -58,11 +57,12 @@ class SawyerPegInsertionEnv(MujocoEnv):
         ee_id = self.model.body_names.index('end_effector')
         return self.data.body_xpos[ee_id].copy()
 
-    def reset(self):
+    def reset_model(self):
         ''' reset to the same starting pose defined by joint angles '''
         angles = self.init_qpos
         velocities = np.zeros(len(self.data.qvel))
         self.set_state(angles, velocities)
+        # TODO is this sim forward needed?
         self.sim.forward()
         return self.get_obs()
 
@@ -117,3 +117,13 @@ class SawyerPegInsertionEnv(MujocoEnv):
 
     def reset_task(self, idx):
         self.reset()
+
+@register_env('torque-peg-insert')
+class SawyerTorquePegInsertionEnv(SawyerTorqueReachingEnv):
+    '''
+    Top down peg insertion with 7DoF joint torque control
+    '''
+    def __init__(self, *args, **kwargs):
+        xml_path = 'sawyer_peg_insertion.xml'
+        super(SawyerTorquePegInsertionEnv, self).__init__(xml_path=xml_path, *args, **kwargs)
+
