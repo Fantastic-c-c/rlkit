@@ -167,8 +167,8 @@
                                                 <geom size="0.015 0.015 0.03" pos="0 0 0.0" type="box" rgba="0.3 1 0.3 1"/>
                                                 <!-- put three sites on the peg (end, middle right, middle top) so we can access these coordinates for the reward function -->
                                                 <site name="ee_p1" pos="0 0 .03" size="0.005" rgba='1 1 1 1' />
-                                                <site name="ee_p2" pos="0 -.03 0" size="0.005" rgba='1 1 1 1' />
-                                                <site name="ee_p3" pos="-.03 0 0" size="0.005" rgba='1 1 1 1' />
+                                                <site name="ee_p2" pos="0 -.2 0" size="0.005" rgba='0 .8 0 1' />
+                                                <site name="ee_p3" pos="-.2 0 0" size="0.005" rgba='.8 0 0 1' />
                                             </body>
                                         </body>
                                     </body>
@@ -207,9 +207,9 @@
           <!-- <geom rgba="0.3 0.3 1 1" type="box" contype="1" size="0.025 0.07 0.03" name="box_left" conaffinity="1" pos=".045 0 0.03" mass="1000"/> -->
           <!-- <geom rgba="0.3 0.3 1 1" type="box" contype="1" size="0.025 0.07 0.03" name="box_right" conaffinity="1" pos="-0.045 0 0.03" mass="1000"/> -->
           <!-- put three sites in the hole (end, middle right, middle top) that should line up with the peg sites when the task is solved, for the reward function -->
-          <site name="goal_p1" pos="0 0 0.04" size="0.005" rgba="0.8 0 0 1"/>
-          <site name="goal_p2" pos="0 .03 0.07" size="0.005" rgba="0.8 0 0 1"/>
-          <site name="goal_p3" pos=".03 0 0.07" size="0.005" rgba="0.8 0 0 1"/>
+          <site name="goal_p1" pos="0 0 0.04" size="0.005" rgba="1 1 1 1"/>
+          <site name="goal_p2" pos="0.2 0 0.07" size="0.005" rgba="0 0.8 0 1"/>
+          <site name="goal_p3" pos="0 0.2 0.07" size="0.005" rgba="0.8 0 0 1"/>
         </body>
 
     </worldbody>
