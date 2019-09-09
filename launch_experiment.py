@@ -25,7 +25,7 @@ from configs.default import default_config
 def experiment(variant):
 
     # create multi-task environment and sample tasks
-    env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
+    env = ENVS[variant['env_name']](**variant['env_params'])
     tasks = env.get_all_task_idx()
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
