@@ -130,7 +130,7 @@ class SawyerEEPegInsertionEnv(Environment):
         safety_box = self.task.safety_box(self.physics)
         pos_low = safety_box.low
         pos_high = safety_box.high
-        self.action_space = Box(low=np.concatenate([pos_low, -np.ones(4)]), high=np.concatenate([pos_high, np.ones(4)]))
+        self.action_space = Box(low=-np.ones(7) * 10, high=np.ones(7) * 10)
         print('action space', self.action_space.low, self.action_space.high)
 
         # multitask stuff
@@ -145,19 +145,9 @@ class SawyerEEPegInsertionEnv(Environment):
 
     def step(self, action):
         ''' apply EE pose action provided by policy '''
-        # compute the action to apply using IK
-        action = action.astype(np.float64) # required by the IK for some reason
-        # TODO debug, hard-code the orientation
-        action[3:] = self.init_obs.copy()[3:]
-        print('action', action)
-        ik_result = qpos_from_site_pose(self.physics, 'ee_p1', target_pos=action[:3], target_quat=action[3:])
-        angles = ik_result.qpos
-        print('angles', angles)
-
         # apply the action and step the sim
-        timestep = super().step(angles)
+        timestep = super().step(action)
         obs = timestep.observation['observations']
-        print('obs', obs)
         reward = timestep.reward
         done = False
         return obs, reward, done, {}
