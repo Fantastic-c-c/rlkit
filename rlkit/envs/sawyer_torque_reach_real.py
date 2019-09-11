@@ -2,33 +2,35 @@ from sawyer_control.envs.sawyer_reaching import SawyerReachXYZEnv
 from sawyer_control.core.serializable import Serializable
 import numpy as np
 
-
+@register_env('sawyer-torque-reach-real')
 class PearlSawyerReachXYZTorqueEnv(SawyerReachXYZEnv):
-    def __init__(self, *args, randomize_tasks=True, n_tasks=5,
+    def __init__(self,
+                 *args,
+                 randomize_tasks=True,
+                 n_tasks=5,
                  height_2d=None,
                  goal_thresh=-0.05,
-                 goal_low=np.array([0.5, -0.25, 0.25]),
-                 goal_high=np.array([0.65, 0.25, 0.45]),
-
-                 # config_name=ROBOT_CONFIG,
-                 # action_mode=ACTION_MODE,
-                 # max_speed=MAX_SPEED,
-                 # position_action_scale=1 / 7,
-                 # height_2d=None,
-                 #
-                 # reward_type='hand_distance',
-
+                 goal_low=np.array([0.7, 0.0, 0.22]),
+                 goal_high=np.array([0.75, 0.06, 0.25]),
                  **kwargs):
         Serializable.quick_init(self, locals())
         SawyerReachXYZEnv.__init__(
             self,
             *args,
-            height_2d=height_2d,
+            config_name="pearl_fjalar_config",
+            action_mode="torque",
+            max_speed=0.01,  # default val
+            position_action_scale=0.03,  # default val
+            height_2d = height_2d,
             **kwargs
         )
 
         self.goal_thresh = goal_thresh
-        # self.observation_space = self.hand_space
+        # self.ee_angle_lows = np.array([-0.05, -0.05, -np.pi * .75])
+        # self.ee_angle_highs = np.array([0.05, 0.05, np.pi * .75])
+        # self.ee_pos_lows = np.array([.671, -0.038, 0.195])
+        # self.ee_pos_highs = np.array([.787, .090, .270])
+
         init_task_idx = 0
         self._task = None  # This is set by reset_task down below
 
@@ -39,15 +41,9 @@ class PearlSawyerReachXYZTorqueEnv(SawyerReachXYZEnv):
                 goals = [[g[0], g[1], height_2d] for g in goals]
             # goals = [1 * np.random.uniform(-1., 1., 2) for _ in directions]
         else:
-            # add more goals if we want non-randomized tasks
-            goals = [
-                [0.6, 0.2, 0.25],
-                [0.6, -0.2, 0.25]
-                     ]
-            # goals = [[g[0], g[1], hand_z_position] for g in goals]
-            if (n_tasks > len(goals)):
-                raise NotImplementedError("We don't have enough goals defined")
+            raise NotImplementedError("We don't have enough goals defined")
         self.goals = np.asarray(goals)
+        print("GOALS: " + str(self.goals))
         self.tasks = [{'direction': direction} for direction in directions]
 
         # set the initial goal
