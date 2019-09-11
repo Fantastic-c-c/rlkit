@@ -32,6 +32,9 @@ def experiment(variant):
     if ("sawyer_reach_real" in variant['env_name']):  # We need a separate import because this can only be done when on a ROS computer
         from rlkit.envs.sawyer_reach_real import MultitaskSawyerReachEnv
         env = NormalizedBoxEnv(MultitaskSawyerReachEnv(**variant['env_params']))
+    elif ("sawyer-torque-reach-real" in variant['env_name']):
+        from rlkit.envs.sawyer_torque_reach_real import PearlSawyerReachXYZTorqueEnv
+        env = NormalizedBoxEnv(PearlSawyerReachXYZTorqueEnv(**variant['env_params']))
     else:
         env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
     tasks = env.get_all_task_idx()

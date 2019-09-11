@@ -1,5 +1,5 @@
 {
-    "env_name": "sawyer-reach-real-3d",
+    "env_name": "sawyer-torque-reach-real",
     "n_train_tasks": 1,
     "n_eval_tasks": 0,
     "continue_training": 0,

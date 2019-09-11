@@ -56,10 +56,14 @@ class PearlSawyerReachXYZTorqueEnv(SawyerReachXYZEnv):
         vec = np.random.randn(3, n_tasks)  # 3 dimensional sphere
         vec /= np.linalg.norm(vec, axis=0)
         vec = vec.T
+        vec[:, 0] = np.abs(vec[:, 0])
+        print(vec)
         widths = (self.goal_space.high - self.goal_space.low) / 2.0
+        widths[0] = 0  # we want the x-goals to be centered at the edge of the box (because all are moving outwards from the box)
         center = self.goal_space.low + widths
         scaled_vec = vec * widths
         goals = scaled_vec + center
+        print(goals)
         return goals
 
     def step(self, action):
