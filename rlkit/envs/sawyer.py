@@ -61,8 +61,9 @@ class PegInsertion(base.Task):
     def safety_box(self, physics):
         ''' define a safety box to contain the end-effector '''
         reset_xpos = physics.named.data.site_xpos['ee_p1'].copy()
-        low = reset_xpos - np.array([.01, .01, .01])
-        high = reset_xpos + np.array([.01, .01, .01])
+        print('reset xpos', reset_xpos)
+        low = reset_xpos - np.array([.3, .3, .2])
+        high = reset_xpos + np.array([.3, .3, .01])
         safety_box = Box(low=low, high=high)
         return safety_box
 
@@ -123,7 +124,12 @@ class SawyerEEPegInsertionEnv(Environment):
         super(SawyerEEPegInsertionEnv, self).__init__(physics, task, **kwargs)
         self.max_path_length = 30
 
-        # NOTE PEARL codebase uses action and obs space to normalize
+
+        # NOTE this is needed because the safety box used to define the action space
+        # uses the xpos of the reset position!!
+        _ = self.reset()
+
+        # NOTE PEARL codebase uses action and obs space to normalize so these must be correct
         obs_dim = 7
         action_dim = 7
         self.observation_space = Box(low=-np.full(obs_dim, -np.inf), high=np.full(obs_dim, np.inf))
@@ -149,15 +155,12 @@ class SawyerEEPegInsertionEnv(Environment):
         action = action.astype(np.float64) # required by the IK for some reason
         # TODO debug, hard-code the orientation
         action[3:] = self.init_obs.copy()[3:]
-        print('action', action)
         ik_result = qpos_from_site_pose(self.physics, 'ee_p1', target_pos=action[:3], target_quat=action[3:])
         angles = ik_result.qpos
-        print('angles', angles)
 
         # apply the action and step the sim
         timestep = super().step(angles)
         obs = timestep.observation['observations']
-        print('obs', obs)
         reward = timestep.reward
         done = False
         return obs, reward, done, {}
