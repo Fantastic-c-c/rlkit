@@ -2,6 +2,8 @@ from sawyer_control.envs.sawyer_reaching import SawyerReachXYZEnv
 from sawyer_control.core.serializable import Serializable
 import numpy as np
 
+from . import register_env
+
 @register_env('sawyer-torque-reach-real')
 class PearlSawyerReachXYZTorqueEnv(SawyerReachXYZEnv):
     def __init__(self,
@@ -19,9 +21,11 @@ class PearlSawyerReachXYZTorqueEnv(SawyerReachXYZEnv):
             *args,
             config_name="pearl_fjalar_config",
             action_mode="torque",
-            max_speed=0.01,  # default val
-            position_action_scale=0.03,  # default val
+            max_speed=0.05,  # default val
+            position_action_scale=0.1,  # default val
             height_2d = height_2d,
+            goal_low=goal_low,
+            goal_high=goal_high,
             **kwargs
         )
 
@@ -43,7 +47,6 @@ class PearlSawyerReachXYZTorqueEnv(SawyerReachXYZEnv):
         else:
             raise NotImplementedError("We don't have enough goals defined")
         self.goals = np.asarray(goals)
-        print("GOALS: " + str(self.goals))
         self.tasks = [{'direction': direction} for direction in directions]
 
         # set the initial goal
@@ -57,13 +60,11 @@ class PearlSawyerReachXYZTorqueEnv(SawyerReachXYZEnv):
         vec /= np.linalg.norm(vec, axis=0)
         vec = vec.T
         vec[:, 0] = np.abs(vec[:, 0])
-        print(vec)
         widths = (self.goal_space.high - self.goal_space.low) / 2.0
-        widths[0] = 0  # we want the x-goals to be centered at the edge of the box (because all are moving outwards from the box)
         center = self.goal_space.low + widths
+        center[0] = self.goal_space.low[0]  # we want the x-goals to be centered at the edge of the box (because all are moving outwards from the box)
         scaled_vec = vec * widths
         goals = scaled_vec + center
-        print(goals)
         return goals
 
     def step(self, action):
@@ -81,6 +82,9 @@ class PearlSawyerReachXYZTorqueEnv(SawyerReachXYZEnv):
 
     def get_all_task_idx(self):
         return range(len(self.tasks))
+
+    def get_tasks(self):
+        return self.goals
 
     def reset_goal(self, direction):
         return self.goals[direction]
