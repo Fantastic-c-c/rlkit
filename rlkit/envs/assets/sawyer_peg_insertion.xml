@@ -165,7 +165,7 @@
                                             <body name="end_effector" pos="0 0 .06" quat="0.707107 0 0 0.707107">
                                                 <inertial pos="1e-08 1e-08 1e-08" quat="0.820473 0.339851 -0.17592 0.424708" mass="1e-08" diaginertia="1e-08 1e-08 1e-08" />
                                                 <!-- peg end-effector -->
-                                                <geom size="0.015 0.015 0.03" pos="0 0 0.0" type="box" rgba="0.3 1 0.3 1"/>
+                                                <geom size="0.015 0.015 0.03" pos="0 0 0.0" type="box" rgba="0.3 1 0.3 1" contype="1" conaffinity="1"/>
                                                 <!-- put three sites on the peg (end, middle right, middle top) so we can access these coordinates for the reward function -->
                                                 <site name="ee_p1" pos="0 0 .03" size="0.005" rgba='1 1 1 1' />
                                                 <site name="ee_p2" pos="0 -.06 0" size="0.005" rgba='0 .8 0 1' />
@@ -223,13 +223,13 @@
 
     <!-- define joint position actuators -->
     <actuator>
-        <position name="j0" joint="right_j0" kp=5000 ctrlrange="-.4 .15"/>
-        <position name="j1" joint="right_j1" kp=5000 ctrlrange="-1.5 -0"/>
-        <position name="j2" joint="right_j2" kp=5000 ctrlrange="-.5 .5"/>
-        <position name="j3" joint="right_j3" kp=500 ctrlrange="1.25 2.4"/>
-        <position name="j4" joint="right_j4" kp=500 ctrlrange="-1 1"/>
-        <position name="j5" joint="right_j5" kp=500 ctrlrange="0 1"/>
-        <position name="j6" joint="right_j6" kp=500 ctrlrange="-1 1"/>
+        <position name="j0" joint="right_j0" kp=10 ctrlrange="-.78 .78"/>
+        <position name="j1" joint="right_j1" kp=10 ctrlrange="-1.8 0"/>
+        <position name="j2" joint="right_j2" kp=10 ctrlrange="-.78 .78"/>
+        <position name="j3" joint="right_j3" kp=10 ctrlrange="1.25 2.4"/>
+        <position name="j4" joint="right_j4" kp=10 ctrlrange="-.78 .78"/>
+        <position name="j5" joint="right_j5" kp=10 ctrlrange="0 1"/>
+        <position name="j6" joint="right_j6" kp=10 ctrlrange="-.78 .78"/>
     </actuator>
 
     <!-- set frame buffer size big enough for high res images -->

@@ -21,9 +21,10 @@ from rlkit.envs import textures
 from rlkit.envs.mujoco_env import MujocoEnv
 from . import register_env
 
+# do not think this does anything...
 _DEFAULT_TIME_LIMIT = 30
-# NOTE this makes the frame skip 16
-_CONTROL_TIMESTEP = .04
+# the physics timestep is .0025, so the physics will be stepped 20 times per control
+_CONTROL_TIMESTEP = .05
 
 SUITE = containers.TaggedTasks()
 
@@ -123,6 +124,7 @@ class SawyerEEPegInsertionEnv(Environment):
     def __init__(self, physics, task, max_path_length=30, n_tasks=1, randomize_tasks=False, **kwargs):
         # TODO compute time_limit from max_path_length
         super(SawyerEEPegInsertionEnv, self).__init__(physics, task, **kwargs)
+        print('num sim steps per control step', self._n_sub_steps)
         self.max_path_length = 30
 
 
