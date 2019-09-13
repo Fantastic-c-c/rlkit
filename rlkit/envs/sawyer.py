@@ -5,6 +5,7 @@ import os
 import numpy as np
 import math
 from gym.spaces import Box
+from PIL import Image
 
 from dm_control.mujoco.wrapper.mjbindings import mjlib
 from dm_control import mujoco
@@ -176,5 +177,6 @@ class SawyerEEPegInsertionEnv(Environment):
 
     # rendering
     def get_image(self, width=512, height=512):
-        return self.physics.render(width, height) #, camera_id='sideview')
+       im = Image.fromarray(self.physics.render(width, height, camera_id='sideview'))
+       return im.rotate(270)
 
