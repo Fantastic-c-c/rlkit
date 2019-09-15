@@ -24,7 +24,7 @@ from . import register_env
 # do not think this does anything...
 _DEFAULT_TIME_LIMIT = 30
 # the physics timestep is .0025, so the physics will be stepped 20 times per control
-_CONTROL_TIMESTEP = .05
+_CONTROL_TIMESTEP = .0125 #.05
 
 SUITE = containers.TaggedTasks()
 
