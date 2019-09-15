@@ -97,7 +97,7 @@ def sim_policy(variant, num_trajs, save_video):
 
         video_filename=os.path.join(data_dir, 'video.mp4'.format(idx))
         # run ffmpeg to make the video
-        os.system('ffmpeg -i {}/%06d.jpg -vcodec mpeg4 {}'.format(temp_dir, video_filename))
+        os.system('ffmpeg -r {} -i {}/%06d.jpg -vcodec mpeg4 {}'.format(int(env.frame_rate), temp_dir, video_filename))
         # delete the frames
         shutil.rmtree(temp_dir)
 

@@ -24,6 +24,7 @@ from . import register_env
 # do not think this does anything...
 _DEFAULT_TIME_LIMIT = 30
 # the physics timestep is .0025, so the physics will be stepped 20 times per control
+# TODO convert this into frame skip that can be set by the experiment
 _CONTROL_TIMESTEP = .0125 #.05
 
 SUITE = containers.TaggedTasks()
@@ -216,6 +217,7 @@ class SawyerPegInsertionEnv(Environment):
     def __init__(self, physics, task, max_path_length=30, n_tasks=1, randomize_tasks=False, **kwargs):
         super(SawyerPegInsertionEnv, self).__init__(physics, task, **kwargs)
         print('num sim steps per control step', self._n_sub_steps)
+        self.frame_rate =  1 / _CONTROL_TIMESTEP
         self.max_path_length = 30
 
         # NOTE this is a hack needed because the safety box used to define
