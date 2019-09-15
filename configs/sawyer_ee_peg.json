@@ -1,0 +1,33 @@
+{
+    "env_name": "ee-peg-insert",
+    "n_train_tasks": 1,
+    "n_eval_tasks": 1,
+    "env_params": {
+        "n_tasks": 1,
+        "randomize_tasks": false
+    },
+
+    "algo_params": {
+        "num_initial_steps": 300,
+        "num_iterations": 500,
+        "num_steps_prior": 300,
+        "num_steps_posterior": 0,
+        "num_extra_rl_steps_posterior": 300,
+        "num_train_steps_per_itr": 1500,
+        "num_evals": 1,
+        "num_steps_per_eval": 90,
+        "max_path_length": 50,
+        "num_tasks_sample": 1,
+        "reward_scale": 10.0,
+        "kl_lambda": 0.1,
+        "num_exp_traj_eval":2,
+        "dump_eval_paths": 1
+    }
+    ,
+    "util_params": {
+        "debug": 0
+    }
+}
+
+
+

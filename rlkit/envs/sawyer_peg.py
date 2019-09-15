@@ -1,95 +1,202 @@
-from collections import OrderedDict
+"""Robot Domain."""
+
+import collections
+import os
 import numpy as np
 import math
-from gym.spaces import Dict, Box
+from gym.spaces import Box
+from PIL import Image
 
+from dm_control.mujoco.wrapper.mjbindings import mjlib
+from dm_control import mujoco
+from dm_control.rl.control import Environment
+from dm_control.suite import base
+from dm_control.suite import common
+from dm_control.utils import containers
+from dm_control.utils.inverse_kinematics import qpos_from_site_pose
+from dm_env import specs
+
+from rlkit.envs import meshes
+from rlkit.envs import textures
 from rlkit.envs.mujoco_env import MujocoEnv
 from . import register_env
 
+# do not think this does anything...
+_DEFAULT_TIME_LIMIT = 30
+# the physics timestep is .0025, so the physics will be stepped 20 times per control
+_CONTROL_TIMESTEP = .05
 
-@register_env('torque-reach')
-class SawyerTorqueReachingEnv(MujocoEnv):
-    '''
-    Reaching to a desired pose with 7 DoF joint torque control
-    '''
-    def __init__(self, xml_path=None, max_path_length=30, n_tasks=1, randomize_tasks=False):
-        self.max_path_length = max_path_length
-        self.frame_skip = 5
+SUITE = containers.TaggedTasks()
 
-        if xml_path is None:
-            xml_path = 'sawyer_reach.xml'
-        super(SawyerTorqueReachingEnv, self).__init__(
-                xml_path,
-                frame_skip=self.frame_skip, # sim rate / control rate ratio
-                automatically_set_obs_and_action_space=True)
+def get_model_and_assets(path):
+    """Returns a tuple containing the model XML string and a dict of assets."""
+    dirname = os.path.dirname(__file__)
+    filename = os.path.join(dirname, path)
+    with open(filename, 'r') as f:
+        data = f.read().replace('\n', '')
+    assets = meshes.ASSETS
+    assets.update(textures.ASSETS)
+    return data, assets
+
+@register_env('ee-peg-insert')
+def sawyer_ee_peg_insertion(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
+    ''' sawyer robot, end-effector control, peg insertion task '''
+    physics = EEPositionController.from_xml_string(*get_model_and_assets('assets/sawyer_ee_peg_insertion.xml'))
+    task = PegInsertion()
+    environment_kwargs = environment_kwargs or {}
+    return SawyerPegInsertionEnv(
+        physics, task, time_limit=time_limit, control_timestep=_CONTROL_TIMESTEP,
+        flat_observation=True, **environment_kwargs)
+
+@register_env('torque-peg-insert')
+def sawyer_torque_peg_insertion(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
+    ''' sawyer robot, joint torque control, peg insertion task '''
+    physics = JointTorqueController.from_xml_string(*get_model_and_assets('assets/sawyer_torque_peg_insertion.xml'))
+    task = PegInsertion()
+    environment_kwargs = environment_kwargs or {}
+    return SawyerPegInsertionEnv(
+        physics, task, time_limit=time_limit, control_timestep=_CONTROL_TIMESTEP,
+        flat_observation=True, **environment_kwargs)
+
+
+class EEPositionController(mujoco.Physics):
+    '''
+    command the robot with end-effector positions and quaternions
+
+    - use inverse kinematics (IK) to convert ee pose into joint angles
+    - joint angles are fed to a PD controller defined in the XML that
+    produces torques
+    - bias exploration with a safety box that constrains possible end-effector
+    positions
+    '''
+
+    def __init__(self, *args, **kwargs):
+        self.include_vel_in_state = True
+        super(EEPositionController, self).__init__(*args, **kwargs)
+
+    def get_observation(self):
+        ''' obs consists of ee pose and optionally velocity '''
+        obs = collections.OrderedDict()
+        obs['position'] = self.named.data.site_xpos['ee_p1'].copy()
+        site_xmat = self.named.data.site_xmat['ee_p1'].copy()
+        site_xquat = np.empty(4)
+        mjlib.mju_mat2Quat(site_xquat, site_xmat)
+        obs['orientation'] = site_xquat
+        if self.include_vel_in_state:
+            # TODO get velocity by using previous xpos and dt
+            pass
+        return obs
+
+    def get_observation_space(self):
+        ''' get obs bounds that will be used to normalize observations '''
+        obs_dim = 7
+        if self.include_vel_in_state:
+            obs_dim = 14
+        return Box(low=-np.full(obs_dim, -np.inf), high=np.full(obs_dim, np.inf))
+
+    def get_action_space(self):
+        ''' get action bounds that will be used to normalize actions '''
+        action_dim = 7
+        safety_box = self.safety_box()
+        pos_low = safety_box.low
+        pos_high = safety_box.high
+        return Box(low=np.concatenate([pos_low, -np.ones(4)]), high=np.concatenate([pos_high, np.ones(4)]))
+
+    def safety_box(self):
+        ''' define a safety box to contain the end-effector '''
+        reset_xpos = self.named.data.site_xpos['ee_p1'].copy()
+        low = reset_xpos - np.array([.3, .3, .2])
+        high = reset_xpos + np.array([.3, .3, .01])
+        safety_box = Box(low=low, high=high)
+        return safety_box
+
+    def prepare_action(self, action, init_obs):
+        ''' convert ee pose into joint angles for control '''
+        # compute the action to apply using IK
+        action = action.astype(np.float64) # required by the IK for some reason
+        # TODO debug, hard-code the orientation
+        action[3:] = init_obs.copy()[3:]
+        ik_result = qpos_from_site_pose(self, 'ee_p1', target_pos=action[:3], target_quat=action[3:])
+        angles = ik_result.qpos
+        return angles
+
+class JointTorqueController(mujoco.Physics):
+    '''
+    command the robot with raw joint torques
+
+    - use torque limits defined in XML to constrain applied forces
+    '''
+    def __init__(self, *args, **kwargs):
+        self.include_ee_in_state = True
+        super(JointTorqueController, self).__init__(*args, **kwargs)
+
+    def get_observation(self):
+        obs = collections.OrderedDict()
+        obs['angles'] = self.data.qpos.copy()
+        obs['velocities'] = self.data.qvel.copy()
+        if self.include_ee_in_state:
+            obs['ee_position'] = self.named.data.site_xpos['ee_p1'].copy()
+            site_xmat = self.named.data.site_xmat['ee_p1'].copy()
+            site_xquat = np.empty(4)
+            mjlib.mju_mat2Quat(site_xquat, site_xmat)
+            obs['ee_orientation'] = site_xquat
+        return obs
+
+    def get_observation_space(self):
+        ''' get obs bounds that will be used to normalize observations '''
+        obs_dim = 14
+        if self.include_ee_in_state:
+            obs_dim = 21
+        return Box(low=-np.full(obs_dim, -np.inf), high=np.full(obs_dim, np.inf))
+
+    def get_action_space(self):
+        ''' get action bounds that will be used to normalize actions '''
+        action_dim = 7
+        # TODO action bounds are ctrl range
+        return Box(low=-np.ones(7) * 10, high=np.ones(7) * 10)
+
+    def prepare_action(self, action, init_obs):
+        ''' raw torques are ready to feed to the simulator '''
+        return action
+
+
+class PegInsertion(base.Task):
+    def __init__(self, random=None):
+        super(PegInsertion, self).__init__(random=random)
+
+    def action_spec(self, physics):
+        ''' action spec is for joint angles NOT ee pose '''
+        action_dim = 7
+        minima = np.full(action_dim, fill_value=-1, dtype=np.float)
+        maxima = np.full(action_dim, fill_value=1, dtype=np.float)
+        return specs.BoundedArray(shape=(action_dim,), dtype=np.float, minimum=minima, maximum=maxima)
+
+    def initialize_episode(self, physics):
+        ''' reset to same starting pose defined by joint angles '''
         # set the reset position as defined in XML
-        self.init_qpos = self.sim.model.key_qpos[0].copy()
+        angles = physics.model.key_qpos[0].copy()
+        velocities = np.zeros(len(physics.data.qvel))
+        physics.data.qpos[:] = angles
+        physics.data.qvel[:] = velocities
 
-        # set the action space to be the control range
-        # if wrapped in NormalizedBoxEnv, actions will be automatically scaled to this range
-        bounds = self.model.actuator_ctrlrange.copy()
-        self.action_space = Box(low=bounds[:, 0], high=bounds[:, 1])
-        # set the observation space to be inf because we don't care
-        obs_size = len(self.get_obs())
-        self.observation_space = Box(low=-np.ones(obs_size) * np.inf, high=np.ones(obs_size) * np.inf)
+    def get_observation(self, physics):
+        ''' get ee position and velocity from the physics '''
+        return physics.get_observation()
 
-        # TODO multitask stuff
-        self._goal = self.data.site_xpos[self.model.site_name2id('goal_p1')].copy()
-
-        self.reset()
-
-    def get_obs(self):
-        ''' state observation is joint angles + joint velocities + ee pose '''
-        angles = self._get_joint_angles()
-        velocities = self._get_joint_velocities()
-        ee_pose = self._get_ee_pose()
-        return np.concatenate([angles, velocities, ee_pose])
-
-    def _get_joint_angles(self):
-        return self.data.qpos.copy()
-
-    def _get_joint_velocities(self):
-        return self.data.qvel.copy()
-
-    def _get_ee_pose(self):
-        ''' ee pose is xyz position + orientation quaternion '''
-        # TODO this is only position right now!
-        ee_id = self.model.body_names.index('end_effector')
-        return self.data.body_xpos[ee_id].copy()
-
-    def reset_model(self):
-        ''' reset to the same starting pose defined by joint angles '''
-        angles = self.init_qpos
-        velocities = np.zeros(len(self.data.qvel))
-        self.set_state(angles, velocities)
-        # TODO is this sim forward needed?
-        self.sim.forward()
-        return self.get_obs()
-
-    def step(self, action):
-        ''' apply the 7DoF action provided by the policy '''
-        torques = action
-        # for now, the sim rate is 5 times the control rate
-        self.do_simulation(torques, self.frame_skip)
-        obs = self.get_obs()
-        reward = self.compute_reward()
-        done = False
-        return obs, reward, done, {}
-
-    def compute_reward(self):
+    def get_reward(self, physics):
         ''' reward is the GPS cost function on the distance of the ee
         to the goal position '''
         # get coordinates of the points on the peg in the world frame
         # n.b. `data` coordinates are in world frame, while `model` coordinates are in local frame
-        p1 = self.data.site_xpos[self.model.site_name2id('ee_p1')].copy()
-        p2 = self.data.site_xpos[self.model.site_name2id('ee_p2')].copy()
-        p3 = self.data.site_xpos[self.model.site_name2id('ee_p3')].copy()
+        p1 = physics.named.data.site_xpos['ee_p1'].copy()
+        p2 = physics.named.data.site_xpos['ee_p2'].copy()
+        p3 = physics.named.data.site_xpos['ee_p3'].copy()
         stacked_peg_points = np.concatenate([p1, p2, p3])
 
         # get coordinates of the goal points in the world frame
-        g1 = self.data.site_xpos[self.model.site_name2id('goal_p1')].copy()
-        g2 = self.data.site_xpos[self.model.site_name2id('goal_p2')].copy()
-        g3 = self.data.site_xpos[self.model.site_name2id('goal_p3')].copy()
+        g1 = physics.named.data.site_xpos['goal_p1'].copy()
+        g2 = physics.named.data.site_xpos['goal_p2'].copy()
+        g3 = physics.named.data.site_xpos['goal_p3'].copy()
         stacked_goal_points = np.concatenate([g1, g2, g3])
 
         # compute distance between the points
@@ -101,16 +208,44 @@ class SawyerTorqueReachingEnv(MujocoEnv):
         # use GPS cost function: log + quadratic encourages precision near insertion
         return -(dist ** 2 + math.log10(dist ** 2 + 1e-5))
 
-    def viewer_setup(self):
-        # side view
-        self.viewer.cam.trackbodyid = 0
-        self.viewer.cam.lookat[0] = 0.4
-        self.viewer.cam.lookat[1] = 0.75
-        self.viewer.cam.lookat[2] = 0.4
-        self.viewer.cam.distance = 0.2
-        self.viewer.cam.elevation = -55
-        self.viewer.cam.azimuth = 180
-        self.viewer.cam.trackbodyid = -1
+
+class SawyerPegInsertionEnv(Environment):
+    '''
+    wrap the dm_control Environment to interface with PEARL codebase
+    '''
+    def __init__(self, physics, task, max_path_length=30, n_tasks=1, randomize_tasks=False, **kwargs):
+        super(SawyerPegInsertionEnv, self).__init__(physics, task, **kwargs)
+        print('num sim steps per control step', self._n_sub_steps)
+        self.max_path_length = 30
+
+        # NOTE this is a hack needed because the safety box used to define
+        # the action space uses the xpos of the reset position!!
+        _ = self.reset()
+
+        # set obs and action spaces appropriately for the controller
+        # NOTE PEARL codebase uses action and obs space to normalize so
+        # these must be correct
+        self.observation_space = self.physics.get_observation_space()
+        self.action_space = self.physics.get_action_space()
+
+        # multitask stuff
+        self._goal = self.physics.named.data.site_xpos['goal_p1'].copy()
+
+        self.init_obs = self.reset()
+
+    def reset(self):
+        ''' reset to same initial pose '''
+        timestep = super().reset()
+        return timestep.observation['observations']
+
+    def step(self, action):
+        ''' apply action provided by policy '''
+        angles = self.physics.prepare_action(action, self.init_obs)
+        timestep = super().step(angles)
+        obs = timestep.observation['observations']
+        reward = timestep.reward
+        done = False
+        return obs, reward, done, {}
 
     def get_all_task_idx(self):
         return [0]
@@ -118,13 +253,7 @@ class SawyerTorqueReachingEnv(MujocoEnv):
     def reset_task(self, idx):
         self.reset()
 
-
-@register_env('torque-peg-insert')
-class SawyerTorquePegInsertionEnv(SawyerTorqueReachingEnv):
-    '''
-    Top down peg insertion with 7DoF joint torque control
-    '''
-    def __init__(self, *args, **kwargs):
-        xml_path = 'sawyer_peg_insertion.xml'
-        super(SawyerTorquePegInsertionEnv, self).__init__(xml_path=xml_path, *args, **kwargs)
+    def get_image(self, width=512, height=512):
+       im = Image.fromarray(self.physics.render(width, height, camera_id='sideview'))
+       return im.rotate(270)
 
