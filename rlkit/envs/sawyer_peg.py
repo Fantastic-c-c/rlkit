@@ -23,9 +23,6 @@ from . import register_env
 
 # do not think this does anything...
 _DEFAULT_TIME_LIMIT = 30
-# the physics timestep is .0025, so the physics will be stepped 20 times per control
-# TODO convert this into frame skip that can be set by the experiment
-_CONTROL_TIMESTEP = .0125 #.05
 
 SUITE = containers.TaggedTasks()
 
@@ -46,8 +43,8 @@ def sawyer_ee_peg_insertion(time_limit=_DEFAULT_TIME_LIMIT, random=None, environ
     task = PegInsertion()
     environment_kwargs = environment_kwargs or {}
     return SawyerPegInsertionEnv(
-        physics, task, time_limit=time_limit, control_timestep=_CONTROL_TIMESTEP,
-        flat_observation=True, **environment_kwargs)
+        physics, task, time_limit=time_limit, flat_observation=True,
+        **environment_kwargs)
 
 @register_env('torque-peg-insert')
 def sawyer_torque_peg_insertion(time_limit=_DEFAULT_TIME_LIMIT, random=None, environment_kwargs=None):
@@ -56,8 +53,8 @@ def sawyer_torque_peg_insertion(time_limit=_DEFAULT_TIME_LIMIT, random=None, env
     task = PegInsertion()
     environment_kwargs = environment_kwargs or {}
     return SawyerPegInsertionEnv(
-        physics, task, time_limit=time_limit, control_timestep=_CONTROL_TIMESTEP,
-        flat_observation=True, **environment_kwargs)
+        physics, task, time_limit=time_limit, flat_observation=True,
+        **environment_kwargs)
 
 
 class EEPositionController(mujoco.Physics):
@@ -85,7 +82,7 @@ class EEPositionController(mujoco.Physics):
         obs['orientation'] = site_xquat
         if self.include_vel_in_state:
             # TODO get velocity by using previous xpos and dt
-            pass
+            raise NotImplementedError
         return obs
 
     def get_observation_space(self):
@@ -217,7 +214,7 @@ class SawyerPegInsertionEnv(Environment):
     def __init__(self, physics, task, max_path_length=30, n_tasks=1, randomize_tasks=False, **kwargs):
         super(SawyerPegInsertionEnv, self).__init__(physics, task, **kwargs)
         print('num sim steps per control step', self._n_sub_steps)
-        self.frame_rate =  1 / _CONTROL_TIMESTEP
+        self.frame_rate =  1 / self.control_timestep
         self.max_path_length = 30
 
         # NOTE this is a hack needed because the safety box used to define
@@ -257,5 +254,6 @@ class SawyerPegInsertionEnv(Environment):
 
     def get_image(self, width=512, height=512):
        im = Image.fromarray(self.physics.render(width, height, camera_id='sideview'))
+       # rotation is a hack to compensate for the fixed camera defined in XML
        return im.rotate(270)
 

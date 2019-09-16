@@ -9,6 +9,7 @@ default_config = dict(
     path_to_checkpoint=None, # path to checkpoint from which to continue training or load data
     continue_training=False, # whether to load the full state of the checkpoint and continue training, or just use the initial data buffer and train from scratch
     env_params=dict(
+        control_timestep=.0125, # time between control actions, can also be seen as frame_skip * simulation_timestep
         n_tasks=2, # number of distinct tasks in this domain, shoudl equal sum of train and eval tasks
         randomize_tasks=True, # shuffle the tasks after creating them
     ),
