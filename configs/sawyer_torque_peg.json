@@ -16,7 +16,7 @@
         "num_train_steps_per_itr": 1500,
         "num_evals": 1,
         "num_steps_per_eval": 90,
-        "max_path_length": 50,
+        "max_path_length": 100,
         "num_tasks_sample": 1,
         "reward_scale": 10.0,
         "kl_lambda": 0.1,
