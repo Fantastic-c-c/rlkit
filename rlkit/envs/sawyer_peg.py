@@ -12,9 +12,13 @@ class SawyerTorqueReachingEnv(MujocoEnv):
     '''
     Reaching to a desired pose with 7 DoF joint torque control
     '''
-    def __init__(self, xml_path=None, max_path_length=30, n_tasks=1, randomize_tasks=False):
+    def __init__(self, xml_path=None, max_path_length=30, n_tasks=1, randomize_tasks=False, tasks = [np.array([0.75, -0.15, 0])]):
         self.max_path_length = max_path_length
         self.frame_skip = 5
+        goal_low = (0.6, -0.1, 0),
+        goal_high = (0.75, 0.1, 0),
+
+        # "tasks" gives the position of the location of the box (not goal_p1, goal_p1 = box position + [0, 0, 0.04])
 
         if xml_path is None:
             xml_path = 'sawyer_reach.xml'
@@ -34,9 +38,22 @@ class SawyerTorqueReachingEnv(MujocoEnv):
         self.observation_space = Box(low=-np.ones(obs_size) * np.inf, high=np.ones(obs_size) * np.inf)
 
         # TODO multitask stuff
-        self._goal = self.data.site_xpos[self.model.site_name2id('goal_p1')].copy()
 
-        self.reset()
+        if randomize_tasks:
+            self.tasks = [1 * np.random.uniform(goal_low, goal_high) for _ in range(n_tasks)]
+        else:
+            self.tasks = tasks
+            if (n_tasks > len(self.tasks)):
+                raise NotImplementedError("We don't have enough goals defined")
+
+        # previous single task
+        # self._goal = self.data.site_xpos[self.model.site_name2id('goal_p1')].copy()
+
+        # self._goal = self.sim.model.site_pos[self.model.site_name2id('goal_p1')] + tasks[0]
+        # self.sim.model.body_pos[self.model.body_name2id('box')] = np.array([0.9,0.4,0.04])
+
+        self.reset_task(0)
+        # self.reset()
 
     def get_obs(self):
         ''' state observation is joint angles + joint velocities + ee pose '''
@@ -113,9 +130,20 @@ class SawyerTorqueReachingEnv(MujocoEnv):
         self.viewer.cam.trackbodyid = -1
 
     def get_all_task_idx(self):
-        return [0]
+        return range(len(self.tasks))
 
     def reset_task(self, idx):
+        self._goal = self.tasks[idx]
+
+        # self.data.site_xpos: absolute position
+        # self.sim.model.site_pos: local position, same as declared in xml files
+
+        # put the box at the goal position
+        self.sim.model.body_pos[self.model.body_name2id('box')] = self._goal
+
+        # move the goal position slightly to account for the hole offset from the box
+        self._goal = self._goal + self.sim.model.site_pos[self.model.site_name2id('goal_p1')]
+
         self.reset()
 
 

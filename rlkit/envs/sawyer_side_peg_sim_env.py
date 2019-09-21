@@ -6,11 +6,11 @@ from pyquaternion import Quaternion
 
 
 from . import register_env
-from metaworld.envs.env_util import get_stat_in_paths, \
+from metaworld.metaworld.envs.env_util import get_stat_in_paths, \
     create_stats_ordered_dict, get_asset_full_path
 from rlkit.envs.sawyer_base import SawyerXYZEnv
-from metaworld.envs.mujoco.utils.rotation import euler2quat
-from metaworld.envs.env_util import quat_to_zangle, zangle_to_quat
+from metaworld.metaworld.envs.mujoco.utils.rotation import euler2quat
+from metaworld.metaworld.envs.env_util import quat_to_zangle, zangle_to_quat
 
 
 @register_env('peg-insert-mocap')
@@ -30,7 +30,7 @@ class SawyerPegInsertionTopdown6DOFEnv(SawyerXYZEnv):
             goal_high=(0.05, 0.70, 0.05),
             hand_init_pos = (0, 0.60, 0.30),  # hand_init_pos y axis should be +0.05 bigger than y of goal to be directly above, to account for offset
             rotMode='fixed', # options are 'fixed', 'rotz', 'quat'
-            multitask=False, # this adds task ID to the state space, not for meta-learning
+            multitask=True, # this adds task ID to the state space, not for meta-learning
             n_tasks=1,
             if_render=False,
             randomize_tasks=False,  # if True, generate tasks randomly, else use the tasks above

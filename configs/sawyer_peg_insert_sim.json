@@ -2,10 +2,12 @@
     "env_name": "torque-peg-insert",
     "n_train_tasks": 1,
     "n_eval_tasks": 1,
+
     "env_params": {
         "n_tasks": 1,
         "randomize_tasks": false
     },
+    "itr": 52,
 
     "algo_params": {
         "num_initial_steps": 300,

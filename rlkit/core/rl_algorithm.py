@@ -198,6 +198,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 self.env.reset_task(idx)
                 self.enc_replay_buffer.task_buffers[idx].clear()
 
+                print("kkkkkkkkkkkkkkkkkkkkkkk current goal: ", self.env._goal)
+
                 # collect some trajectories with z ~ prior
                 if self.num_steps_prior > 0:
                     self.collect_data(self.num_steps_prior, 1, np.inf)
