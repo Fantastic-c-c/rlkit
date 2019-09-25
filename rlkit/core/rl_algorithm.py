@@ -5,6 +5,8 @@ import os
 
 import gtimer as gt
 import numpy as np
+import queue
+import multiprocessing as mp
 
 from rlkit.core import eval_util
 from rlkit.data_management.env_replay_buffer import MultiTaskReplayBuffer
@@ -49,6 +51,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             render_eval_paths=False,
             dump_eval_paths=False,
             skip_init_data_collection=False,
+            parallelize_data_collection=True,
             plotter=None,
             loggers=None,
     ):
@@ -134,6 +137,14 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self._current_path_builder = PathBuilder()
         self._exploration_paths = []
 
+        self.parallelize_data_collection = parallelize_data_collection
+        if self.parallelize_data_collection:
+            self.buffer_queue = mp.Queue()
+            self.replay_buffer_dict_key = "replay"
+            self.enc_replay_buffer_dict_key = "enc"
+            self.collect_data_process = None
+
+
     def make_exploration_policy(self, policy):
          return policy
 
@@ -195,28 +206,31 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
             # sample data from train tasks
             print('epoch: {}, sampling training data'.format(it_))
-            sample_tasks = np.random.choice(self.train_tasks, self.num_tasks_sample, replace=False)
-            print('sampled tasks', sample_tasks)
-            all_rets = []
-            # TODO: score sampled data here as a proxy for eval
-            for i, idx in enumerate(sample_tasks):
-                print('task: {} / {}'.format(i, len(sample_tasks)))
-                self.task_idx = idx
-                self.env.reset_task(idx)
-                #self.enc_replay_buffer.task_buffers[idx].clear()
+            if self.parallelize_data_collection:
+                self.start_new_collect_data_process()
+            else:
+                sample_tasks = np.random.choice(self.train_tasks, self.num_tasks_sample, replace=False)
+                print('sampled tasks', sample_tasks)
+                all_rets = []
+                # TODO: score sampled data here as a proxy for eval
+                for i, idx in enumerate(sample_tasks):
+                    print('task: {} / {}'.format(i, len(sample_tasks)))
+                    self.task_idx = idx
+                    self.env.reset_task(idx)
+                    #self.enc_replay_buffer.task_buffers[idx].clear()
 
-                # TODO: don't hardcode max_trajs
-                # collect some trajectories with z ~ prior
-                if self.num_steps_prior > 0:
-                    _ = self.collect_data(self.num_steps_prior, 1, np.inf, max_trajs=10)
-                # collect some trajectories with z ~ posterior
-                if self.num_steps_posterior > 0:
-                    rets = self.collect_data(self.num_steps_posterior, 1, self.update_post_train, max_trajs=10)
-                    all_rets += rets
-                # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
-                if self.num_extra_rl_steps_posterior > 0:
-                    rets = self.collect_data(self.num_extra_rl_steps_posterior, 1, self.update_post_train, add_to_enc_buffer=False, max_trajs=10)
-                    all_rets += rets
+                    # TODO: don't hardcode max_trajs
+                    # collect some trajectories with z ~ prior
+                    if self.num_steps_prior > 0:
+                        _ = self.collect_data(self.num_steps_prior, 1, np.inf, max_trajs=10)
+                    # collect some trajectories with z ~ posterior
+                    if self.num_steps_posterior > 0:
+                        rets = self.collect_data(self.num_steps_posterior, 1, self.update_post_train, max_trajs=10)
+                        all_rets += rets
+                    # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
+                    if self.num_extra_rl_steps_posterior > 0:
+                        rets = self.collect_data(self.num_extra_rl_steps_posterior, 1, self.update_post_train, add_to_enc_buffer=False, max_trajs=10)
+                        all_rets += rets
 
             # log returns from data collection
             avg_data_collection_returns = np.mean(all_rets)
@@ -224,11 +238,24 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
             print('training')
             # sample train tasks and compute gradient updates on parameters
-            for train_step in range(self.num_train_steps_per_itr):
-                indices = np.random.choice(self.train_tasks, self.meta_batch)
-                self._do_training(indices)
-                self._n_train_steps_total += 1
-            gt.stamp('train')
+
+            # update buffers
+
+            if self.parallelize_data_collection:
+                # maybe there's a better way to see if task is finished?
+                while self.buffer_queue.qsize() < self.num_tasks_sample:  # train in batches until we get new data
+                    for train_step in range(self.num_train_steps_per_itr):
+                        indices = np.random.choice(self.train_tasks, self.meta_batch)
+                        self._do_training(indices)
+                        self._n_train_steps_total += 1
+                    gt.stamp('train')
+                self.end_process_and_update_buffers()
+            else:
+                for train_step in range(self.num_train_steps_per_itr):
+                    indices = np.random.choice(self.train_tasks, self.meta_batch)
+                    self._do_training(indices)
+                    self._n_train_steps_total += 1
+                gt.stamp('train')
 
             self.training_mode(False)
             self.train_statistics = None
@@ -285,6 +312,30 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self._n_env_steps_total += num_transitions
         gt.stamp('sample')
         return all_rets
+
+    def start_new_collect_data_process(self):
+        self.collect_data_process = mp.Process(target=collect_data_routine, args=(self.buffer_queue, self.env, self.sampler ))
+        self.collect_data_process.start()
+
+    def update_buffer(self, buffer, idxs, paths):
+        assert len(idxs) == len(paths)
+        for i in range(len(idxs)):
+            buffer.add_paths(idxs[i], paths[i])
+
+    def end_process_and_update_buffers(self):
+        self.collect_data_process.join()
+        while not self.buffer_queue.empty():
+            try:
+                # This dictionary should contain a pair of (task_idxs, paths) for each buffer being updated
+                buffer_dict = self.buffer_queue.get(block=False)
+            except queue.Empty:
+                break
+
+            replay_buffer_idxs, replay_buffer_paths = buffer_dict[self.replay_buffer_dict_key]
+            self.update_buffer(self.replay_buffer, replay_buffer_idxs, replay_buffer_paths)
+            if self.enc_replay_buffer_dict_key in buffer_dict:
+                enc_buffer_idxs, enc_buffer_paths = buffer_dict[self.enc_replay_buffer_dict_key]
+                self.update_buffer(self.enc_replay_buffer, enc_buffer_idxs, enc_buffer_paths)
 
     def _try_to_eval(self, epoch, started_eval=False):
         logger = self.loggers[1]
@@ -583,4 +634,75 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         :return:
         """
         pass
+
+
+def collect_data_routine(buffer_queue, env, sampler):
+    pass
+#     sample_tasks = np.random.choice(self.train_tasks, self.num_tasks_sample, replace=False)
+#     print('sampled tasks', sample_tasks)
+#     all_rets = []
+#     # TODO: score sampled data here as a proxy for eval
+#     for i, idx in enumerate(sample_tasks):
+#         print('task: {} / {}'.format(i, len(sample_tasks)))
+#         task_idx = idx
+#         env.reset_task(idx)
+#         # self.enc_replay_buffer.task_buffers[idx].clear()
+#
+#         # TODO: don't hardcode max_trajs
+#         # collect some trajectories with z ~ prior
+#         if self.num_steps_prior > 0:
+#             _ = self.collect_data_parallel(buffer_queue, self.num_steps_prior, 1, np.inf, max_trajs=10)
+#         # collect some trajectories with z ~ posterior
+#         if self.num_steps_posterior > 0:
+#             rets = self.collect_data_parallel(buffer_queue, self.num_steps_posterior, 1, self.update_post_train, max_trajs=10)
+#             all_rets += rets
+#         # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
+#         if self.num_extra_rl_steps_posterior > 0:
+#             rets = self.collect_data_parallel(self.num_extra_rl_steps_posterior, 1, self.update_post_train,
+#                                      add_to_enc_buffer=False, max_trajs=10)
+#             all_rets += rets
+#
+# def collect_data_parallel(buffer_queue,
+#                           num_samples, resample_z_rate, update_posterior_rate, add_to_enc_buffer=True, max_trajs=np.inf):
+#     '''
+#     get trajectories from current env in batch mode with given policy
+#     collect complete trajectories until the number of collected transitions >= num_samples OR number of trajs exceeds a max (default is infinite)
+#
+#     :param agent: policy to rollout
+#     :param num_samples: total number of transitions to sample
+#     :param resample_z_rate: how often to resample latent context z (in units of trajectories)
+#     :param update_posterior_rate: how often to update q(z | c) from which z is sampled (in units of trajectories)
+#     :param add_to_enc_buffer: whether to add collected data to encoder replay buffer
+#     '''
+#     buffer_dict = {}
+#
+#     # start from the prior
+#     self.agent.clear_z()
+#
+#     num_transitions, num_trajs = 0, 0
+#     all_rets = []
+#     posterior_samples = False
+#     while num_transitions < num_samples and num_trajs < max_trajs:
+#         paths, n_samples = self.sampler.obtain_samples(max_samples=num_samples - num_transitions,
+#                                                        max_trajs=update_posterior_rate,
+#                                                        accum_context=False,
+#                                                        resample=resample_z_rate)
+#         num_transitions += n_samples
+#         num_trajs += len(paths)
+#         buffer_dict[self.replay_buffer_dict_key] = (self.task_idx, paths)
+#         # compute returns on collected samples
+#         if posterior_samples:
+#             all_rets += [eval_util.get_average_returns([p]) for p in paths]
+#         if add_to_enc_buffer:
+#             buffer_dict[self.enc_replay_buffer_dict_key] = (self.task_idx, paths)
+#         if update_posterior_rate != np.inf:
+#             context = self.prepare_context(self.task_idx)
+#             self.agent.infer_posterior(context)
+#             posterior_samples = True
+#     self._n_env_steps_total += num_transitions
+#     gt.stamp('sample')
+#     buffer_queue.put(buffer_dict)
+#     return all_rets
+#
+#
 
