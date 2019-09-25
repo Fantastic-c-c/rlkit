@@ -1,11 +1,12 @@
 {
     "env_name": "sawyer-reach-real-3d",
-    "n_train_tasks": 40,
-    "n_eval_tasks": 15,
+    "n_train_tasks": 1,
+    "n_eval_tasks": 1,
     "continue_training": 0,
     "env_params": {
-        "n_tasks": 55,
-        "randomize_tasks": 1
+        "n_tasks": 2,
+        "randomize_tasks": 0,
+        "action_mode": "position"
     }
     ,
     "algo_params": {
@@ -28,3 +29,4 @@
 
     }
 }
+

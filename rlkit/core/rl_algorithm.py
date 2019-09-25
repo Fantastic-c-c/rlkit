@@ -220,6 +220,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
             # log returns from data collection
             avg_data_collection_returns = np.mean(all_rets)
+            print(all_rets)
             self.loggers[0].record_tabular('AvgDataCollectionReturns', avg_data_collection_returns)
 
             print('training')
@@ -291,6 +292,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         logger.save_extra_data(self.get_extra_data_to_save(epoch))
         if self._can_evaluate():
             self.evaluate(epoch)
+            print("evaling")
 
             params = self.get_epoch_snapshot(epoch)
             logger.save_itr_params(epoch, params)

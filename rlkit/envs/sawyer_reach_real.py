@@ -14,7 +14,7 @@ class MultitaskSawyerReachEnv(Serializable, SawyerReachXYZEnv):
             goal_thresh=-0.02,
             **kwargs):
         Serializable.quick_init(self, locals())
-        SawyerReachXYZEnv.__init__(self, config_name='laudri_config', **kwargs)
+        SawyerReachXYZEnv.__init__(self, config_name='pearl_fjalar_config', **kwargs)
 
         self.goal_thresh = goal_thresh
         # define a safe goal space, slighty smaller than the obs space to make sure the robot always has to move at least a little
@@ -23,8 +23,10 @@ class MultitaskSawyerReachEnv(Serializable, SawyerReachXYZEnv):
         self.goal_space = Box(self.goal_low, self.goal_high)
 
         # generate random goals
-        if n_tasks == 1:
-            self.goals = [self.pos_control_reset_position + np.array([.1, .1, -.1])]
+        print("N TASKS: " + str(n_tasks))
+        if n_tasks == 2:
+            self.goals = [[0.6463305, 0.15157676, 0.27320544],
+                     [0.60380304, 0.08447907, 0.24696944]]
         else:
             np.random.seed(1337)
             self.goals = [1 * np.random.uniform(self.goal_low, self.goal_high) for _ in range(n_tasks)]
