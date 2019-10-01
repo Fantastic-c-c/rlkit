@@ -214,7 +214,7 @@ class SawyerPegInsertionEnv(Environment):
     def __init__(self, physics, task, max_path_length=30, n_tasks=1, randomize_tasks=False, **kwargs):
         super(SawyerPegInsertionEnv, self).__init__(physics, task, **kwargs)
         print('num sim steps per control step', self._n_sub_steps)
-        self.frame_rate =  1 / self.control_timestep
+        self.frame_rate =  1 / kwargs['control_timestep']
         self.max_path_length = 30
 
         # NOTE this is a hack needed because the safety box used to define
