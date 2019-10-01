@@ -7,6 +7,10 @@ import gtimer as gt
 import numpy as np
 import queue
 import multiprocessing as mp
+try:
+    mp.set_start_method('spawn')
+except RuntimeError:
+    pass
 import torch
 
 from rlkit.core import eval_util
@@ -52,9 +56,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             render_eval_paths=False,
             dump_eval_paths=False,
             skip_init_data_collection=False,
-            parallelize_data_collection=True,
+            parallelize_data_collection=False,
             plotter=None,
             loggers=None,
+            recurrent=False,
     ):
         """
         :param env: training env
@@ -140,14 +145,18 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
         self.parallelize_data_collection = parallelize_data_collection
         if self.parallelize_data_collection:
+            print("WE ARE PARALLEL")
             self.buffer_queue = mp.Queue()
             self.replay_buffer_dict_key = "replay"
             self.enc_replay_buffer_dict_key = "enc"
             self.collect_data_process = None
             self.n_env_steps_shared = mp.Value('i', 0)
+            self.mean_return_shared = mp.Value('d', 0)
+            self.is_done_shared = mp.Value('i', 0)
 
             self.process_spawner = ProcessSpawner(self.buffer_queue,
                                                   self.train_tasks,
+                                                  self.max_path_length,
                                                   self.num_tasks_sample,
                                                   self.num_steps_prior,
                                                   self.num_steps_posterior,
@@ -156,7 +165,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                                                   self.replay_buffer_dict_key,
                                                   self.enc_replay_buffer_dict_key,
                                                   self.embedding_batch_size,
-                                                  self.recurrent)
+                                                  recurrent)
 
 
     def make_exploration_policy(self, policy):
@@ -221,7 +230,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             # sample data from train tasks
             print('epoch: {}, sampling training data'.format(it_))
             if self.parallelize_data_collection:
-                self.start_new_collect_data_process()
+                self.start_new_collect_data_process(it_)
             else:
                 sample_tasks = np.random.choice(self.train_tasks, self.num_tasks_sample, replace=False)
                 print('sampled tasks', sample_tasks)
@@ -246,23 +255,23 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                         rets = self.collect_data(self.num_extra_rl_steps_posterior, 1, self.update_post_train, add_to_enc_buffer=False, max_trajs=10)
                         all_rets += rets
 
-            # log returns from data collection
-            avg_data_collection_returns = np.mean(all_rets)
-            self.loggers[0].record_tabular('AvgDataCollectionReturns', avg_data_collection_returns)
+                # log returns from data collection
+                avg_data_collection_returns = np.mean(all_rets)
+                self.loggers[0].record_tabular('AvgDataCollectionReturns', avg_data_collection_returns)
 
             print('training')
             # sample train tasks and compute gradient updates on parameters
 
             # update buffers
-
             if self.parallelize_data_collection:
                 # maybe there's a better way to see if task is finished?
-                while self.buffer_queue.qsize() < self.num_tasks_sample:  # train in batches until we get new data
-                    for train_step in range(self.num_train_steps_per_itr):
+                while self.is_done_shared.value == 0:  # train in batches until we get new data
+                    for train_step in range(self.num_train_steps_per_itr):  # This could be 1?
                         indices = np.random.choice(self.train_tasks, self.meta_batch)
                         self._do_training(indices)
                         self._n_train_steps_total += 1
                     gt.stamp('train')
+                gt.stamp('sample')  # this is not quite correct unles num_train_steps_per_itr is 1
                 self.end_process_and_update()
             else:
                 for train_step in range(self.num_train_steps_per_itr):
@@ -327,18 +336,32 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         gt.stamp('sample')
         return all_rets
 
-    def start_new_collect_data_process(self):
-        self.collect_data_process = self.process_spawner.spawn_process(self.enc_replay_buffer, self.env, self.sampler,
-                                                                       self.agent, self.n_env_steps_shared)
+    def start_new_collect_data_process(self, itr = 0):
+        nets = self.agent.networks
+        for net in nets:
+            print(net.state_dict())
+            net.load_state_dict(net.state_dict())
+        exit()
+        if itr == 0:
+            self.collect_data_process = self.process_spawner.spawn_process(self.enc_replay_buffer, self.env, agent_weights,
+                                                                           self.n_env_steps_shared,
+                                                                           self.mean_return_shared, self.is_done_shared)
+        else:
+            self.agent.detach_z()  # detach gradients
+            self.sampler.policy.detach_z()
+            self.collect_data_process = self.process_spawner.spawn_process(self.enc_replay_buffer, self.env, agent_weights,
+                                                                           self.n_env_steps_shared,
+                                                                           self.mean_return_shared, self.is_done_shared)
+
         self.collect_data_process.start()
 
-    def update_buffer(self, buffer, idxs, paths):
-        assert len(idxs) == len(paths)
-        for i in range(len(idxs)):
-            buffer.add_paths(idxs[i], paths[i])
+    def update_buffer(self, buffer, idx, paths):
+        print("BUF: " + str(buffer) + " | IDX: " + str(idx) + " | LEN PATHS: " + str(len(paths)))
+        buffer.add_paths(idx, paths)
 
     def end_process_and_update(self):
         self.collect_data_process.join()
+        self.is_done_shared.value = 0
         self._n_env_steps_total = self.n_env_steps_shared.value
         while not self.buffer_queue.empty():
             try:
@@ -347,11 +370,15 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             except queue.Empty:
                 break
 
-            replay_buffer_idxs, replay_buffer_paths = buffer_dict[self.replay_buffer_dict_key]
-            self.update_buffer(self.replay_buffer, replay_buffer_idxs, replay_buffer_paths)
+            replay_buffer_idx, replay_buffer_paths = buffer_dict[self.replay_buffer_dict_key]
+            self.update_buffer(self.replay_buffer, replay_buffer_idx, replay_buffer_paths)
             if self.enc_replay_buffer_dict_key in buffer_dict:
-                enc_buffer_idxs, enc_buffer_paths = buffer_dict[self.enc_replay_buffer_dict_key]
-                self.update_buffer(self.enc_replay_buffer, enc_buffer_idxs, enc_buffer_paths)
+                enc_buffer_idx, enc_buffer_paths = buffer_dict[self.enc_replay_buffer_dict_key]
+                self.update_buffer(self.enc_replay_buffer, enc_buffer_idx, enc_buffer_paths)
+                        # log returns from data collection
+        avg_data_collection_returns = self.mean_return_shared.value
+        self.loggers[0].record_tabular('AvgDataCollectionReturns', avg_data_collection_returns)
+
 
     def _try_to_eval(self, epoch, started_eval=False):
         logger = self.loggers[1]
@@ -651,12 +678,14 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         """
         pass
 
+
 class ProcessSpawner:
-    def __init__(self, buffer_queue, train_tasks, num_tasks_sample, num_steps_prior, num_steps_posterior,
+    def __init__(self, buffer_queue, train_tasks, max_path_length, num_tasks_sample, num_steps_prior, num_steps_posterior,
                  num_extra_rl_steps_posterior, update_post_train, replay_buffer_dict_key, enc_replay_buffer_dict_key,
                  embedding_batch_size, recurrent):
         self.buffer_queue = buffer_queue
         self.train_tasks = train_tasks
+        self.max_path_length = max_path_length
         self.num_tasks_sample = num_tasks_sample
         self.num_steps_prior = num_steps_prior
         self.num_steps_posterior = num_steps_posterior
@@ -667,10 +696,24 @@ class ProcessSpawner:
         self.embedding_batch_size = embedding_batch_size
         self.recurrent = recurrent
 
-    def spawn_process(self, enc_replay_buffer, env, sampler, agent, n_env_steps_shared):
-        return mp.Process(target=self.collect_data_routine, args=(self.buffer_queue, enc_replay_buffer, env, sampler, agent, n_env_steps_shared))
+    def spawn_process(self, enc_replay_buffer, env, agent_weights, n_env_steps_shared, mean_return_shared, is_done_shared):
+        return mp.Process(target=self.collect_data_routine, args=(self.buffer_queue, enc_replay_buffer, env, agent_weights, n_env_steps_shared, mean_return_shared, is_done_shared))
 
-    def collect_data_routine(self, buffer_queue, enc_replay_buffer, env, sampler, agent, n_env_steps_shared):
+    def collect_data_routine(self, buffer_queue, enc_replay_buffer, env, agent_weights, n_env_steps_shared, mean_return_shared, is_done_shared):
+        #
+        # agent = PEARLAgent(
+        #     latent_dim,
+        #     context_encoder,
+        #     policy,
+        #     **variant['algo_params']
+        # )
+
+        sampler = InPlacePathSampler(
+            env=env,
+            policy=agent,
+            max_path_length=self.max_path_length,
+        )
+
         sample_tasks = np.random.choice(self.train_tasks, self.num_tasks_sample, replace=False)
         print('sampled tasks', sample_tasks)
         all_rets = []
@@ -698,6 +741,9 @@ class ProcessSpawner:
                                                   sampler, agent, self.num_extra_rl_steps_posterior, 1,
                                                   self.update_post_train, add_to_enc_buffer=False, max_trajs=10)
                 all_rets += rets
+        print("FINISHED COLLECTING DATA")
+        is_done_shared.value = 1
+        mean_return_shared.value = np.mean(all_rets)
 
     def collect_data_parallel(self, task_idx, buffer_queue, enc_replay_buffer, n_env_steps_shared, sampler, agent,
                               num_samples, resample_z_rate, update_posterior_rate, add_to_enc_buffer=True, max_trajs=np.inf):
@@ -714,6 +760,7 @@ class ProcessSpawner:
         buffer_dict = {}
 
         # start from the prior
+        print("AGENT: " + str(agent))
         agent.clear_z()
 
         num_transitions, num_trajs = 0, 0
@@ -726,20 +773,22 @@ class ProcessSpawner:
                                                       resample=resample_z_rate)
             num_transitions += n_samples
             num_trajs += len(paths)
+            print("ADDED TO REP BUFFER: " + str(len(paths)))
             buffer_dict[self.replay_buffer_dict_key] = (task_idx, paths)
             # compute returns on collected samples
             if posterior_samples:
                 all_rets += [eval_util.get_average_returns([p]) for p in paths]
             if add_to_enc_buffer:
+                print("ADDED TO ENC BUFFER: " + str(len(paths)))
                 buffer_dict[self.enc_replay_buffer_dict_key] = (task_idx, paths)
             if update_posterior_rate != np.inf:
                 context = self.prepare_context(task_idx, enc_replay_buffer)
                 agent.infer_posterior(context)
                 posterior_samples = True
+            buffer_queue.put(buffer_dict)
         with n_env_steps_shared.get_lock():
             n_env_steps_shared.value += num_transitions
-        gt.stamp('sample')
-        buffer_queue.put(buffer_dict)
+        # gt.stamp('sample')  # TODO: make stamping work for parallel?
         return all_rets
 
     def prepare_encoder_data(self, obs, act, rewards):
@@ -757,6 +806,5 @@ class ProcessSpawner:
         rewards = batch['rewards'][None, ...]
         context = self.prepare_encoder_data(obs, act, rewards)
         return context
-
 
 

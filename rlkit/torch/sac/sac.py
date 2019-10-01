@@ -42,6 +42,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             agent=nets[0],
             train_tasks=train_tasks,
             eval_tasks=eval_tasks,
+            recurrent=recurrent,
             **kwargs
         )
 

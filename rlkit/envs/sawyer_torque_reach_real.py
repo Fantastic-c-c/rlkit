@@ -2,7 +2,9 @@ from sawyer_control.envs.sawyer_reaching import SawyerReachXYZEnv
 from sawyer_control.core.serializable import Serializable
 import numpy as np
 
-@register_env('sawyer-torque-reach-real')
+from . import register_env
+
+@register_env('sawyer_torque_reach_real')
 class PearlSawyerReachXYZTorqueEnv(SawyerReachXYZEnv):
     def __init__(self,
                  *args,
@@ -10,8 +12,8 @@ class PearlSawyerReachXYZTorqueEnv(SawyerReachXYZEnv):
                  n_tasks=5,
                  height_2d=None,
                  goal_thresh=-0.05,
-                 goal_low=np.array([0.7, 0.0, 0.22]),
-                 goal_high=np.array([0.75, 0.06, 0.25]),
+                 goal_low=np.array([0.55, 0.05, 0.20]),
+                 goal_high=np.array([0.75, 0.25, 0.40]),
                  **kwargs):
         Serializable.quick_init(self, locals())
         SawyerReachXYZEnv.__init__(
@@ -19,9 +21,11 @@ class PearlSawyerReachXYZTorqueEnv(SawyerReachXYZEnv):
             *args,
             config_name="pearl_fjalar_config",
             action_mode="torque",
-            max_speed=0.01,  # default val
-            position_action_scale=0.03,  # default val
+            max_speed=0.2,  # default val
+            position_action_scale=0.1,  # default val
             height_2d = height_2d,
+            goal_low=goal_low,
+            goal_high=goal_high,
             **kwargs
         )
 
@@ -35,15 +39,21 @@ class PearlSawyerReachXYZTorqueEnv(SawyerReachXYZEnv):
         self._task = None  # This is set by reset_task down below
 
         directions = list(range(n_tasks))
+        print(n_tasks, randomize_tasks)
         if randomize_tasks:
             goals = self.sample_goals(n_tasks)
             if height_2d and height_2d >= 0:
                 goals = [[g[0], g[1], height_2d] for g in goals]
             # goals = [1 * np.random.uniform(-1., 1., 2) for _ in directions]
         else:
-            raise NotImplementedError("We don't have enough goals defined")
+            goals = [[0.6463305, 0.15157676, 0.27320544],
+                     [0.60380304, 0.08447907, 0.24696944]]
+            if len(goals) < n_tasks:
+                raise NotImplementedError("Not enough pre-set goals defined.")
+            goals = goals[:n_tasks]
+        print("~~~~~~~~~~")
+        print(goals)
         self.goals = np.asarray(goals)
-        print("GOALS: " + str(self.goals))
         self.tasks = [{'direction': direction} for direction in directions]
 
         # set the initial goal
@@ -57,13 +67,11 @@ class PearlSawyerReachXYZTorqueEnv(SawyerReachXYZEnv):
         vec /= np.linalg.norm(vec, axis=0)
         vec = vec.T
         vec[:, 0] = np.abs(vec[:, 0])
-        print(vec)
         widths = (self.goal_space.high - self.goal_space.low) / 2.0
-        widths[0] = 0  # we want the x-goals to be centered at the edge of the box (because all are moving outwards from the box)
         center = self.goal_space.low + widths
+        center[0] = self.goal_space.low[0]  # we want the x-goals to be centered at the edge of the box (because all are moving outwards from the box)
         scaled_vec = vec * widths
         goals = scaled_vec + center
-        print(goals)
         return goals
 
     def step(self, action):
@@ -82,6 +90,9 @@ class PearlSawyerReachXYZTorqueEnv(SawyerReachXYZEnv):
     def get_all_task_idx(self):
         return range(len(self.tasks))
 
+    def get_tasks(self):
+        return self.goals
+
     def reset_goal(self, direction):
         return self.goals[direction]
 
@@ -99,4 +110,3 @@ class PearlSawyerReachXYZTorqueEnv(SawyerReachXYZEnv):
         old_goal = self.get_goal()
         self._reset_robot()
         return self._get_obs()  # Redefine to just return state
-

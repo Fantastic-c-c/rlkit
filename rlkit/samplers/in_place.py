@@ -51,4 +51,3 @@ class InPlacePathSampler(object):
             if n_trajs % resample == 0:
                 policy.sample_z()
         return paths, n_steps_total
-
