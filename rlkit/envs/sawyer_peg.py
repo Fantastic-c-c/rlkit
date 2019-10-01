@@ -149,9 +149,8 @@ class JointTorqueController(mujoco.Physics):
 
     def get_action_space(self):
         ''' get action bounds that will be used to normalize actions '''
-        action_dim = 7
-        # TODO action bounds are ctrl range
-        return Box(low=-np.ones(7) * 10, high=np.ones(7) * 10)
+        bounds = self.model.actuator_ctrlrange
+        return Box(low=bounds[:, 0], high=bounds[:, 1])
 
     def prepare_action(self, action, init_obs):
         ''' raw torques are ready to feed to the simulator '''
@@ -159,6 +158,15 @@ class JointTorqueController(mujoco.Physics):
 
 
 class PegInsertion(base.Task):
+    '''
+    define the peg insertion task
+
+    by the dm_control API, this method must define:
+     - action_spec() - note this isn't used as our actions are already
+       in (-1, 1) and we have our own NormalizedEnv wrapper to rescale
+     - get_observation()
+     - initialize_episode()
+    '''
     def __init__(self, random=None):
         super(PegInsertion, self).__init__(random=random)
 
