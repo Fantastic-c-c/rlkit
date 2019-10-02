@@ -150,7 +150,7 @@ class ProtoAgent(nn.Module):
         z = self.z
         obs = ptu.from_numpy(obs[None])
         in_ = torch.cat([obs, z], dim=1)
-        return self.policy.get_action(in_, deterministic=deterministic)
+        return self.policy.get_action(in_, task_idx_one_hot=task_idx_one_hot, deterministic=deterministic)
 
     def set_num_steps_total(self, n):
         self.policy.set_num_steps_total(n)
@@ -188,26 +188,26 @@ class ProtoAgent(nn.Module):
 
         # Q and V networks
         # encoder will only get gradients from Q nets
-        q1 = self.qf1(obs, actions, task_z)
-        q2 = self.qf2(obs, actions, task_z)
-        v = self.vf(obs, task_z.detach())
+        q1 = self.qf1(torch.cat([obs, actions, task_z], dim=1), task_idx_one_hot=task_idx_one_hot[0])
+        q2 = self.qf2(torch.cat([obs, actions, task_z], dim=1), task_idx_one_hot=task_idx_one_hot[0])
+        v = self.vf(torch.cat([obs, task_z.detach()], dim=1), task_idx_one_hot=task_idx_one_hot[0])
 
         # run policy, get log probs and new actions
         in_ = torch.cat([obs, task_z.detach()], dim=1)
-        policy_outputs = self.policy(in_, reparameterize=self.reparam, return_log_prob=True)
+        policy_outputs = self.policy(in_, task_idx_one_hot=task_idx_one_hot, reparameterize=self.reparam, return_log_prob=True)
 
         # get targets for use in V and Q updates
         with torch.no_grad():
-            target_v_values = self.target_vf(next_obs, task_z)
+            target_v_values = self.target_vf(torch.cat([next_obs, task_z], dim=1), task_idx_one_hot=task_idx_one_hot[0])
 
         return r, q1, q2, v, policy_outputs, target_v_values, task_z
 
-    def min_q(self, obs, actions, task_z):
+    def min_q(self, obs, actions, task_z, task_idx_one_hot):
         t, b, _ = obs.size()
         obs = obs.view(t * b, -1)
 
-        q1 = self.qf1(obs, actions, task_z.detach())
-        q2 = self.qf2(obs, actions, task_z.detach())
+        q1 = self.qf1(torch.cat([obs, actions, task_z.detach()], dim=1), task_idx_one_hot=task_idx_one_hot[0])
+        q2 = self.qf2(torch.cat([obs, actions, task_z.detach()], dim=1), task_idx_one_hot=task_idx_one_hot[0])
         min_q = torch.min(q1, q2)
         return min_q
 

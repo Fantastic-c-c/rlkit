@@ -6,15 +6,17 @@ from metaworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_wall_6dof imp
 
 
 class MediumEnv(gym.Env, Serializable):
-    def __init__(self, task_list):
+    def __init__(self, task_list, test_mode=False):
         Serializable.quick_init(self, locals())
         self._task_envs = []
+        if test_mode:
+            task_list = task_list[:2]
         for i, task in enumerate(task_list):
             if task is SawyerReachPushPickPlace6DOFEnv or task is SawyerReachPushPickPlaceWall6DOFEnv:
             # TODO: this could cause flaws in task_idx if SawyerReachPushPickPlace6DOFEnv/SawyerReachPushPickPlaceWall6DOFEnv is not the first environment
-                self._task_envs.append(task(multitask=False, obs_type='with_goal', random_init=False, if_render=False, fix_task=True, task_idx=i%3))
+                self._task_envs.append(task(multitask=False, obs_type='plain', random_init=False, fix_task=True, task_idx=i%3))
             else:
-                self._task_envs.append(task(multitask=False, obs_type='with_goal', if_render=False, random_init=False))
+                self._task_envs.append(task(multitask=False, obs_type='plain', random_init=False))
         self._active_task = None
 
     def reset(self, **kwargs):

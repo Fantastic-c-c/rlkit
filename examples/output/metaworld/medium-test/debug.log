@@ -1,0 +1,459 @@
+-------------------------------  ------------------------------------------------
+Alpha                            1.0023194551467896
+Alpha Loss                       0.015367692336440086
+QF Loss                          6.734077
+VF Loss                          6.8468657
+RF Loss                          3.3019915
+Policy Loss                      -2.5878448
+Q Predictions Mean               0.006244207
+Q Predictions Std                0.0038834887
+Q Predictions Max                0.015729249
+Q Predictions Min                -0.0040004607
+V Predictions Mean               0.0040923688
+V Predictions Std                0.0003300194
+V Predictions Max                0.0049907397
+V Predictions Min                0.0032551433
+R Predictions Mean               0.0072218003
+R Predictions Std                0.0025908495
+R Predictions Max                0.015965318
+R Predictions Min                0.0040143607
+Log Pis Mean                     -2.633363
+Log Pis Std                      0.4130839
+Log Pis Max                      -1.4017283
+Log Pis Min                      -3.5913327
+Policy mu Mean                   -0.0015363205
+Policy mu Std                    0.0025011594
+Policy mu Max                    0.002101615
+Policy mu Min                    -0.005385029
+Policy log std Mean              -0.0017412672
+Policy log std Std               0.0017485347
+Policy log std Max               0.0014928693
+Policy log std Min               -0.0034318003
+_task0 Rewards Mean              -0.15803772534974755
+_task0 Rewards Std               0.010918294396773135
+_task0 Rewards Max               -0.10995760298614196
+_task0 Rewards Min               -0.17777425647404255
+_task0 Returns Mean              -23.705658802462125
+_task0 Returns Std               0.06534125012744771
+_task0 Returns Max               -23.58869079390936
+_task0 Returns Min               -23.781347283243424
+_task0 Actions Mean              0.0067870105
+_task0 Actions Std               0.020113172
+_task0 Actions Max               0.027973117
+_task0 Actions Min               -0.03469963
+Num Paths                        100
+Exploration_task0 Rewards Mean   10.318468246817528
+Exploration_task0 Rewards Std    100.27672232188505
+Exploration_task0 Rewards Max    1099.7332730880019
+Exploration_task0 Rewards Min    -4.857296775192513
+Exploration_task0 Returns Mean   1547.770237022629
+Exploration_task0 Returns Std    13662.057330409016
+Exploration_task0 Returns Max    97179.71885631491
+Exploration_task0 Returns Min    -611.2462921672752
+Exploration_task0 Actions Mean   0.0005038156
+Exploration_task0 Actions Std    0.6286046
+Exploration_task0 Actions Max    0.99970853
+Exploration_task0 Actions Min    -0.999817
+AverageReturn_task0              -23.705658802462125
+Success_task0                    0.0
+Z 0                              [[1. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]]
+_task1 Rewards Mean              120.2539865725797
+_task1 Rewards Std               9.901670209539168
+_task1 Rewards Max               133.77993139924115
+_task1 Rewards Min               44.87685259002298
+_task1 Returns Mean              18038.097985886954
+_task1 Returns Std               26.986853606920544
+_task1 Returns Max               18093.739957745427
+_task1 Returns Min               17986.248415971637
+_task1 Actions Mean              0.0068665505
+_task1 Actions Std               0.019968953
+_task1 Actions Max               0.02721425
+_task1 Actions Min               -0.033053253
+Exploration_task1 Rewards Mean   10.318468246817528
+Exploration_task1 Rewards Std    100.27672232188505
+Exploration_task1 Rewards Max    1099.7332730880019
+Exploration_task1 Rewards Min    -4.857296775192513
+Exploration_task1 Returns Mean   1547.770237022629
+Exploration_task1 Returns Std    13662.057330409016
+Exploration_task1 Returns Max    97179.71885631491
+Exploration_task1 Returns Min    -611.2462921672752
+Exploration_task1 Actions Mean   0.0005038156
+Exploration_task1 Actions Std    0.6286046
+Exploration_task1 Actions Max    0.99970853
+Exploration_task1 Actions Min    -0.999817
+AverageReturn_task1              18038.097985886954
+Success_task1                    0.0
+Z 1                              [[0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]]
+_task2 Rewards Mean              -0.15885328035271
+_task2 Rewards Std               0.010760798726171653
+_task2 Rewards Max               -0.14232461790538575
+_task2 Rewards Min               -0.19308552540386859
+_task2 Returns Mean              -23.827992052906502
+_task2 Returns Std               0.01170227398019762
+_task2 Returns Max               -23.808090080782527
+_task2 Returns Min               -23.849511986877612
+_task2 Actions Mean              0.006957318
+_task2 Actions Std               0.020245828
+_task2 Actions Max               0.027255094
+_task2 Actions Min               -0.03319216
+Exploration_task2 Rewards Mean   10.318468246817528
+Exploration_task2 Rewards Std    100.27672232188505
+Exploration_task2 Rewards Max    1099.7332730880019
+Exploration_task2 Rewards Min    -4.857296775192513
+Exploration_task2 Returns Mean   1547.770237022629
+Exploration_task2 Returns Std    13662.057330409016
+Exploration_task2 Returns Max    97179.71885631491
+Exploration_task2 Returns Min    -611.2462921672752
+Exploration_task2 Actions Mean   0.0005038156
+Exploration_task2 Actions Std    0.6286046
+Exploration_task2 Actions Max    0.99970853
+Exploration_task2 Actions Min    -0.999817
+AverageReturn_task2              -23.827992052906502
+Success_task2                    0.0
+Z 2                              [[0. 0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]]
+_task3 Rewards Mean              -0.26764858776233635
+_task3 Rewards Std               0.012585755790341017
+_task3 Rewards Max               -0.2529893241931789
+_task3 Rewards Min               -0.3620746224033639
+_task3 Returns Mean              -40.14728816435044
+_task3 Returns Std               0.04950491184559781
+_task3 Returns Max               -40.07264201648238
+_task3 Returns Min               -40.24941569861915
+_task3 Actions Mean              0.006774196
+_task3 Actions Std               0.019410362
+_task3 Actions Max               0.026508419
+_task3 Actions Min               -0.032296013
+Exploration_task3 Rewards Mean   10.318468246817528
+Exploration_task3 Rewards Std    100.27672232188505
+Exploration_task3 Rewards Max    1099.7332730880019
+Exploration_task3 Rewards Min    -4.857296775192513
+Exploration_task3 Returns Mean   1547.770237022629
+Exploration_task3 Returns Std    13662.057330409016
+Exploration_task3 Returns Max    97179.71885631491
+Exploration_task3 Returns Min    -611.2462921672752
+Exploration_task3 Actions Mean   0.0005038156
+Exploration_task3 Actions Std    0.6286046
+Exploration_task3 Actions Max    0.99970853
+Exploration_task3 Actions Min    -0.999817
+AverageReturn_task3              -40.14728816435044
+Success_task3                    0.0
+Z 3                              [[0. 0. 0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]]
+_task4 Rewards Mean              -0.14282589424707604
+_task4 Rewards Std               0.011892616977208758
+_task4 Rewards Max               -0.1096582563572675
+_task4 Rewards Min               -0.16578815710906292
+_task4 Returns Mean              -21.423884137061407
+_task4 Returns Std               0.16929716301594847
+_task4 Returns Max               -21.046273272025495
+_task4 Returns Min               -21.57199192090072
+_task4 Actions Mean              0.0068966146
+_task4 Actions Std               0.02004821
+_task4 Actions Max               0.02807262
+_task4 Actions Min               -0.033762176
+Exploration_task4 Rewards Mean   10.318468246817528
+Exploration_task4 Rewards Std    100.27672232188505
+Exploration_task4 Rewards Max    1099.7332730880019
+Exploration_task4 Rewards Min    -4.857296775192513
+Exploration_task4 Returns Mean   1547.770237022629
+Exploration_task4 Returns Std    13662.057330409016
+Exploration_task4 Returns Max    97179.71885631491
+Exploration_task4 Returns Min    -611.2462921672752
+Exploration_task4 Actions Mean   0.0005038156
+Exploration_task4 Actions Std    0.6286046
+Exploration_task4 Actions Max    0.99970853
+Exploration_task4 Actions Min    -0.999817
+AverageReturn_task4              -21.423884137061407
+Success_task4                    0.0
+Z 4                              [[0. 0. 0. 0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]]
+_task5 Rewards Mean              -0.26786626455645907
+_task5 Rewards Std               0.010579941094623537
+_task5 Rewards Max               -0.2568610138541804
+_task5 Rewards Min               -0.35787745893217293
+_task5 Returns Mean              -40.17993968346886
+_task5 Returns Std               0.043398865819128274
+_task5 Returns Max               -40.10846599565368
+_task5 Returns Min               -40.24003502826415
+_task5 Actions Mean              0.0066336724
+_task5 Actions Std               0.019312536
+_task5 Actions Max               0.02669593
+_task5 Actions Min               -0.03273381
+Exploration_task5 Rewards Mean   10.318468246817528
+Exploration_task5 Rewards Std    100.27672232188505
+Exploration_task5 Rewards Max    1099.7332730880019
+Exploration_task5 Rewards Min    -4.857296775192513
+Exploration_task5 Returns Mean   1547.770237022629
+Exploration_task5 Returns Std    13662.057330409016
+Exploration_task5 Returns Max    97179.71885631491
+Exploration_task5 Returns Min    -611.2462921672752
+Exploration_task5 Actions Mean   0.0005038156
+Exploration_task5 Actions Std    0.6286046
+Exploration_task5 Actions Max    0.99970853
+Exploration_task5 Actions Min    -0.999817
+AverageReturn_task5              -40.17993968346886
+Success_task5                    0.0
+Z 5                              [[0. 0. 0. 0. 0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0.]]
+_task6 Rewards Mean              -0.15270065879354486
+_task6 Rewards Std               0.011147915183166853
+_task6 Rewards Max               -0.09492407569216313
+_task6 Rewards Min               -0.17222608293436667
+_task6 Returns Mean              -22.905098819031725
+_task6 Returns Std               0.08896883233812414
+_task6 Returns Max               -22.77000150678724
+_task6 Returns Min               -22.99870775598774
+_task6 Actions Mean              0.0067744
+_task6 Actions Std               0.019495996
+_task6 Actions Max               0.026929032
+_task6 Actions Min               -0.03230999
+Exploration_task6 Rewards Mean   10.318468246817528
+Exploration_task6 Rewards Std    100.27672232188505
+Exploration_task6 Rewards Max    1099.7332730880019
+Exploration_task6 Rewards Min    -4.857296775192513
+Exploration_task6 Returns Mean   1547.770237022629
+Exploration_task6 Returns Std    13662.057330409016
+Exploration_task6 Returns Max    97179.71885631491
+Exploration_task6 Returns Min    -611.2462921672752
+Exploration_task6 Actions Mean   0.0005038156
+Exploration_task6 Actions Std    0.6286046
+Exploration_task6 Actions Max    0.99970853
+Exploration_task6 Actions Min    -0.999817
+AverageReturn_task6              -22.905098819031725
+Success_task6                    0.0
+Z 6                              [[0. 0. 0. 0. 0. 0. 1. 0. 0. 0. 0. 0. 0. 0. 0.]]
+_task7 Rewards Mean              -0.17296212768409686
+_task7 Rewards Std               0.004780392558344372
+_task7 Rewards Max               -0.17083226810480434
+_task7 Rewards Min               -0.22300098329294685
+_task7 Returns Mean              -25.944319152614526
+_task7 Returns Std               0.004181701845686052
+_task7 Returns Max               -25.937488661030002
+_task7 Returns Min               -25.949545164042146
+_task7 Actions Mean              0.0065571014
+_task7 Actions Std               0.019389108
+_task7 Actions Max               0.026695088
+_task7 Actions Min               -0.03275659
+Exploration_task7 Rewards Mean   10.318468246817528
+Exploration_task7 Rewards Std    100.27672232188505
+Exploration_task7 Rewards Max    1099.7332730880019
+Exploration_task7 Rewards Min    -4.857296775192513
+Exploration_task7 Returns Mean   1547.770237022629
+Exploration_task7 Returns Std    13662.057330409016
+Exploration_task7 Returns Max    97179.71885631491
+Exploration_task7 Returns Min    -611.2462921672752
+Exploration_task7 Actions Mean   0.0005038156
+Exploration_task7 Actions Std    0.6286046
+Exploration_task7 Actions Max    0.99970853
+Exploration_task7 Actions Min    -0.999817
+AverageReturn_task7              -25.944319152614526
+Success_task7                    0.0
+Z 7                              [[0. 0. 0. 0. 0. 0. 0. 1. 0. 0. 0. 0. 0. 0. 0.]]
+_task8 Rewards Mean              -0.16346442307631476
+_task8 Rewards Std               0.010615908642290287
+_task8 Rewards Max               -0.14713049958497776
+_task8 Rewards Min               -0.1974355525302779
+_task8 Returns Mean              -24.519663461447216
+_task8 Returns Std               0.055859789927343036
+_task8 Returns Max               -24.39644204211522
+_task8 Returns Min               -24.600301271773635
+_task8 Actions Mean              0.006787671
+_task8 Actions Std               0.01966295
+_task8 Actions Max               0.027565815
+_task8 Actions Min               -0.032595403
+Exploration_task8 Rewards Mean   10.318468246817528
+Exploration_task8 Rewards Std    100.27672232188505
+Exploration_task8 Rewards Max    1099.7332730880019
+Exploration_task8 Rewards Min    -4.857296775192513
+Exploration_task8 Returns Mean   1547.770237022629
+Exploration_task8 Returns Std    13662.057330409016
+Exploration_task8 Returns Max    97179.71885631491
+Exploration_task8 Returns Min    -611.2462921672752
+Exploration_task8 Actions Mean   0.0005038156
+Exploration_task8 Actions Std    0.6286046
+Exploration_task8 Actions Max    0.99970853
+Exploration_task8 Actions Min    -0.999817
+AverageReturn_task8              -24.519663461447216
+Success_task8                    0.0
+Z 8                              [[0. 0. 0. 0. 0. 0. 0. 0. 1. 0. 0. 0. 0. 0. 0.]]
+_task9 Rewards Mean              -0.1424572628314498
+_task9 Rewards Std               0.010885259558937571
+_task9 Rewards Max               -0.09959063928866105
+_task9 Rewards Min               -0.16204724325702943
+_task9 Returns Mean              -21.368589424717467
+_task9 Returns Std               0.05755155576399287
+_task9 Returns Max               -21.247482922953903
+_task9 Returns Min               -21.44291055538106
+_task9 Actions Mean              0.0066689868
+_task9 Actions Std               0.019157266
+_task9 Actions Max               0.026909621
+_task9 Actions Min               -0.03198085
+Exploration_task9 Rewards Mean   10.318468246817528
+Exploration_task9 Rewards Std    100.27672232188505
+Exploration_task9 Rewards Max    1099.7332730880019
+Exploration_task9 Rewards Min    -4.857296775192513
+Exploration_task9 Returns Mean   1547.770237022629
+Exploration_task9 Returns Std    13662.057330409016
+Exploration_task9 Returns Max    97179.71885631491
+Exploration_task9 Returns Min    -611.2462921672752
+Exploration_task9 Actions Mean   0.0005038156
+Exploration_task9 Actions Std    0.6286046
+Exploration_task9 Actions Max    0.99970853
+Exploration_task9 Actions Min    -0.999817
+AverageReturn_task9              -21.368589424717467
+Success_task9                    0.0
+Z 9                              [[0. 0. 0. 0. 0. 0. 0. 0. 0. 1. 0. 0. 0. 0. 0.]]
+_task10 Rewards Mean             -0.14234709108126795
+_task10 Rewards Std              0.011538914908831806
+_task10 Rewards Max              -0.10965823116638895
+_task10 Rewards Min              -0.1657189757995844
+_task10 Returns Mean             -21.35206366219019
+_task10 Returns Std              0.07495394470168193
+_task10 Returns Max              -21.21328933301617
+_task10 Returns Min              -21.54842332612987
+_task10 Actions Mean             0.0067561464
+_task10 Actions Std              0.019525006
+_task10 Actions Max              0.026546346
+_task10 Actions Min              -0.03211995
+Exploration_task10 Rewards Mean  8.34763226040115
+Exploration_task10 Rewards Std   91.64593928806656
+Exploration_task10 Rewards Max   1099.7332730880019
+Exploration_task10 Rewards Min   -4.857296775192513
+Exploration_task10 Returns Mean  1252.1448390601722
+Exploration_task10 Returns Std   12489.22205584134
+Exploration_task10 Returns Max   97179.71885631491
+Exploration_task10 Returns Min   -611.2462921672752
+Exploration_task10 Actions Mean  0.0010936845
+Exploration_task10 Actions Std   0.627464
+Exploration_task10 Actions Max   0.99970853
+Exploration_task10 Actions Min   -0.999817
+AverageReturn_task10             -21.35206366219019
+Success_task10                   0.0
+Z 10                             [[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 1. 0. 0. 0. 0.]]
+_task11 Rewards Mean             -0.23108056842943542
+_task11 Rewards Std              0.00388466658390557
+_task11 Rewards Max              -0.22175627203659887
+_task11 Rewards Min              -0.24187717522322894
+_task11 Returns Mean             -34.66208526441532
+_task11 Returns Std              0.017605778395372345
+_task11 Returns Max              -34.6242774805104
+_task11 Returns Min              -34.694872891502094
+_task11 Actions Mean             0.007201791
+_task11 Actions Std              0.02005075
+_task11 Actions Max              0.027792685
+_task11 Actions Min              -0.032447398
+Exploration_task11 Rewards Mean  6.785767733358946
+Exploration_task11 Rewards Std   84.93402124467715
+Exploration_task11 Rewards Max   1099.7332730880019
+Exploration_task11 Rewards Min   -4.857296775192513
+Exploration_task11 Returns Mean  1017.8651600038417
+Exploration_task11 Returns Std   11577.023882513418
+Exploration_task11 Returns Max   97179.71885631491
+Exploration_task11 Returns Min   -611.2462921672752
+Exploration_task11 Actions Mean  0.002797256
+Exploration_task11 Actions Std   0.6265175
+Exploration_task11 Actions Max   0.99970853
+Exploration_task11 Actions Min   -0.999817
+AverageReturn_task11             -34.66208526441532
+Success_task11                   0.0
+Z 11                             [[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 1. 0. 0. 0.]]
+_task12 Rewards Mean             -0.15228720234618864
+_task12 Rewards Std              0.01143001276396332
+_task12 Rewards Max              -0.09978675953668842
+_task12 Rewards Min              -0.17302912418553026
+_task12 Returns Mean             -22.8430803519283
+_task12 Returns Std              0.1072667518718889
+_task12 Returns Max              -22.45423923250614
+_task12 Returns Min              -22.943515100171396
+_task12 Actions Mean             0.0068230433
+_task12 Actions Std              0.01924984
+_task12 Actions Max              0.02666592
+_task12 Actions Min              -0.031311657
+Exploration_task12 Rewards Mean  5.6944798169727635
+Exploration_task12 Rewards Std   79.50140688064462
+Exploration_task12 Rewards Max   1099.7332730880019
+Exploration_task12 Rewards Min   -4.857296775192513
+Exploration_task12 Returns Mean  854.1719725459146
+Exploration_task12 Returns Std   10837.991337960051
+Exploration_task12 Returns Max   97179.71885631491
+Exploration_task12 Returns Min   -611.2462921672752
+Exploration_task12 Actions Mean  0.0018236383
+Exploration_task12 Actions Std   0.6265376
+Exploration_task12 Actions Max   0.99970853
+Exploration_task12 Actions Min   -0.999817
+AverageReturn_task12             -22.8430803519283
+Success_task12                   0.0
+Z 12                             [[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 1. 0. 0.]]
+_task13 Rewards Mean             -0.16317716739253194
+_task13 Rewards Std              0.010457947877816967
+_task13 Rewards Max              -0.14696975379846597
+_task13 Rewards Min              -0.19743776512125244
+_task13 Returns Mean             -24.476575108879793
+_task13 Returns Std              0.060449643874059364
+_task13 Returns Max              -24.353022791556885
+_task13 Returns Min              -24.637416765629254
+_task13 Actions Mean             0.0067893644
+_task13 Actions Std              0.019523583
+_task13 Actions Max              0.02697328
+_task13 Actions Min              -0.032581635
+Exploration_task13 Rewards Mean  4.888671230746866
+Exploration_task13 Rewards Std   74.98955351873975
+Exploration_task13 Rewards Max   1099.7332730880019
+Exploration_task13 Rewards Min   -4.857296775192513
+Exploration_task13 Returns Mean  733.3006846120298
+Exploration_task13 Returns Std   10223.902545803378
+Exploration_task13 Returns Max   97179.71885631491
+Exploration_task13 Returns Min   -611.2462921672752
+Exploration_task13 Actions Mean  0.003095157
+Exploration_task13 Actions Std   0.62570316
+Exploration_task13 Actions Max   0.99970853
+Exploration_task13 Actions Min   -0.999817
+AverageReturn_task13             -24.476575108879793
+Success_task13                   0.0
+Z 13                             [[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 1. 0.]]
+_task14 Rewards Mean             -0.113111270852829
+_task14 Rewards Std              0.010556356794008834
+_task14 Rewards Max              -0.09655833007619088
+_task14 Rewards Min              -0.14484229937484477
+_task14 Returns Mean             -16.96669062792435
+_task14 Returns Std              0.056651912389016
+_task14 Returns Max              -16.826653604580176
+_task14 Returns Min              -17.110341216069006
+_task14 Actions Mean             0.0066512926
+_task14 Actions Std              0.019188525
+_task14 Actions Max              0.0259386
+_task14 Actions Min              -0.031734724
+Exploration_task14 Rewards Mean  4.2424851297023345
+Exploration_task14 Rewards Std   71.16788560006225
+Exploration_task14 Rewards Max   1099.7332730880019
+Exploration_task14 Rewards Min   -4.857296775192513
+Exploration_task14 Returns Mean  636.3727694553504
+Exploration_task14 Returns Std   9703.61012064344
+Exploration_task14 Returns Max   97179.71885631491
+Exploration_task14 Returns Min   -611.2462921672752
+Exploration_task14 Actions Mean  0.0041214726
+Exploration_task14 Actions Std   0.62495124
+Exploration_task14 Actions Max   0.99970853
+Exploration_task14 Actions Min   -0.999817
+AverageReturn_task14             -16.96669062792435
+Success_task14                   0.0
+Z 14                             [[0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 1.]]
+AverageReturn_all_train_tasks    1779.4075552188897
+AverageReturn_all_test_tasks     -24.06009900306759
+Number of train steps total      1
+Number of env steps total        7500
+Number of rollouts total         100
+Train Time (s)                   0.795986934001121
+(Previous) Eval Time (s)         0
+Sample Time (s)                  22.35946296601105
+Epoch Time (s)                   23.155449900012172
+Total Train Time (s)             116.2053125760176
+Epoch                            0
+-------------------------------  ------------------------------------------------
+2019-08-10 11:09:59.903835 PDT | [medium-test] Iteration #0 | Epoch Duration: 115.27732920646667
+2019-08-10 11:09:59.910708 PDT | [medium-test] Iteration #0 | Started Training: False
+2019-08-10 11:10:10.494648 PDT | [medium-test] Iteration #1 | Epoch Duration: 10.517693042755127
+2019-08-10 11:10:10.494943 PDT | [medium-test] Iteration #1 | Started Training: False
+2019-08-10 11:10:22.303507 PDT | [medium-test] Iteration #2 | Epoch Duration: 11.807922124862671
+2019-08-10 11:10:22.312869 PDT | [medium-test] Iteration #2 | Started Training: False
+2019-08-10 11:10:34.156410 PDT | [medium-test] Iteration #3 | Epoch Duration: 11.842873096466064
+2019-08-10 11:10:34.157458 PDT | [medium-test] Iteration #3 | Started Training: False
+2019-08-10 11:10:44.499043 PDT | [medium-test] Iteration #4 | Epoch Duration: 10.338169813156128
+2019-08-10 11:10:44.499476 PDT | [medium-test] Iteration #4 | Started Training: False

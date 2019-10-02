@@ -9,7 +9,7 @@ import pathlib
 
 # from rlkit.envs.point_mass import PointEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
-from rlkit.envs.multitask_env import MultiClassMultiTaskEnv
+# from rlkit.envs.multitask_env import MultiClassMultiTaskEnv
 from metaworld.envs.mujoco.sawyer_xyz.env_lists import MEDIUM_TRAIN_AND_TEST_LIST
 from rlkit.envs.ml10_env import MediumEnv
 
@@ -31,10 +31,9 @@ def datetimestamp(divider=''):
 def experiment(variant):
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
-    env = MediumEnv(MEDIUM_TRAIN_AND_TEST_LIST)
-
+    env = MediumEnv(MEDIUM_TRAIN_AND_TEST_LIST, test_mode=True)
     tasks = env.get_all_task_idx()
-    num_tasks = len(tasks)
+
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -42,7 +41,7 @@ def experiment(variant):
     task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
     reward_dim = 1
 
-
+    num_tasks = len(tasks)
     net_size = variant['net_size']
     # start with linear task encoding
     recurrent = variant['algo_params']['recurrent']
@@ -117,12 +116,12 @@ def main(gpu, docker):
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
-            meta_batch=15,
+            meta_batch=2,
             num_iterations=10000,
-            num_tasks_sample=15,
+            num_tasks_sample=2,
             num_steps_per_task=10 * max_path_length,
-            num_train_steps_per_itr=4000,
-            num_evals=1, # number of evals with separate task encodings
+            num_train_steps_per_itr=1,
+            num_evals=5, # number of evals with separate task encodings
             num_steps_per_eval=10 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
             embedding_batch_size=256,
@@ -148,14 +147,14 @@ def main(gpu, docker):
             dump_eval_paths=False,
             render_eval_paths=False,
             render=False,
-            eval_per_itr=10,
+            eval_per_itr=1,
         ),
         net_size=300,
-        use_gpu=True,
+        use_gpu=False,
         gpu_id=gpu,
     )
 
-    exp_name = 'medium-multitask-alpha-multihead'
+    exp_name = 'medium-test'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)
@@ -172,4 +171,4 @@ def main(gpu, docker):
     experiment(variant)
 
 if __name__ == "__main__":
-    main()
+    main() 
