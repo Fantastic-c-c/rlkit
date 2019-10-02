@@ -158,11 +158,11 @@ class ProtoAgent(nn.Module):
             self.qf2, self.target_qf2, self.tau
         )
 
-    def forward(self, obs, actions, next_obs, enc_data, obs_enc, act_enc, task_idx_one_hot, alpha):
+    def forward(self, obs, actions, next_obs, enc_data, obs_enc, act_enc, alpha):
         self.set_z(enc_data)
-        return self.infer(obs, actions, next_obs, obs_enc, act_enc, task_idx_one_hot, alpha)
+        return self.infer(obs, actions, next_obs, obs_enc, act_enc, alpha)
 
-    def infer(self, obs, actions, next_obs, obs_enc, act_enc, task_idx_one_hot, alpha):
+    def infer(self, obs, actions, next_obs, obs_enc, act_enc, alpha):
         '''
         compute predictions of SAC networks for update
 

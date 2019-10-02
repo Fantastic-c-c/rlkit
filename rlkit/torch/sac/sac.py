@@ -137,7 +137,6 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # sample from replay buffer for each task
         # TODO(KR) this is ugly af
         obs, actions, rewards, next_obs, terms = [], [], [], [], []
-        task_idx_one_hots = []
         for idx in indices:
             if encoder:
                 batch = self.get_encoding_batch(idx=idx)
@@ -153,18 +152,12 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             rewards.append(r)
             next_obs.append(no)
             terms.append(t)
-            i = np.zeros(self.num_tasks)
-            i[idx] = 1
-            # pdb.set_trace()
-            i = np.array(i)
-            task_idx_one_hots.append(i)
         obs = torch.cat(obs, dim=0)
         actions = torch.cat(actions, dim=0)
         rewards = torch.cat(rewards, dim=0)
         next_obs = torch.cat(next_obs, dim=0)
         terms = torch.cat(terms, dim=0)
-        task_idx_one_hots = np.array(task_idx_one_hots)
-        return [obs, actions, rewards, next_obs, terms, task_idx_one_hots]
+        return [obs, actions, rewards, next_obs, terms]
 
     def prepare_encoder_data(self, obs, act, rewards):
         ''' prepare task data for encoding '''
@@ -187,7 +180,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
         for i in range(num_updates):
             # TODO(KR) argh so ugly
-            mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch[:-1]]
+            mini_batch = [x[:, i * mb_size: i * mb_size + mb_size, :] for x in batch]
             obs_enc, act_enc, rewards_enc, _, _ = mini_batch
             self._take_step(indices, obs_enc, act_enc, rewards_enc)
 
@@ -208,7 +201,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
         # data is (task, batch, feat)
         one_hot_task_idx = self.idx_to_one_hot(indices[0])
-        obs, actions, rewards, next_obs, terms, task_idx_one_hot = self.sample_data(indices)
+        obs, actions, rewards, next_obs, terms = self.sample_data(indices)
         enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
 
         if self.use_alpha_network:
@@ -221,7 +214,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         alpha = torch.exp(log_alpha)
 
         # run inference in networks
-        r_pred, q1_pred, q2_pred, policy_outputs, target_q_values, task_z = self.policy(obs, actions, next_obs, enc_data, obs_enc, act_enc, task_idx_one_hot, alpha)
+        r_pred, q1_pred, q2_pred, policy_outputs, target_q_values, task_z = self.policy(obs, actions, next_obs, enc_data, obs_enc, act_enc, alpha)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
         # if self.use_automatic_entropy_tuning:
         #     """
