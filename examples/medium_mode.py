@@ -150,7 +150,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'medium-rf1-deterministic-sampling-and-metabatch'
+    exp_name = 'medium-rf1-deterministic-sampling-and-metabatch-kl1'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)

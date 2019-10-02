@@ -19,10 +19,6 @@ from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
-
-
-
 
 def datetimestamp(divider=''):
     now = datetime.datetime.now()
@@ -38,7 +34,9 @@ def experiment(variant):
 
 
     obs_dim = int(np.prod(env.observation_space.shape))
+    print('obs_dim', obs_dim)
     action_dim = int(np.prod(env.action_space.shape))
+    print('action_dim', action_dim)
     latent_dim = 10
     task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
     reward_dim = 1
@@ -71,6 +69,12 @@ def experiment(variant):
         hidden_sizes=[net_size, net_size, net_size, net_size, net_size, net_size],
     )
 
+    target_qf2 = FlattenMlp(
+        input_size=obs_dim + action_dim + latent_dim,
+        output_size=1,
+        hidden_sizes=[net_size, net_size, net_size, net_size, net_size, net_size],
+    )
+
     policy = TanhGaussianPolicy(
         hidden_sizes=[net_size, net_size, net_size, net_size, net_size, net_size],
         obs_dim=obs_dim + latent_dim,
@@ -86,7 +90,7 @@ def experiment(variant):
 
     agent = ProtoAgent(
         latent_dim,
-        [task_enc, policy, qf1, qf2, vf, target_qf1, target_qf2, rf],
+        [task_enc, policy, qf1, qf2, target_qf1, target_qf2, rf],
         **variant['algo_params']
     )
 
@@ -94,7 +98,7 @@ def experiment(variant):
         env=env,
         train_tasks=list(tasks),
         eval_tasks=list(tasks),
-        nets=[agent, task_enc, policy, qf1, qf2, vf, target_qf1, target_qf2, rf],
+        nets=[agent, task_enc, policy, qf1, qf2, target_qf1, target_qf2, rf],
         latent_dim=latent_dim,
         **variant['algo_params']
     )
@@ -126,7 +130,7 @@ def main(gpu, docker):
             soft_target_tau=0.005,
             policy_lr=3E-4,
             qf_lr=3E-4,
-            vf_lr=3E-4,
+            # vf_lr=3E-4,
             context_lr=3e-4,
             reward_scale=10.,
             sparse_rewards=False,

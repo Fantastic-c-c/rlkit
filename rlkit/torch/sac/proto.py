@@ -38,7 +38,7 @@ class ProtoAgent(nn.Module):
         super().__init__()
         self.latent_dim = latent_dim
         self.task_enc, self.policy, self.qf1, self.qf2, self.target_qf1, self.target_qf2, self.rf = nets
-        self.target_vf = self.vf.copy()
+        # self.target_vf = self.vf.copy()
         self.recurrent = kwargs['recurrent']
         self.reparam = kwargs['reparameterize']
         self.use_ib = kwargs['use_information_bottleneck']
@@ -160,9 +160,9 @@ class ProtoAgent(nn.Module):
 
     def forward(self, obs, actions, next_obs, enc_data, obs_enc, act_enc, task_idx_one_hot, alpha):
         self.set_z(enc_data)
-        return self.infer(obs, actions, next_obs, obs_enc, act_enc, alpha)
+        return self.infer(obs, actions, next_obs, obs_enc, act_enc, task_idx_one_hot, alpha)
 
-    def infer(self, obs, actions, next_obs, obs_enc, act_enc, alpha):
+    def infer(self, obs, actions, next_obs, obs_enc, act_enc, task_idx_one_hot, alpha):
         '''
         compute predictions of SAC networks for update
 
@@ -197,14 +197,14 @@ class ProtoAgent(nn.Module):
 
         # get targets for use in Q updates
         new_next_actions, _, _, new_log_pi, *_ = self.policy(
-            torch.cat([next_obs, task_z.detach()], dim=1), task_idx_one_hot=task_idx_one_hot, reparameterize=True, return_log_prob=True,
+            torch.cat([next_obs, task_z.detach()], dim=1), reparameterize=True, return_log_prob=True,
         )
         new_next_actions = new_next_actions.view(t * b, -1)
         new_log_pi = new_log_pi.view(t * b, -1)
         # with torch.no_grad():
         target_q_values = torch.min(
-            self.target_qf1(torch.cat([next_obs, new_next_actions, task_z], dim=1), task_idx_one_hot=task_idx_one_hot[0]),
-            self.target_qf2(torch.cat([next_obs, new_next_actions, task_z], dim=1), task_idx_one_hot=task_idx_one_hot[0]),
+            self.target_qf1(next_obs, new_next_actions, task_z),
+            self.target_qf2(next_obs, new_next_actions, task_z),
         ) - alpha * new_log_pi
         # target_v_values = self.target_vf(torch.cat([next_obs, task_z], dim=1), task_idx_one_hot=task_idx_one_hot[0])
 
