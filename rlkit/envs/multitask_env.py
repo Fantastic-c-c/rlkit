@@ -106,6 +106,8 @@ class MultiClassMultiTaskEnv(MultiTaskEnv):
             task_args = task_args_kwargs[task]['args']
             task_kwargs = task_args_kwargs[task]['kwargs']
             self._task_envs.append(env_cls(*task_args, **task_kwargs))
+            # hardcoded here
+            self._task_envs[-1].max_path_length = 200
             self._task_names.append(task)
 
         self._active_task = None

@@ -37,7 +37,7 @@ class ProtoAgent(nn.Module):
     ):
         super().__init__()
         self.latent_dim = latent_dim
-        self.task_enc, self.policy, self.qf1, self.qf2, self.vf, self.rf = nets
+        self.task_enc, self.policy, self.qf1, self.qf2, self.target_qf1, self.target_qf2, self.rf = nets
         self.target_vf = self.vf.copy()
         self.recurrent = kwargs['recurrent']
         self.reparam = kwargs['reparameterize']
@@ -151,13 +151,18 @@ class ProtoAgent(nn.Module):
         self.policy.set_num_steps_total(n)
 
     def _update_target_network(self):
-        ptu.soft_update_from_to(self.vf, self.target_vf, self.tau)
+        ptu.soft_update_from_to(
+            self.qf1, self.target_qf1, self.tau
+        )
+        ptu.soft_update_from_to(
+            self.qf2, self.target_qf2, self.tau
+        )
 
-    def forward(self, obs, actions, next_obs, enc_data, obs_enc, act_enc):
+    def forward(self, obs, actions, next_obs, enc_data, obs_enc, act_enc, task_idx_one_hot, alpha):
         self.set_z(enc_data)
-        return self.infer(obs, actions, next_obs, obs_enc, act_enc)
+        return self.infer(obs, actions, next_obs, obs_enc, act_enc, alpha)
 
-    def infer(self, obs, actions, next_obs, obs_enc, act_enc):
+    def infer(self, obs, actions, next_obs, obs_enc, act_enc, alpha):
         '''
         compute predictions of SAC networks for update
 
@@ -184,17 +189,26 @@ class ProtoAgent(nn.Module):
         # encoder will only get gradients from Q nets
         q1 = self.qf1(obs, actions, task_z)
         q2 = self.qf2(obs, actions, task_z)
-        v = self.vf(obs, task_z.detach())
+        # v = self.vf(obs, task_z.detach())
 
         # run policy, get log probs and new actions
         in_ = torch.cat([obs, task_z.detach()], dim=1)
         policy_outputs = self.policy(in_, reparameterize=self.reparam, return_log_prob=True)
 
-        # get targets for use in V and Q updates
-        with torch.no_grad():
-            target_v_values = self.target_vf(next_obs, task_z)
+        # get targets for use in Q updates
+        new_next_actions, _, _, new_log_pi, *_ = self.policy(
+            torch.cat([next_obs, task_z.detach()], dim=1), task_idx_one_hot=task_idx_one_hot, reparameterize=True, return_log_prob=True,
+        )
+        new_next_actions = new_next_actions.view(t * b, -1)
+        new_log_pi = new_log_pi.view(t * b, -1)
+        # with torch.no_grad():
+        target_q_values = torch.min(
+            self.target_qf1(torch.cat([next_obs, new_next_actions, task_z], dim=1), task_idx_one_hot=task_idx_one_hot[0]),
+            self.target_qf2(torch.cat([next_obs, new_next_actions, task_z], dim=1), task_idx_one_hot=task_idx_one_hot[0]),
+        ) - alpha * new_log_pi
+        # target_v_values = self.target_vf(torch.cat([next_obs, task_z], dim=1), task_idx_one_hot=task_idx_one_hot[0])
 
-        return r, q1, q2, v, policy_outputs, target_v_values, task_z
+        return r, q1, q2, policy_outputs, target_q_values, task_z
 
     def min_q(self, obs, actions, task_z):
         t, b, _ = obs.size()
@@ -207,7 +221,7 @@ class ProtoAgent(nn.Module):
 
     @property
     def networks(self):
-        return [self.task_enc, self.policy, self.qf1, self.qf2, self.vf, self.target_vf, self.rf]
+        return [self.task_enc, self.policy, self.qf1, self.qf2, self.target_qf1, self.target_qf2, self.rf]
 
 
 

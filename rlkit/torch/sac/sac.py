@@ -30,8 +30,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             context_lr=1e-3,
             kl_lambda=1.,
             rf_loss_scale=1.,
-            policy_mean_reg_weight=1e-3,
-            policy_std_reg_weight=1e-3,
+            policy_mean_reg_weight=0#1e-3,
+            policy_std_reg_weight=0#1e-3,
             policy_pre_activation_weight=0.,
             optimizer_class=optim.Adam,
             reparameterize=True,
@@ -41,8 +41,10 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             soft_target_tau=1e-2,
             plotter=None,
             render_eval_paths=False,
-            # use_automatic_entropy_tuning=True,
+            use_automatic_entropy_tuning=True,
             target_entropy=None,
+            use_alpha_network=False,
+            sep_alpha=True,
             **kwargs
     ):
         super().__init__(
@@ -62,7 +64,7 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
         self.latent_dim = latent_dim
         self.qf_criterion = nn.MSELoss()
-        self.vf_criterion = nn.MSELoss()
+        # self.vf_criterion = nn.MSELoss()
         self.rf_criterion = nn.MSELoss()
         self.vib_criterion = nn.MSELoss()
         self.l2_reg_criterion = nn.MSELoss()
@@ -73,7 +75,26 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.reparameterize = reparameterize
         self.use_information_bottleneck = use_information_bottleneck
         self.sparse_rewards = sparse_rewards
-        self.alpha_network = nets[-1]
+        # self.alpha_network = nets[-1]
+        self.use_alpha_network = use_alpha_network
+        self.sep_alpha = sep_alpha
+        if self.use_alpha_network:
+            self.alpha_network = nets[-1]
+            self.alpha_optimizer = optimizer_class(
+                self.alpha_network.parameters(),
+                lr=policy_lr,
+            )
+        else:
+            self.alpha_network = None
+            if self.sep_alpha:
+                self.log_alpha = ptu.zeros(self.num_tasks, requires_grad=True)
+            else:
+                self.log_alpha = ptu.zeros(1, requires_grad=True)
+            self.alpha_optimizer = optimizer_class(
+                [self.log_alpha],
+                lr=policy_lr,
+            )
+
         # self.use_automatic_entropy_tuning = use_automatic_entropy_tuning
         # if self.use_automatic_entropy_tuning:
         if target_entropy:
@@ -81,10 +102,10 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         else:
             self.target_entropy = -np.prod(self.env.action_space.shape).item()  # heuristic value from Tuomas
         # self.log_alpha = ptu.zeros(1, requires_grad=True)
-        self.alpha_optimizer = optimizer_class(
-            self.alpha_network.parameters(),
-            lr=policy_lr,
-        )
+        # self.alpha_optimizer = optimizer_class(
+        #     self.alpha_network.parameters(),
+        #     lr=policy_lr,
+        # )
 
         # TODO consolidate optimizers!
         self.policy_optimizer = optimizer_class(
@@ -99,10 +120,10 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.policy.qf2.parameters(),
             lr=qf_lr,
         )
-        self.vf_optimizer = optimizer_class(
-            self.policy.vf.parameters(),
-            lr=vf_lr,
-        )
+        # self.vf_optimizer = optimizer_class(
+        #     self.policy.vf.parameters(),
+        #     lr=vf_lr,
+        # )
         self.context_optimizer = optimizer_class(
             self.policy.task_enc.parameters(),
             lr=context_lr,
@@ -183,8 +204,17 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         obs, actions, rewards, next_obs, terms = self.sample_data(indices)
         enc_data = self.prepare_encoder_data(obs_enc, act_enc, rewards_enc)
 
+        if self.use_alpha_network:
+            log_alpha = self.alpha_network(torch.unsqueeze(ptu.from_numpy(one_hot_task_idx), dim=0))
+        else:
+            if self.sep_alpha:
+                log_alpha = torch.matmul(torch.unsqueeze(ptu.from_numpy(one_hot_task_idx), dim=0), torch.unsqueeze(self.log_alpha, dim=1))
+            else:
+                log_alpha = self.log_alpha
+        alpha = torch.exp(log_alpha)
+
         # run inference in networks
-        r_pred, q1_pred, q2_pred, v_pred, policy_outputs, target_v_values, task_z = self.policy(obs, actions, next_obs, enc_data, obs_enc, act_enc)
+        r_pred, q1_pred, q2_pred, policy_outputs, target_q_values, task_z = self.policy(obs, actions, next_obs, enc_data, obs_enc, act_enc)
         new_actions, policy_mean, policy_log_std, log_pi = policy_outputs[:4]
         # if self.use_automatic_entropy_tuning:
         #     """
@@ -198,8 +228,8 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         # else:
         #     alpha = 1
         #     alpha_loss = 0
-        log_alpha = self.alpha_network(torch.unsqueeze(ptu.from_numpy(one_hot_task_idx), dim=0))
-        alpha = torch.exp(log_alpha)
+        # log_alpha = self.alpha_network(torch.unsqueeze(ptu.from_numpy(one_hot_task_idx), dim=0))
+        # alpha = torch.exp(log_alpha)
         alpha_loss = -(log_alpha * (log_pi + self.target_entropy).detach()).mean()
         self.alpha_optimizer.zero_grad()
         alpha_loss.backward(retain_graph=True)
@@ -224,23 +254,28 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
         self.qf2_optimizer.zero_grad()
         rewards_flat = rewards.view(self.batch_size * num_tasks, -1)
         terms_flat = terms.view(self.batch_size * num_tasks, -1)
-        q_target = rewards_flat + (1. - terms_flat) * self.discount * target_v_values
-        qf_loss = torch.mean((q1_pred - q_target) ** 2) + torch.mean((q2_pred - q_target) ** 2)
-        qf_loss.backward()
+        q_target = rewards_flat + (1. - terms_flat) * self.discount * target_q_values
+        # qf_loss = torch.mean((q1_pred - q_target) ** 2) + torch.mean((q2_pred - q_target) ** 2)
+        # qf_loss.backward()
+        # self.qf1_optimizer.step()
+        # self.qf2_optimizer.step()
+        qf1_loss = self.qf_criterion(q1_pred, q_target.detach())
+        qf2_loss = self.qf_criterion(q2_pred, q_target.detach())
+
+        """
+        Update networks
+        """
+        self.qf1_optimizer.zero_grad()
+        qf1_loss.backward()
         self.qf1_optimizer.step()
+
+        self.qf2_optimizer.zero_grad()
+        qf2_loss.backward()
         self.qf2_optimizer.step()
         self.context_optimizer.step()
 
         # compute min Q on the new actions
         min_q_new_actions = self.policy.min_q(obs, new_actions, task_z)
-
-        # vf update
-        v_target = min_q_new_actions - alpha*log_pi
-        vf_loss = self.vf_criterion(v_pred, v_target.detach())
-        self.vf_optimizer.zero_grad()
-        vf_loss.backward()
-        self.vf_optimizer.step()
-        self.policy._update_target_network()
 
         # policy update
         # n.b. policy update includes dQ/da
@@ -285,19 +320,19 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             self.eval_statistics['Alpha'] = alpha.item()
             self.eval_statistics['Alpha Loss'] = alpha_loss.item()
 
-            self.eval_statistics['QF Loss'] = np.mean(ptu.get_numpy(qf_loss))
-            self.eval_statistics['VF Loss'] = np.mean(ptu.get_numpy(vf_loss))
+            self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
+            self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
             self.eval_statistics['RF Loss'] = np.mean(ptu.get_numpy(rf_loss))
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
                 policy_loss
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
-                'Q Predictions',
+                'Q1 Predictions',
                 ptu.get_numpy(q1_pred),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
-                'V Predictions',
-                ptu.get_numpy(v_pred),
+                'Q2 Predictions',
+                ptu.get_numpy(q2_pred),
             ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'R Predictions',
@@ -329,7 +364,10 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
 
     @property
     def networks(self):
-        return self.policy.networks + [self.policy] + [self.alpha_network]
+        if self.use_alpha_network:
+            return self.policy.networks + [self.policy] + [self.alpha_network]
+        else:
+            return self.policy.networks + [self.policy]
 
     def get_epoch_snapshot(self, epoch):
         snapshot = super().get_epoch_snapshot(epoch)
@@ -337,9 +375,9 @@ class ProtoSoftActorCritic(MetaTorchRLAlgorithm):
             qf1=self.policy.qf1,
             qf2=self.policy.qf2,
             policy=self.policy.policy,
-            vf=self.policy.vf,
             rf=self.policy.rf,
-            target_vf=self.policy.target_vf,
+            target_qf1=self.policy.target_qf1,
+            target_qf2=self.policy.target_qf2,
             task_enc=self.policy.task_enc,
         )
         return snapshot

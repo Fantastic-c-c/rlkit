@@ -63,12 +63,12 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
 
-    def get_action(self, obs, deterministic=False):
+    def get_action(self, obs, deterministic=False, **kwargs):
         actions = self.get_actions(obs, deterministic=deterministic)
         return actions[0, :], {}
 
     @torch.no_grad()
-    def get_actions(self, obs, deterministic=False):
+    def get_actions(self, obs, deterministic=False, **kwargs):
         outputs = self.forward(obs, deterministic=deterministic)[0]
         return np_ify(outputs)
 
@@ -78,6 +78,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             reparameterize=False,
             deterministic=False,
             return_log_prob=False,
+            **kwargs
     ):
         """
         :param obs: Observation

@@ -41,7 +41,7 @@ EASY_MODE_ARGS_KWARGS = {
             'tasks': [{'goal': np.array([-0.1, 0.8, 0.2]),  'obj_init_pos':np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3, 'type':'reach'}],
             'random_init': False,
             'multitask': False,
-            'obs_type': 'plain',
+            'obs_type': 'with_goal',
             'if_render': False,
         }
     },
@@ -51,7 +51,7 @@ EASY_MODE_ARGS_KWARGS = {
             'tasks': [{'goal': np.array([0.1, 0.8, 0.02]),  'obj_init_pos':np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3, 'type':'push'}],
             'random_init': False,
             'multitask': False,
-            'obs_type': 'plain',
+            'obs_type': 'with_goal',
             'if_render': False,
         }
     },
@@ -61,7 +61,7 @@ EASY_MODE_ARGS_KWARGS = {
             'tasks': [{'goal': np.array([0.1, 0.8, 0.2]),  'obj_init_pos':np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3, 'type':'pick_place'}],
             'random_init': False,
             'multitask': False,
-            'obs_type': 'plain',
+            'obs_type': 'with_goal',
             'if_render': False,
         }
     },
@@ -71,7 +71,7 @@ EASY_MODE_ARGS_KWARGS = {
             'tasks': [{'goal': np.array([-0.2, 0.7, 0.15]),  'obj_init_pos':np.array([0.1, 0.95, 0.1]), 'obj_init_angle': 0.3}],
             'random_init': False,
             'multitask': False,
-            'obs_type': 'plain',
+            'obs_type': 'with_goal',
             'if_render': False,
         }
     },
@@ -81,7 +81,7 @@ EASY_MODE_ARGS_KWARGS = {
             'tasks': [{'goal': np.array([0., 0.55, 0.04]),  'obj_init_pos':np.array([0., 0.9, 0.04]), 'obj_init_angle': 0.3}],
             'random_init': False,
             'multitask': False,
-            'obs_type': 'plain',
+            'obs_type': 'with_goal',
             'if_render': False,
         }
     },
@@ -91,7 +91,7 @@ EASY_MODE_ARGS_KWARGS = {
             'tasks': [{'goal': np.array([0., 0.7, 0.04]),  'obj_init_pos':np.array([0., 0.9, 0.04]), 'obj_init_angle': 0.3}],
             'random_init': False,
             'multitask': False,
-            'obs_type': 'plain',
+            'obs_type': 'with_goal',
             'if_render': False,
         }
     },
@@ -101,7 +101,7 @@ EASY_MODE_ARGS_KWARGS = {
             'tasks': [{'goal': np.array([0, 0.88, 0.1]), 'obj_init_pos':np.array([0, 0.8, 0.05])}],
             'random_init': False,
             'multitask': False,
-            'obs_type': 'plain',
+            'obs_type': 'with_goal',
             'if_render': False,
         }
     },
@@ -111,7 +111,7 @@ EASY_MODE_ARGS_KWARGS = {
             'tasks': [{'goal': np.array([-0.3, 0.6, 0.05]), 'obj_init_pos':np.array([0, 0.6, 0.02])}],
             'random_init': False,
             'multitask': False,
-            'obs_type': 'plain',
+            'obs_type': 'with_goal',
             'if_render': False,
         }
     },
@@ -121,7 +121,7 @@ EASY_MODE_ARGS_KWARGS = {
             'tasks': [{'goal': np.array([0.08, 0.785, 0.15]),  'obj_init_pos':np.array([-0.1, 0.785, 0.15]), 'obj_init_angle': 0.3}],
             'random_init': False,
             'multitask': False,
-            'obs_type': 'plain',
+            'obs_type': 'with_goal',
             'if_render': False,
         }
     },
@@ -131,7 +131,7 @@ EASY_MODE_ARGS_KWARGS = {
             'tasks': [{'goal': np.array([-0.08, 0.785, 0.15]),  'obj_init_pos':np.array([0.1, 0.785, 0.15]), 'obj_init_angle': 0.3}],
             'random_init': False,
             'multitask': False,
-            'obs_type': 'plain',
+            'obs_type': 'with_goal',
             'if_render': False,
         }
     },

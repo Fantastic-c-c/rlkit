@@ -39,7 +39,7 @@ def experiment(variant):
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
-    latent_dim = 7
+    latent_dim = 10
     task_enc_output_dim = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
     reward_dim = 1
 
@@ -55,36 +55,38 @@ def experiment(variant):
             output_size=task_enc_output_dim,
     )
     qf1 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
+        hidden_sizes=[net_size, net_size, net_size, net_size, net_size, net_size],
         input_size=obs_dim + action_dim + latent_dim,
         output_size=1,
     )
     qf2 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
+        hidden_sizes=[net_size, net_size, net_size, net_size, net_size, net_size],
         input_size=obs_dim + action_dim + latent_dim,
         output_size=1,
     )
-    vf = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
-        input_size=obs_dim + latent_dim,
+
+    target_qf1 = FlattenMlp(
+        input_size=obs_dim + action_dim + latent_dim,
         output_size=1,
+        hidden_sizes=[net_size, net_size, net_size, net_size, net_size, net_size],
     )
+
     policy = TanhGaussianPolicy(
-        hidden_sizes=[net_size, net_size, net_size],
+        hidden_sizes=[net_size, net_size, net_size, net_size, net_size, net_size],
         obs_dim=obs_dim + latent_dim,
         latent_dim=latent_dim,
         action_dim=action_dim,
     )
 
     rf = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
+        hidden_sizes=[net_size, net_size, net_size, net_size, net_size, net_size],
         input_size=obs_dim + action_dim + latent_dim,
         output_size=1
     )
 
     agent = ProtoAgent(
         latent_dim,
-        [task_enc, policy, qf1, qf2, vf, rf],
+        [task_enc, policy, qf1, qf2, vf, target_qf1, target_qf2, rf],
         **variant['algo_params']
     )
 
@@ -92,7 +94,7 @@ def experiment(variant):
         env=env,
         train_tasks=list(tasks),
         eval_tasks=list(tasks),
-        nets=[agent, task_enc, policy, qf1, qf2, vf, rf],
+        nets=[agent, task_enc, policy, qf1, qf2, vf, target_qf1, target_qf2, rf],
         latent_dim=latent_dim,
         **variant['algo_params']
     )
@@ -105,15 +107,15 @@ def experiment(variant):
 @click.argument('gpu', default=0)
 @click.option('--docker', default=0)
 def main(gpu, docker):
-    max_path_length = 150
+    max_path_length = 200
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
             meta_batch=16,
             num_iterations=10000,
-            num_tasks_sample=7,
-            num_steps_per_task=10 * max_path_length,
-            num_train_steps_per_itr=10000,
+            num_tasks_sample=10,
+            num_steps_per_task=3 * max_path_length,
+            num_train_steps_per_itr=400,
             num_evals=5, # number of evals with separate task encodings
             num_steps_per_eval=3 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
