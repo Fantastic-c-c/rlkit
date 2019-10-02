@@ -153,8 +153,19 @@ class JointTorqueController(mujoco.Physics):
         bounds = self.model.actuator_ctrlrange
         return Box(low=bounds[:, 0], high=bounds[:, 1])
 
+    def safety_box(self):
+        ''' define a safety box to contain the end-effector '''
+        reset_xpos = self.named.data.site_xpos['ee_p1'].copy()
+        low = reset_xpos - np.array([.3, .3, .2])
+        high = reset_xpos + np.array([.3, .3, .01])
+        return (low, high)
+
     def prepare_action(self, action, init_obs):
-        ''' raw torques are ready to feed to the simulator '''
+        ''' if end-effector violates safety box, just set all torques to 0 '''
+        ee_pos = self.named.data.site_xpos['ee_p1'].copy()
+        low, high = self.safety_box()
+        if not(np.all(ee_pos >= low) and np.all(ee_pos <= high)):
+            action = np.zeros(self.action_dim, dtype=np.float64)
         return action
 
 
