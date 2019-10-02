@@ -19,7 +19,7 @@ from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
+# from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
 
 
 
