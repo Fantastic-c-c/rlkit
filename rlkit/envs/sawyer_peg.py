@@ -69,7 +69,7 @@ class EEPositionController(mujoco.Physics):
     '''
 
     def __init__(self, *args, **kwargs):
-        self.include_vel_in_state = True
+        self.include_vel_in_state = False
         super(EEPositionController, self).__init__(*args, **kwargs)
 
     def get_observation(self):
@@ -126,6 +126,10 @@ class JointTorqueController(mujoco.Physics):
     '''
     def __init__(self, *args, **kwargs):
         self.include_ee_in_state = True
+        self.action_dim = 7
+        self.obs_dim = 14
+        if self.include_ee_in_state:
+            self.obs_dim = 21
         super(JointTorqueController, self).__init__(*args, **kwargs)
 
     def get_observation(self):
@@ -142,10 +146,7 @@ class JointTorqueController(mujoco.Physics):
 
     def get_observation_space(self):
         ''' get obs bounds that will be used to normalize observations '''
-        obs_dim = 14
-        if self.include_ee_in_state:
-            obs_dim = 21
-        return Box(low=-np.full(obs_dim, -np.inf), high=np.full(obs_dim, np.inf))
+        return Box(low=-np.full(self.obs_dim, -np.inf), high=np.full(self.obs_dim, np.inf))
 
     def get_action_space(self):
         ''' get action bounds that will be used to normalize actions '''
