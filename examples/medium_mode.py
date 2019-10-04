@@ -9,9 +9,9 @@ import pathlib
 
 # from rlkit.envs.point_mass import PointEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
-from rlkit.envs.multitask_env import MultiClassMultiTaskEnv
-from metaworld.envs.mujoco.sawyer_xyz.env_lists import MEDIUM_TRAIN_AND_TEST_LIST
-from rlkit.envs.ml10_env import MediumEnv
+# from rlkit.envs.multitask_env import MultiClassMultiTaskEnv
+# from metaworld.envs.mujoco.sawyer_xyz.env_lists import MEDIUM_TRAIN_AND_TEST_LIST
+# from rlkit.envs.ml10_env import MediumEnv
 
 
 
@@ -22,6 +22,9 @@ from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
 
+from metaworld.envs.mujoco.multitask_env import MultiClassMultiTaskEnv
+from metaworld.envs.mujoco.env_dict import MEDIUM_MODE_CLS_DICT, MEDIUM_MODE_ARGS_KWARGS
+
 
 
 def datetimestamp(divider=''):
@@ -31,7 +34,12 @@ def datetimestamp(divider=''):
 def experiment(variant):
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
-    env = MediumEnv(MEDIUM_TRAIN_AND_TEST_LIST)
+    env = MultiClassMultiTaskEnv(
+        task_env_cls_dict=MEDIUM_MODE_CLS_DICT['train'],
+        task_args_kwargs=MEDIUM_MODE_ARGS_KWARGS['train'],
+        sample_goals=True,
+        obs_type='plain',
+    )
 
 
     obs_dim = int(np.prod(env.observation_space.shape))
@@ -41,7 +49,7 @@ def experiment(variant):
     reward_dim = 1
 
     tasks = env.get_all_task_idx()
-
+    num_tasks = len(tasks)
     net_size = variant['net_size']
     # start with linear task encoding
     recurrent = variant['algo_params']['recurrent']
@@ -126,7 +134,7 @@ def main(gpu, docker):
             reward_scale=10.,
             sparse_rewards=False,
             reparameterize=True,
-            kl_lambda=.1,
+            kl_lambda=1,
             rf_loss_scale=1.,
             use_information_bottleneck=True,
             train_embedding_source='online_exploration_trajectories',
@@ -136,7 +144,7 @@ def main(gpu, docker):
             recurrent=False, # recurrent or averaging encoder
             dump_eval_paths=False,
             render_eval_paths=False,
-            render=True,
+            render=False,
             eval_per_itr=10,
         ),
         net_size=300,
@@ -144,7 +152,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'medium-mb15-ts15-rf1'
+    exp_name = 'medium-corl'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)
