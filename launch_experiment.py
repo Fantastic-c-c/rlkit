@@ -18,12 +18,16 @@ from rlkit.torch.sac.agent import PEARLAgent
 from rlkit.launchers.launcher_util import setup_logger
 import rlkit.torch.pytorch_util as ptu
 from configs.default import default_config
+from rlkit.envs.env_list import EASY_MODE_DICT, EASY_MODE_ARGS_KWARGS
+from rlkit.envs.multitask_env import MultiClassMultiTaskEnv
 
 
 def experiment(variant):
 
     # create multi-task environment and sample tasks
-    env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
+    env = MultiClassMultiTaskEnv(
+        task_env_cls_dict=EASY_MODE_DICT,
+        task_args_kwargs=EASY_MODE_ARGS_KWARGS)
     tasks = env.get_all_task_idx()
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -43,27 +47,27 @@ def experiment(variant):
         output_size=context_encoder_output_dim,
     )
     qf1 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
+        hidden_sizes=[net_size, net_size, net_size, net_size, net_size, net_size],
         input_size=obs_dim + action_dim + latent_dim,
         output_size=1,
     )
     qf2 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
+        hidden_sizes=[net_size, net_size, net_size, net_size, net_size, net_size],
         input_size=obs_dim + action_dim + latent_dim,
         output_size=1,
     )
     target_qf1 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
+        hidden_sizes=[net_size, net_size, net_size, net_size, net_size, net_size],
         input_size=obs_dim + action_dim + latent_dim,
         output_size=1,
     )
     target_qf2 = FlattenMlp(
-        hidden_sizes=[net_size, net_size, net_size],
+        hidden_sizes=[net_size, net_size, net_size, net_size, net_size, net_size],
         input_size=obs_dim + action_dim + latent_dim,
         output_size=1,
     )
     policy = TanhGaussianPolicy(
-        hidden_sizes=[net_size, net_size, net_size],
+        hidden_sizes=[net_size, net_size, net_size, net_size, net_size, net_size],
         obs_dim=obs_dim + latent_dim,
         latent_dim=latent_dim,
         action_dim=action_dim,
@@ -76,8 +80,8 @@ def experiment(variant):
     )
     algorithm = PEARLSoftActorCritic(
         env=env,
-        train_tasks=list(tasks[:variant['n_train_tasks']]),
-        eval_tasks=list(tasks[-variant['n_eval_tasks']:]),
+        train_tasks=list(tasks),
+        eval_tasks=list(tasks),
         nets=[agent, qf1, qf2, target_qf1, target_qf2],
         latent_dim=latent_dim,
         **variant['algo_params']
