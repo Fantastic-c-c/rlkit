@@ -170,6 +170,9 @@
                                                 <site name="ee_p1" pos="0 0 .03" size="0.005" rgba='1 1 1 1' />
                                                 <site name="ee_p2" pos="0 -.06 0" size="0.005" rgba='0 .8 0 1' />
                                                 <site name="ee_p3" pos="-.06 0 0" size="0.005" rgba='.8 0 0 1' />
+                                                <site name="s_p1" pos="-.3 -.3 -.07" size="0.005" rgba='.8 0 0 1' />
+                                                <site name="s_p2" pos=".3 .3 0.13" size="0.005" rgba='.8 0 0 1' />
+
                                             </body>
                                         </body>
                                     </body>

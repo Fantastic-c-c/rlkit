@@ -70,6 +70,10 @@ class EEPositionController(mujoco.Physics):
 
     def __init__(self, *args, **kwargs):
         self.include_vel_in_state = False
+        self.action_dim = 6
+        self.obs_dim = 7
+        if self.include_vel_in_state:
+            self.obs_dim = 14
         super(EEPositionController, self).__init__(*args, **kwargs)
 
     def get_observation(self):
@@ -87,34 +91,48 @@ class EEPositionController(mujoco.Physics):
 
     def get_observation_space(self):
         ''' get obs bounds that will be used to normalize observations '''
-        obs_dim = 7
-        if self.include_vel_in_state:
-            obs_dim = 14
-        return Box(low=-np.full(obs_dim, -np.inf), high=np.full(obs_dim, np.inf))
+        return Box(low=-np.full(self.obs_dim, -np.inf), high=np.full(self.obs_dim, np.inf))
 
     def get_action_space(self):
         ''' get action bounds that will be used to normalize actions '''
-        action_dim = 7
-        safety_box = self.safety_box()
-        pos_low = safety_box.low
-        pos_high = safety_box.high
-        return Box(low=np.concatenate([pos_low, -np.ones(4)]), high=np.concatenate([pos_high, np.ones(4)]))
+        pos_low = self.safety_box.low
+        pos_high = self.safety_box.high
+        # TODO don't hard code this
+        angle_low = np.array([3.1, -.02, 4.5])
+        angle_high = np.array([3.3, .02, 4.8])
+        return Box(low=np.concatenate([pos_low, angle_low]), high=np.concatenate([pos_high, angle_high]))
 
-    def safety_box(self):
+    def get_safety_box(self):
         ''' define a safety box to contain the end-effector '''
         reset_xpos = self.named.data.site_xpos['ee_p1'].copy()
-        low = reset_xpos - np.array([.3, .3, .2])
-        high = reset_xpos + np.array([.3, .3, .01])
+        low = reset_xpos - np.array([.3, .3, .1])
+        high = reset_xpos + np.array([.3, .3, .1])
         safety_box = Box(low=low, high=high)
         return safety_box
+
+    def set_safety_box(self, box):
+        self.safety_box = box
 
     def prepare_action(self, action, init_obs):
         ''' convert ee pose into joint angles for control '''
         # compute the action to apply using IK
         action = action.astype(np.float64) # required by the IK for some reason
+        euler = action[3:]
+
+        def euler_to_quaternion(r):
+            (yaw, pitch, roll) = (r[0], r[1], r[2])
+            qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+            qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
+            qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
+            qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+            return np.array([qx, qy, qz, qw])
+
+        #quat = euler_to_quaternion(euler)
+        #print(quat)
         # TODO debug, hard-code the orientation
-        action[3:] = init_obs.copy()[3:]
-        ik_result = qpos_from_site_pose(self, 'ee_p1', target_pos=action[:3], target_quat=action[3:])
+        quat = init_obs.copy()[3:]
+        # TODO predicting raw quaternion doesn't work, predict euler angle instead
+        ik_result = qpos_from_site_pose(self, 'ee_p1', target_pos=action[:3], target_quat=quat)
         angles = ik_result.qpos
         return angles
 
@@ -153,18 +171,23 @@ class JointTorqueController(mujoco.Physics):
         bounds = self.model.actuator_ctrlrange
         return Box(low=bounds[:, 0], high=bounds[:, 1])
 
-    def safety_box(self):
+    def get_safety_box(self):
         ''' define a safety box to contain the end-effector '''
         reset_xpos = self.named.data.site_xpos['ee_p1'].copy()
-        low = reset_xpos - np.array([.3, .3, .2])
-        high = reset_xpos + np.array([.3, .3, .01])
+        low = reset_xpos - np.array([.3, .3, .1])
+        high = reset_xpos + np.array([.3, .3, .1])
         return (low, high)
+
+    def set_safety_box(self, box):
+        self.safety_box = box
 
     def prepare_action(self, action, init_obs):
         ''' if end-effector violates safety box, just set all torques to 0 '''
+        # TODO make this more like the real-life safety box
         ee_pos = self.named.data.site_xpos['ee_p1'].copy()
-        low, high = self.safety_box()
+        low, high = self.safety_box
         if not(np.all(ee_pos >= low) and np.all(ee_pos <= high)):
+            print('Violated safety box')
             action = np.zeros(self.action_dim, dtype=np.float64)
         return action
 
@@ -240,6 +263,7 @@ class SawyerPegInsertionEnv(Environment):
         # NOTE this is a hack needed because the safety box used to define
         # the action space uses the xpos of the reset position!!
         _ = self.reset()
+        self.physics.set_safety_box(self.physics.get_safety_box())
 
         # set obs and action spaces appropriately for the controller
         # NOTE PEARL codebase uses action and obs space to normalize so
@@ -251,6 +275,7 @@ class SawyerPegInsertionEnv(Environment):
         self._goal = self.physics.named.data.site_xpos['goal_p1'].copy()
 
         self.init_obs = self.reset()
+        print('init obs', self.init_obs)
 
     def reset(self):
         ''' reset to same initial pose '''
