@@ -1,20 +1,48 @@
 from rlkit.core.serializable import Serializable
 import gym
 import numpy as np
-from metaworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
-from metaworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_wall_6dof import SawyerReachPushPickPlaceWall6DOFEnv
+
+from metaworld.envs.mujoco.sawyer_xyz.env_lists import MEDIUM_TRAIN_AND_TEST_LIST
+from metaworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place import SawyerReachPushPickPlaceEnv
+from metaworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_wall import SawyerReachPushPickPlaceWallEnv
 
 
 class MediumEnv(gym.Env, Serializable):
     def __init__(self, task_list):
         Serializable.quick_init(self, locals())
+        # env_cls_dict = {
+        #     'env-{}'.format(i): env_cls
+        #     for i, env_cls in enumerate(env_list)
+        # }
+        # env_args_kwargs = {}
+        # for i, task in enumerate(task_list):
+        #     if task is SawyerReachPushPickPlaceEnv or task is SawyerReachPushPickPlaceWallEnv:
+        #         env_args_kwargs.append({
+        #             'env-{}'.format(i): dict(args=[], kwargs={
+        #                 'obs_type': 'plain',
+        #                 'task_idx': '{}'.format(i%3),
+        #                 'fix_task': 'True'})
+        #         })
+        #     else:
+        #         env_args_kwargs.append({
+        #             'env-{}'.format(i): dict(args=[], kwargs={
+        #                 'obs_type': 'plain',})
+        #                 })
+        # multi_task_env = MultiClassMultiTaskEnv(
+        #     task_env_cls_dict=env_cls_dict,
+        #     task_args_kwargs=env_args_kwargs,
+        #     sample_goals=True,
+        #     obs_type='plain',
+        #     sample_all=False,
+        # )
         self._task_envs = []
         for i, task in enumerate(task_list):
-            if task is SawyerReachPushPickPlace6DOFEnv or task is SawyerReachPushPickPlaceWall6DOFEnv:
-            # TODO: this could cause flaws in task_idx if SawyerReachPushPickPlace6DOFEnv/SawyerReachPushPickPlaceWall6DOFEnv is not the first environment
-                self._task_envs.append(task(multitask=False, obs_type='with_goal', random_init=False, if_render=False, fix_task=True, task_idx=i%3))
+
+            if task is SawyerReachPushPickPlaceEnv or task is SawyerReachPushPickPlaceWallEnv:
+            # TODO: this could cause flaws in task_idx if SawyerReachPushPickPlaceEnv/SawyerReachPushPickPlaceWallEnv is not the first environment
+                self._task_envs.append(task(obs_type='plain', random_init=True, task_type=['pick_place', 'reach', 'push'][i%3]))
             else:
-                self._task_envs.append(task(multitask=False, obs_type='with_goal', if_render=False, random_init=False))
+                self._task_envs.append(task(obs_type='plain', random_init=True))
         self._active_task = None
 
     def reset(self, **kwargs):

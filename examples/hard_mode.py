@@ -9,8 +9,8 @@ import pathlib
 
 # from rlkit.envs.point_mass import PointEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
-from rlkit.envs.multitask_env import MultiClassMultiTaskEnv
-from rlkit.envs.hard_mode_env import HardModeEnv
+# from rlkit.envs.multitask_env import MultiClassMultiTaskEnv
+# from rlkit.envs.hard_mode_env import HardModeEnv
 
 
 from rlkit.launchers.launcher_util import setup_logger
@@ -20,8 +20,8 @@ from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
-from multiworld.envs.mujoco.sawyer_xyz.env_lists import HARD_MODE_LIST
+from metaworld.envs.mujoco.multitask_env import MultiClassMultiTaskEnv
+from metaworld.envs.mujoco.env_dict import HARD_MODE_CLS_DICT, HARD_MODE_ARGS_KWARGS
 
 
 
@@ -32,7 +32,13 @@ def datetimestamp(divider=''):
 def experiment(variant):
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
-    env = HardModeEnv(HARD_MODE_LIST)
+    env = MultiClassMultiTaskEnv(
+        task_env_cls_dict=HARD_MODE_CLS_DICT['train'],
+        task_args_kwargs=HARD_MODE_ARGS_KWARGS['train'],
+        sample_goals=True,
+        obs_type='plain',
+        sample_all=True,
+    )
 
 
     obs_dim = int(np.prod(env.observation_space.shape))
@@ -144,7 +150,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'hard'
+    exp_name = 'hard-corl'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)
