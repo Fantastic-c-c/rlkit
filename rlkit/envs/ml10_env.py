@@ -3,8 +3,8 @@ import gym
 import numpy as np
 
 from metaworld.envs.mujoco.sawyer_xyz.env_lists import MEDIUM_TRAIN_AND_TEST_LIST
-from metaworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
-from metaworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_wall_6dof import SawyerReachPushPickPlaceWall6DOFEnv
+from metaworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place import SawyerReachPushPickPlaceEnv
+from metaworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_wall import SawyerReachPushPickPlaceWallEnv
 
 
 class MediumEnv(gym.Env, Serializable):
@@ -16,7 +16,7 @@ class MediumEnv(gym.Env, Serializable):
         # }
         # env_args_kwargs = {}
         # for i, task in enumerate(task_list):
-        #     if task is SawyerReachPushPickPlace6DOFEnv or task is SawyerReachPushPickPlaceWall6DOFEnv:
+        #     if task is SawyerReachPushPickPlaceEnv or task is SawyerReachPushPickPlaceWallEnv:
         #         env_args_kwargs.append({
         #             'env-{}'.format(i): dict(args=[], kwargs={
         #                 'obs_type': 'plain',
@@ -37,11 +37,12 @@ class MediumEnv(gym.Env, Serializable):
         # )
         self._task_envs = []
         for i, task in enumerate(task_list):
-            if task is SawyerReachPushPickPlace6DOFEnv or task is SawyerReachPushPickPlaceWall6DOFEnv:
-            # TODO: this could cause flaws in task_idx if SawyerReachPushPickPlace6DOFEnv/SawyerReachPushPickPlaceWall6DOFEnv is not the first environment
-                self._task_envs.append(task(multitask=False, obs_type='plain', random_init=False, if_render=False, fix_task=True, task_idx=i%3))
+
+            if task is SawyerReachPushPickPlaceEnv or task is SawyerReachPushPickPlaceWallEnv:
+            # TODO: this could cause flaws in task_idx if SawyerReachPushPickPlaceEnv/SawyerReachPushPickPlaceWallEnv is not the first environment
+                self._task_envs.append(task(obs_type='plain', random_init=True, task_type=['pick_place', 'reach', 'push'][i%3]))
             else:
-                self._task_envs.append(task(multitask=False, obs_type='plain', if_render=False, random_init=False))
+                self._task_envs.append(task(obs_type='plain', random_init=True))
         self._active_task = None
 
     def reset(self, **kwargs):
