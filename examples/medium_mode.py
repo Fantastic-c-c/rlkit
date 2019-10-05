@@ -110,15 +110,15 @@ def experiment(variant):
 @click.argument('gpu', default=0)
 @click.option('--docker', default=0)
 def main(gpu, docker):
-    max_path_length = 150
+    max_path_length = 200
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
             meta_batch=15,
             num_iterations=10000,
             num_tasks_sample=15,
-            num_steps_per_task=10 * max_path_length,
-            num_train_steps_per_itr=4000,
+            num_steps_per_task=100 * max_path_length,
+            num_train_steps_per_itr=400,
             num_evals=5, # number of evals with separate task encodings
             num_steps_per_eval=10 * max_path_length,  # num transitions to eval on
             batch_size=256,  # to compute training grads from
@@ -152,7 +152,7 @@ def main(gpu, docker):
         gpu_id=gpu,
     )
 
-    exp_name = 'medium-corl'
+    exp_name = 'medium-onpolicy'
 
     log_dir = '/mounts/output' if docker == 1 else 'output'
     experiment_log_dir = setup_logger(exp_name, variant=variant, exp_id='metaworld', base_log_dir=log_dir)
