@@ -57,8 +57,8 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             if len(hidden_sizes) > 0:
                 last_hidden_size = hidden_sizes[-1]
             self.last_fc_log_std = nn.Linear(last_hidden_size, action_dim)
-            self.last_fc_log_std.weight.data.uniform_(-init_w, init_w)
-            self.last_fc_log_std.bias.data.uniform_(-init_w, init_w)
+            self.last_fc_log_std.weight.data.zero_()
+            self.last_fc_log_std.bias.data.fill_(-init_w)
         else:
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX

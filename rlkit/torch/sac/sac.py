@@ -29,6 +29,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             policy_pre_activation_weight=0.,
             optimizer_class=optim.Adam,
             recurrent=False,
+            net_size=None,
             use_information_bottleneck=True,
             sparse_rewards=False,
 
@@ -42,7 +43,8 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             agent=nets[0],
             train_tasks=train_tasks,
             eval_tasks=eval_tasks,
-            recurrent=recurrent,
+            latent_dim=latent_dim,
+            net_size=net_size,
             **kwargs
         )
 

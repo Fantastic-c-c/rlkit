@@ -1,6 +1,6 @@
 {
     "env_name": "sawyer_torque_reach_real",
-    "path_to_checkpoint": "",
+    "path_to_checkpoint": "/home/justin/Documents/rlkit/output/sawyer-torque-reach-real/good_init_policy",
     "n_train_tasks": 1,
     "n_eval_tasks": 1,
     "continue_training": 0,
@@ -16,7 +16,7 @@
         "num_steps_prior": 450,
         "num_steps_posterior": 0,
         "num_extra_rl_steps_posterior": 450,
-        "num_train_steps_per_itr": 2000,
+        "num_train_steps_per_itr": 1,
         "eval_interval": 5,
         "num_steps_per_eval": 135,
         "num_task_eval": 1,
