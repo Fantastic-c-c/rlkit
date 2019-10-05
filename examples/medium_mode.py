@@ -110,7 +110,7 @@ def experiment(variant):
 @click.argument('gpu', default=0)
 @click.option('--docker', default=0)
 def main(gpu, docker):
-    max_path_length = 200
+    max_path_length = 150
     # noinspection PyTypeChecker
     variant = dict(
         algo_params=dict(
