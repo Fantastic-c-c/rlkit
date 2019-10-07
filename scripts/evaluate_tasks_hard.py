@@ -23,10 +23,6 @@ from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
 
-from rlkit.envs.multitask_env import MultiClassMultiTaskEnv
-from rlkit.envs.medium_mode_env_list import MEDIUM_MODE_DICT, MEDIUM_MODE_ARGS_KWARGS
-from rlkit.envs.hard_mode_env import HardModeEnv
-from multiworld.envs.mujoco.sawyer_xyz.env_lists import HARD_MODE_LIST
 
 
 
@@ -35,9 +31,15 @@ def datetimestamp(divider=''):
     return now.strftime('%Y-%m-%d-%H-%M-%S-%f').replace('-', divider)
 
 def experiment(variant):
-    params = joblib.load('/home/dequillen_gmail_com/rlkit/output/metaworld/hard/params.pkl')
+    params = joblib.load('/home/dequillen_gmail_com/rlkit/output/metaworld/hard-corl/params.pkl')
 
-    env = HardModeEnv(HARD_MODE_LIST)
+    env = MultiClassMultiTaskEnv(
+        task_env_cls_dict=HARD_MODE_CLS_DICT['test'],
+        task_args_kwargs=HARD_MODE_ARGS_KWARGS['test'],
+        sample_goals=True,
+        obs_type='plain',
+        sample_all=True,
+    )
 
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
