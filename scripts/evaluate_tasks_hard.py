@@ -23,7 +23,8 @@ from rlkit.torch.sac.sac import ProtoSoftActorCritic
 from rlkit.torch.sac.proto import ProtoAgent
 import rlkit.torch.pytorch_util as ptu
 
-
+from metaworld.envs.mujoco.multitask_env import MultiClassMultiTaskEnv
+from metaworld.envs.mujoco.env_dict import HARD_MODE_CLS_DICT, HARD_MODE_ARGS_KWARGS
 
 
 def datetimestamp(divider=''):
