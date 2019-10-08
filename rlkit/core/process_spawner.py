@@ -15,11 +15,13 @@ from rlkit.torch.sac.policies import TanhGaussianPolicy
 
 
 class ProcessSpawner:
-    def __init__(self, buffer_queue, weight_queue, status_shared, train_tasks, max_path_length, num_tasks_sample, num_steps_prior, num_steps_posterior,
+    def __init__(self, buffer_queue, weight_queue, mean_return_shared, mean_final_return_shared, status_shared, train_tasks, max_path_length, num_tasks_sample, num_steps_prior, num_steps_posterior,
                  num_extra_rl_steps_posterior, update_post_train, replay_buffer_dict_key, enc_replay_buffer_dict_key,
                  embedding_batch_size, algo_params, latent_dim, net_size):
         self.buffer_queue = buffer_queue
         self.weight_queue = weight_queue
+        self.mean_return_shared = mean_return_shared
+        self.mean_final_return_shared = mean_final_return_shared
         self.status_shared = status_shared
 
         self.train_tasks = train_tasks
@@ -39,14 +41,15 @@ class ProcessSpawner:
         self.latent_dim = latent_dim
         self.net_size = net_size
 
-    def spawn_process(self, enc_replay_buffer, env, n_env_steps_shared, mean_return_shared):
+    def spawn_process(self, enc_replay_buffer, env, n_env_steps_shared):
         return mp.Process(target=self.collect_data_routine, args=(self.buffer_queue, self.weight_queue,
                                                                   enc_replay_buffer, env, n_env_steps_shared,
-                                                                  mean_return_shared, self.status_shared))
+                                                                  self.mean_return_shared, self.mean_final_return_shared,
+                                                                  self.status_shared))
 
     def collect_data_routine(self, buffer_queue, weight_queue,
                              enc_replay_buffer, env, n_env_steps_shared,
-                             mean_return_shared, status_shared):
+                             mean_return_shared, mean_final_return_shared, status_shared):
         print("STARTED ROUTINE")
         obs_dim = int(np.prod(env.observation_space.shape))
         action_dim = int(np.prod(env.action_space.shape))
@@ -90,6 +93,7 @@ class ProcessSpawner:
             sample_tasks = np.random.choice(self.train_tasks, self.num_tasks_sample, replace=False)
             print('sampled tasks', sample_tasks)
             all_rets = []
+            final_rets = []
             # TODO: score sampled data here as a proxy for eval
             for i, idx in enumerate(sample_tasks):
                 print('task: {} / {}'.format(i, len(sample_tasks)))
@@ -108,15 +112,18 @@ class ProcessSpawner:
                                                       sampler, agent, self.num_steps_posterior, 1, self.update_post_train,
                                                       max_trajs=10)
                     all_rets += rets
+                    final_rets += [rets[-1]]
                 # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
                 if self.num_extra_rl_steps_posterior > 0:
                     rets = self.collect_data_parallel(task_idx, buffer_queue, enc_replay_buffer, n_env_steps_shared,
                                                       sampler, agent, self.num_extra_rl_steps_posterior, 1,
                                                       self.update_post_train, add_to_enc_buffer=False, max_trajs=10)
                     all_rets += rets
+                    final_rets += [rets[-1]]
             print("FINISHED COLLECTING DATA")
             status_shared.value = 1
             mean_return_shared.value = np.mean(all_rets)
+            mean_final_return_shared.value = np.mean(final_rets)
             print("EXITING")
 
     def collect_data_parallel(self, task_idx, buffer_queue, enc_replay_buffer, n_env_steps_shared, sampler, agent,

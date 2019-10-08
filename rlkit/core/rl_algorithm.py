@@ -154,10 +154,13 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.collect_data_process = None
             self.n_env_steps_shared = mp.Value('i', 0)
             self.mean_return_shared = mp.Value('d', 0)
+            self.mean_final_return_shared = mp.Value('d', 0)
             self.status_shared = mp.Value('i', 0)  # 0 is data being collected, 1 is data finished collected
 
             self.process_spawner = ProcessSpawner(self.buffer_queue,
                                                   self.weight_queue,
+                                                  self.mean_return_shared,
+                                                  self.mean_final_return_shared,
                                                   self.status_shared,
                                                   self.train_tasks,
                                                   self.max_path_length,
@@ -243,6 +246,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 sample_tasks = np.random.choice(self.train_tasks, self.num_tasks_sample, replace=False)
                 print('sampled tasks', sample_tasks)
                 all_rets = []
+                final_rets = []
                 # TODO: score sampled data here as a proxy for eval
                 for i, idx in enumerate(sample_tasks):
                     print('task: {} / {}'.format(i, len(sample_tasks)))
@@ -258,14 +262,17 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     if self.num_steps_posterior > 0:
                         rets = self.collect_data(self.num_steps_posterior, 1, self.update_post_train, max_trajs=10)
                         all_rets += rets
+                        final_rets += [rets[-1]]
                     # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
                     if self.num_extra_rl_steps_posterior > 0:
                         rets = self.collect_data(self.num_extra_rl_steps_posterior, 1, self.update_post_train, add_to_enc_buffer=False, max_trajs=10)
                         all_rets += rets
+                        final_rets += [rets[-1]]
 
                 # log returns from data collection
                 avg_data_collection_returns = np.mean(all_rets)
-                self.loggers[0].record_tabular('AvgDataCollectionReturns', avg_data_collection_returns)
+                avg_final_collection_returns = np.mean(final_rets)
+                self.log_data_collection_returns(avg_data_collection_returns, avg_final_collection_returns)
 
             print('training')
             # sample train tasks and compute gradient updates on parameters
@@ -311,6 +318,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         Do anything before the main training phase.
         """
         pass
+
+    def log_data_collection_returns(self, avg_overall_collection_returns, avg_final_collection_returns):
+        self.loggers[0].record_tabular('AvgDataCollectionReturns', avg_overall_collection_returns)
+        self.loggers[0].record_tabular('AvgFinalDataCollectionReturns', avg_final_collection_returns)
 
     def collect_data(self, num_samples, resample_z_rate, update_posterior_rate, add_to_enc_buffer=True, max_trajs=np.inf):
         '''
@@ -383,7 +394,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 self.update_buffer(self.enc_replay_buffer, enc_buffer_idx, enc_buffer_paths)
                         # log returns from data collection
         avg_data_collection_returns = self.mean_return_shared.value
-        self.loggers[0].record_tabular('AvgDataCollectionReturns', avg_data_collection_returns)
+        avg_final_data_collection_returns = self.mean_final_return_shared.value
+        self.log_data_collection_returns(avg_data_collection_returns, avg_final_data_collection_returns)
 
         # print("Start joining")
         # self.collect_data_process.terminate()  # this seems to break something?
@@ -656,9 +668,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         avg_test_return = np.mean(test_final_returns)
         avg_train_online_return = np.mean(np.stack(train_online_returns), axis=0)
         avg_test_online_return = np.mean(np.stack(test_online_returns), axis=0)
-        self.eval_statistics['AverageTrainReturn_all_train_tasks'] = train_returns
-        self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
-        self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
+        self.eval_statistics['AverageOverallTrainReturn_all_train_tasks'] = train_returns
+        self.eval_statistics['AverageFinalReturn_all_train_tasks'] = avg_train_return
+        self.eval_statistics['AverageFinalReturn_all_test_tasks'] = avg_test_return
         self.loggers[1].save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
         self.loggers[1].save_extra_data(avg_test_online_return, path='online-test-epoch{}'.format(epoch))
 
