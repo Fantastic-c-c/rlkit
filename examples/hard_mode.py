@@ -32,9 +32,15 @@ def datetimestamp(divider=''):
 def experiment(variant):
     ptu.set_gpu_mode(variant['use_gpu'], variant['gpu_id'])
 
+    train_test = HARD_MODE_CLS_DICT['train']
+    train_test.update(HARD_MODE_CLS_DICT['test'])
+
+    train_test_args = HARD_MODE_ARGS_KWARGS['train']
+    train_test_args.update(HARD_MODE_ARGS_KWARGS['test'])
+
     env = MultiClassMultiTaskEnv(
-        task_env_cls_dict=HARD_MODE_CLS_DICT['train'],
-        task_args_kwargs=HARD_MODE_ARGS_KWARGS['train'],
+        task_env_cls_dict=train_test,
+        task_args_kwargs=train_test_args,
         sample_goals=True,
         obs_type='plain',
         sample_all=True,
