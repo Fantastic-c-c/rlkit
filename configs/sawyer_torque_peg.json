@@ -3,7 +3,7 @@
     "n_train_tasks": 1,
     "n_eval_tasks": 1,
     "env_params": {
-        "control_timestep": 0.0125,
+        "control_timestep": 0.05,
         "n_tasks": 1,
         "randomize_tasks": false
     },
@@ -26,9 +26,7 @@
     }
     ,
     "util_params": {
-        "debug": 0
+        "debug": 1,
+        "base_log_dir": "output/peg"
     }
 }
-
-
-
