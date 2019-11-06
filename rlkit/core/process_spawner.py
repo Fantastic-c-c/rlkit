@@ -15,13 +15,14 @@ from rlkit.torch.sac.policies import TanhGaussianPolicy
 
 
 class ProcessSpawner:
-    def __init__(self, buffer_queue, weight_queue, mean_return_shared, mean_final_return_shared, status_shared, train_tasks, max_path_length, num_tasks_sample, num_steps_prior, num_steps_posterior,
+    def __init__(self, buffer_queue, weight_queue, mean_return_shared, mean_final_return_shared, n_env_steps_shared, status_shared, train_tasks, max_path_length, num_tasks_sample, num_steps_prior, num_steps_posterior,
                  num_extra_rl_steps_posterior, update_post_train, replay_buffer_dict_key, enc_replay_buffer_dict_key,
                  embedding_batch_size, algo_params, latent_dim, net_size):
         self.buffer_queue = buffer_queue
         self.weight_queue = weight_queue
         self.mean_return_shared = mean_return_shared
         self.mean_final_return_shared = mean_final_return_shared
+        self.n_env_steps_shared = n_env_steps_shared
         self.status_shared = status_shared
 
         self.train_tasks = train_tasks
@@ -41,9 +42,9 @@ class ProcessSpawner:
         self.latent_dim = latent_dim
         self.net_size = net_size
 
-    def spawn_process(self, enc_replay_buffer, env, n_env_steps_shared):
+    def spawn_process(self, enc_replay_buffer, env):
         return mp.Process(target=self.collect_data_routine, args=(self.buffer_queue, self.weight_queue,
-                                                                  enc_replay_buffer, env, n_env_steps_shared,
+                                                                  enc_replay_buffer, env, self.n_env_steps_shared,
                                                                   self.mean_return_shared, self.mean_final_return_shared,
                                                                   self.status_shared))
 
@@ -93,7 +94,7 @@ class ProcessSpawner:
             sample_tasks = np.random.choice(self.train_tasks, self.num_tasks_sample, replace=False)
             print('sampled tasks', sample_tasks)
             all_rets = []
-            final_rets = []
+            all_final_rets = []
             # TODO: score sampled data here as a proxy for eval
             for i, idx in enumerate(sample_tasks):
                 print('task: {} / {}'.format(i, len(sample_tasks)))
@@ -108,22 +109,22 @@ class ProcessSpawner:
                                                    agent, self.num_steps_prior, 1, np.inf, max_trajs=10)
                 # collect some trajectories with z ~ posterior
                 if self.num_steps_posterior > 0:
-                    rets = self.collect_data_parallel(task_idx, buffer_queue, enc_replay_buffer, n_env_steps_shared,
+                    rets, final_rets = self.collect_data_parallel(task_idx, buffer_queue, enc_replay_buffer, n_env_steps_shared,
                                                       sampler, agent, self.num_steps_posterior, 1, self.update_post_train,
                                                       max_trajs=10)
                     all_rets += rets
-                    final_rets += [rets[-1]]
+                    all_final_rets += final_rets
                 # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
                 if self.num_extra_rl_steps_posterior > 0:
-                    rets = self.collect_data_parallel(task_idx, buffer_queue, enc_replay_buffer, n_env_steps_shared,
+                    rets, final_rets = self.collect_data_parallel(task_idx, buffer_queue, enc_replay_buffer, n_env_steps_shared,
                                                       sampler, agent, self.num_extra_rl_steps_posterior, 1,
                                                       self.update_post_train, add_to_enc_buffer=False, max_trajs=10)
                     all_rets += rets
-                    final_rets += [rets[-1]]
+                    all_final_rets += final_rets
             print("FINISHED COLLECTING DATA")
             status_shared.value = 1
             mean_return_shared.value = np.mean(all_rets)
-            mean_final_return_shared.value = np.mean(final_rets)
+            mean_final_return_shared.value = np.mean(all_final_rets)
             print("EXITING")
 
     def collect_data_parallel(self, task_idx, buffer_queue, enc_replay_buffer, n_env_steps_shared, sampler, agent,
@@ -145,12 +146,15 @@ class ProcessSpawner:
 
         num_transitions, num_trajs = 0, 0
         all_rets = []
+        all_final_rets = []
         posterior_samples = False
         while num_transitions < num_samples and num_trajs < max_trajs:
             paths, n_samples = sampler.obtain_samples(max_samples=num_samples - num_transitions,
                                                       max_trajs=update_posterior_rate,
                                                       accum_context=False,
                                                       resample=resample_z_rate)
+            # for path in paths:
+            #     print("PATH: " + str(path['rewards']))
             num_transitions += n_samples
             num_trajs += len(paths)
             print("ADDED TO REP BUFFER: " + str(len(paths)))
@@ -158,6 +162,7 @@ class ProcessSpawner:
             # compute returns on collected samples
             if posterior_samples:
                 all_rets += [eval_util.get_average_returns([p]) for p in paths]
+                all_final_rets += [eval_util.get_average_final_returns([p]) for p in paths]
             if add_to_enc_buffer:
                 print("ADDED TO ENC BUFFER: " + str(len(paths)))
                 buffer_dict[self.enc_replay_buffer_dict_key] = (task_idx, paths)
@@ -169,7 +174,7 @@ class ProcessSpawner:
         with n_env_steps_shared.get_lock():
             n_env_steps_shared.value += num_transitions
         # gt.stamp('sample')  # TODO: make stamping work for parallel?
-        return all_rets
+        return all_rets, all_final_rets
 
     def prepare_encoder_data(self, obs, act, rewards):
         ''' prepare context for encoding '''

@@ -1,6 +1,6 @@
 {
     "env_name": "sawyer_reach_real_3d",
-    "path_to_checkpoint": "/home/justin/Documents/rlkit/output/sawyer-reach-real-3d/2019_10_02_17_25_34",
+    "path_to_checkpoint": "",
     "n_train_tasks": 1,
     "n_eval_tasks": 1,
     "continue_training": 0,
@@ -8,22 +8,22 @@
         "n_tasks": 2,
         "randomize_tasks": 0,
         "action_mode": "position",
-        "constant_hz": 0
+        "constant_hz": 1
     }
     ,
     "algo_params": {
         "parallelize_data_collection": 1,
-        "num_initial_steps": 150,
+        "num_initial_steps": 450,
         "num_iterations": 30,
-        "num_steps_prior": 150,
+        "num_steps_prior": 450,
         "num_steps_posterior": 0,
-        "num_extra_rl_steps_posterior": 150,
+        "num_extra_rl_steps_posterior": 450,
         "num_train_steps_per_itr": 1,
         "eval_interval": 5,
-        "num_steps_per_eval": 45,
+        "num_steps_per_eval": 135,
         "num_task_eval": 1,
         "num_evals": 1,
-        "max_path_length": 15,
+        "max_path_length": 45,
         "num_tasks_sample": 1,
         "reward_scale": 100.0,
         "kl_lambda": 0.1,

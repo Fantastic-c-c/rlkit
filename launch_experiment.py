@@ -34,8 +34,7 @@ def experiment(variant):
         env = NormalizedBoxEnv(MultitaskSawyerReachEnv(**variant['env_params']))
     elif ("sawyer_torque_reach_real" in variant['env_name']):
         from rlkit.envs.sawyer_torque_reach_real import PearlSawyerReachXYZTorqueEnv
-        env = NormalizedBoxEnv(PearlSawyerReachXYZTorqueEnv(**variant['env_params']),
-                               variant["algo_params"]["reward_scale"])
+        env = NormalizedBoxEnv(PearlSawyerReachXYZTorqueEnv(**variant['env_params']))
     else:
         env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
     tasks = env.get_all_task_idx()

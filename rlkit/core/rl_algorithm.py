@@ -161,6 +161,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                                                   self.weight_queue,
                                                   self.mean_return_shared,
                                                   self.mean_final_return_shared,
+                                                  self.n_env_steps_shared,
                                                   self.status_shared,
                                                   self.train_tasks,
                                                   self.max_path_length,
@@ -203,9 +204,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         gt.set_def_unique(False)
         self._current_path_builder = PathBuilder()
 
-        if self.train_statistics is None:
-            self.train_statistics = OrderedDict()
-
         # at each iteration, we first collect data from tasks, perform meta-updates, then try to evaluate
         for it_ in gt.timed_for(
                 range(self.num_iterations),
@@ -246,7 +244,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 sample_tasks = np.random.choice(self.train_tasks, self.num_tasks_sample, replace=False)
                 print('sampled tasks', sample_tasks)
                 all_rets = []
-                final_rets = []
+                all_final_rets = []
                 # TODO: score sampled data here as a proxy for eval
                 for i, idx in enumerate(sample_tasks):
                     print('task: {} / {}'.format(i, len(sample_tasks)))
@@ -257,21 +255,21 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     # TODO: don't hardcode max_trajs
                     # collect some trajectories with z ~ prior
                     if self.num_steps_prior > 0:
-                        _ = self.collect_data(self.num_steps_prior, 1, np.inf, max_trajs=10)
+                        _, _ = self.collect_data(self.num_steps_prior, 1, np.inf, max_trajs=10)
                     # collect some trajectories with z ~ posterior
                     if self.num_steps_posterior > 0:
-                        rets = self.collect_data(self.num_steps_posterior, 1, self.update_post_train, max_trajs=10)
+                        rets, final_rets = self.collect_data(self.num_steps_posterior, 1, self.update_post_train, max_trajs=10)
                         all_rets += rets
-                        final_rets += [rets[-1]]
+                        all_final_rets += final_rets
                     # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
                     if self.num_extra_rl_steps_posterior > 0:
-                        rets = self.collect_data(self.num_extra_rl_steps_posterior, 1, self.update_post_train, add_to_enc_buffer=False, max_trajs=10)
+                        rets, final_rets = self.collect_data(self.num_extra_rl_steps_posterior, 1, self.update_post_train, add_to_enc_buffer=False, max_trajs=10)
                         all_rets += rets
-                        final_rets += [rets[-1]]
+                        all_final_rets += final_rets
 
                 # log returns from data collection
                 avg_data_collection_returns = np.mean(all_rets)
-                avg_final_collection_returns = np.mean(final_rets)
+                avg_final_collection_returns = np.mean(all_final_rets)
                 self.log_data_collection_returns(avg_data_collection_returns, avg_final_collection_returns)
 
             print('training')
@@ -294,6 +292,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     self._do_training(indices)
                     self._n_train_steps_total += 1
                 gt.stamp('train')
+
+            for key, value in self.train_statistics.items():
+                self.loggers[0].record_tabular(key, value)
 
             self.training_mode(False)
             self.train_statistics = None
@@ -339,6 +340,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
         num_transitions, num_trajs = 0, 0
         all_rets = []
+        all_final_rets = []
         posterior_samples = False
         while num_transitions < num_samples and num_trajs < max_trajs:
             paths, n_samples = self.sampler.obtain_samples(max_samples=num_samples - num_transitions,
@@ -351,6 +353,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             # compute returns on collected samples
             if posterior_samples:
                 all_rets += [eval_util.get_average_returns([p]) for p in paths]
+                all_final_rets += [eval_util.get_average_final_returns([p]) for p in paths]
             if add_to_enc_buffer:
                 self.enc_replay_buffer.add_paths(self.task_idx, paths)
             if update_posterior_rate != np.inf:
@@ -359,15 +362,12 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 posterior_samples = True
         self._n_env_steps_total += num_transitions
         gt.stamp('sample')
-        return all_rets
+        return all_rets, all_final_rets
 
     def start_new_collect_data_process(self):
-        self.collect_data_process = self.process_spawner.spawn_process(self.enc_replay_buffer, self.env,
-                                                                       self.n_env_steps_shared,
-                                                                       self.mean_return_shared)
+        self.collect_data_process = self.process_spawner.spawn_process(self.enc_replay_buffer, self.env)
 
     def update_buffer(self, buffer, idx, paths):
-        print("BUF: " + str(buffer) + " | IDX: " + str(idx) + " | LEN PATHS: " + str(len(paths)))
         buffer.add_paths(idx, paths)
 
     def update_parallel_weights(self):
@@ -415,9 +415,9 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             if self._eval_old_table_keys is not None:
                 print(self._eval_old_table_keys, '\n')
                 print(table_keys)
-                assert table_keys == self._eval_old_table_keys, (
-                    "Table keys cannot change from iteration to iteration."
-                )
+                if table_keys != self._eval_old_table_keys:
+                    print("Table keys cannot change from iteration to iteration. Skipping eval for now.")
+                    return
             self._eval_old_table_keys = table_keys
 
             logger.record_tabular(
