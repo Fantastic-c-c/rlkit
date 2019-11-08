@@ -162,9 +162,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         gt.set_def_unique(False)
         self._current_path_builder = PathBuilder()
 
-        if self.train_statistics is None:
-            self.train_statistics = OrderedDict()
-
         # at each iteration, we first collect data from tasks, perform meta-updates, then try to evaluate
         for it_ in gt.timed_for(
                 range(self.num_iterations),
@@ -220,7 +217,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
             # log returns from data collection
             avg_data_collection_returns = np.mean(all_rets)
-            print(all_rets)
             self.loggers[0].record_tabular('AvgDataCollectionReturns', avg_data_collection_returns)
 
             print('training')
@@ -232,6 +228,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             gt.stamp('train')
 
             self.training_mode(False)
+
+            # log training stats
+            for key, value in self.train_statistics.items():
+                self.loggers[0].record_tabular(key, value)
             self.train_statistics = None
 
             # eval
