@@ -1,4 +1,4 @@
-from sawyer_control.envs.sawyer_reaching import SawyerReachXYZEnv
+from sawyer_control.envs.sawyer_env_base import SawyerEnvBase
 from sawyer_control.coordinates import quat_2_euler, euler_2_rot, euler_2_quat
 from pyquaternion import Quaternion
 from rlkit.core.serializable import Serializable
@@ -11,16 +11,19 @@ from . import register_env
 
 
 @register_env('sawyer-peg-real')
-class MultitaskSawyerPegEnv(Serializable, SawyerReachXYZEnv):
+class MultitaskSawyerPegEnv(Serializable, SawyerEnvBase):
+    '''
+    sawyer peg insertion task
+    position / velocity control
+    '''
     def __init__(self,
             randomize_tasks=True,
             n_tasks=1,
-            goal_thresh=1, # don't terminate
             **kwargs):
         Serializable.quick_init(self, locals())
-        SawyerReachXYZEnv.__init__(self, config_name='laudri_peg_config', **kwargs)
+        # TODO: currently running controller at constant frequency
+        SawyerEnvBase.__init__(self, config_name='pearl_fjalar_config', constant_hz=True, **kwargs)
 
-        self.goal_thresh = goal_thresh
         #self.pos_control_reset_position = np.array([0.732, .0195, .267])
         # TODO make it easier by starting right above the hole
         self.pos_control_reset_position = np.array([.745, .045, .295])
@@ -34,8 +37,8 @@ class MultitaskSawyerPegEnv(Serializable, SawyerReachXYZEnv):
         # set ee position and angle safety box
         self.ee_angle_lows = np.array([-0.05, -0.05, -np.pi * .75])
         self.ee_angle_highs = np.array([0.05, 0.05, np.pi * .75])
-        self.ee_pos_lows = np.array([.671, -0.038, 0.195])
-        self.ee_pos_highs = np.array([.787, .090, .270])
+        self.ee_pos_lows = np.array([.65, -0.088, 0.195])
+        self.ee_pos_highs = np.array([.80, .150, .370])
         self.position_action_scale = .03 # max action is 3cm
 
 
@@ -43,7 +46,8 @@ class MultitaskSawyerPegEnv(Serializable, SawyerReachXYZEnv):
         if n_tasks == 1:
             self.goals = [np.array([.762, .0540, .1973])]
             # TODO fix me
-            self.goal_pose = np.array([.745, .045, .236, .373, .928, -.006, .005])
+            self.goal_pose = np.array([.762, .0540, .1973, .373, .928, -.006, .005]) # down and in front of starting pose
+            #self.goal_pose = np.array([.745, .045, .236, .373, .928, -.006, .005])
 
             self._goal = self.goals[0]
 
@@ -97,8 +101,8 @@ class MultitaskSawyerPegEnv(Serializable, SawyerReachXYZEnv):
         old_ee_pos = np.copy(target_ee_pos)
         target_ee_pos = np.clip(target_ee_pos, self.ee_pos_lows, self.ee_pos_highs)
         #self.logger.info('\n POSITION')
-        print('old', ee_pos)
-        print('new', target_ee_pos)
+        #print('old', ee_pos)
+        #print('new', target_ee_pos)
         if np.any(old_ee_pos - target_ee_pos):
             print('safety box violated, position clipped')
 
@@ -134,15 +138,15 @@ class MultitaskSawyerPegEnv(Serializable, SawyerReachXYZEnv):
         #print('new quat', quat_new)
         # TODO no rotation for now
         quat_new = self.goal_pose[3:]
-        self._move_to(target_ee_pos, quat_new)
+        target_pose = np.concatenate([target_ee_pos, quat_new])
+        self._move_to(target_pose)
 
-    def _move_to(self, target_pos, target_quat):
+    def _move_to(self, target_ee_pose, reset=False):
         # combine position and orientation and send to IK
-        target_ee_pose = np.concatenate((target_pos, target_quat))
         angles = self.request_ik_angles(target_ee_pose, self._get_joint_angles())
-        self.request_angle_action(angles, target_ee_pose, clip_joints=False)
+        self.request_angle_action_constant_rate(angles, target_ee_pose, clip_joints=False, reset=reset)
 
-    def _compute_reward(self, action, pose):
+    def compute_rewards(self, action, pose):
         # penalize the full pose
         # compute rotation matrix between goal and curent frame
         goal_quat = Quaternion(self.goal_pose[3:])
@@ -186,9 +190,9 @@ class MultitaskSawyerPegEnv(Serializable, SawyerReachXYZEnv):
         curr_error = self._pose_from_obs(self._get_obs()) - self.reset_pose
         counter = 1
         while np.any(np.abs(curr_error[:3]) > .005) or np.any(np.abs(curr_error[3:]) > .03) or counter > 200:
-            self._move_to(self.reset_pose[:3], self.reset_pose[3:])
+            self._move_to(self.reset_pose, reset=True)
             # TODO: seems like we might need this while waiting for ROS to complete the action?
-            time.sleep(.05)
+            #time.sleep(.05)
             curr_error = self._pose_from_obs(self._get_obs()) - self.reset_pose
             print('curr error', curr_error)
             counter += 1
@@ -196,17 +200,17 @@ class MultitaskSawyerPegEnv(Serializable, SawyerReachXYZEnv):
 
     def step(self, action):
         # for now action is 4 DOF
-        print('before pose', self._get_obs()[:3])
+        #print('before pose', self._get_obs()[:3])
         s = time.time()
         self._move_by(action)
         # TODO: seems like we might need this while waiting for ROS to complete the action?
-        time.sleep(.05)
+        #time.sleep(.05)
         e = time.time()
         obs = self._get_obs()
         pose = self._pose_from_obs(obs)
-        print('after pose', pose[:3])
+        #print('after pose', pose[:3])
         # reward based on position only for now
-        reward, points = self._compute_reward(action, pose)
+        reward, points = self.compute_rewards(action, pose)
         print('reward', reward)
         info = self._get_info()
         done = False
