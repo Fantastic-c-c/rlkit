@@ -1,5 +1,5 @@
 {
-    "env_name": "torque-peg-insert",
+    "env_name": "torque-peg-inclined-box",
     "n_train_tasks": 1,
     "n_eval_tasks": 1,
 
@@ -7,7 +7,7 @@
         "n_tasks": 1,
         "randomize_tasks": false
     },
-    "itr": 52,
+    "itr":490,
 
     "algo_params": {
         "num_initial_steps": 300,

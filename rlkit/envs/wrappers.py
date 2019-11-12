@@ -149,9 +149,9 @@ class CameraWrapper(object):
         viewer = mujoco_py.MjRenderContextOffscreen(sim, device_id=self.device_id)
         camera = viewer.cam
         camera.type = 0 # 0 free camera, 1 is track, 2 is fixed
-        camera.elevation = 0 # distance above or below origin plane
+        camera.elevation = -10 # distance above or below origin plane
         camera.azimuth = 220 # rotation around the vertical axis
-        camera.distance = self._wrapped_env.model.stat.extent * .7
+        camera.distance = self._wrapped_env.model.stat.extent*0.7
         sim.add_render_context(viewer)
 
     def __getattr__(self, attrname):

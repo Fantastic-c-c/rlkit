@@ -31,6 +31,7 @@ def sim_policy(variant, num_trajs, save_video):
     eval_tasks=list(tasks[-variant['n_eval_tasks']:])
     print('testing on {} test tasks, {} trajectories each'.format(len(eval_tasks), num_trajs))
 
+    # import pdb; pdb.set_trace()
     # instantiate networks
     latent_dim = variant['latent_size']
     context_encoder = latent_dim * 2 if variant['algo_params']['use_information_bottleneck'] else latent_dim
