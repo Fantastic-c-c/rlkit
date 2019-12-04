@@ -113,7 +113,6 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
         next_obs, reward, done, info = wrapped_step
         if self._should_normalize:
             next_obs = self._apply_normalize_obs(next_obs)
-        print("HELLO: " + str(reward * self._reward_scale))
         return next_obs, reward * self._reward_scale, done, info
 
     def __str__(self):

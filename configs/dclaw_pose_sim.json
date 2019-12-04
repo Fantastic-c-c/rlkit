@@ -1,0 +1,30 @@
+{
+    "env_name": "dclaw-pose-sim",
+    "n_train_tasks": 1,
+    "n_eval_tasks": 1,
+    "continue_training": 0,
+    "env_params": {
+        "n_tasks": 2,
+        "randomize_tasks": 0
+    }
+    ,
+    "algo_params": {
+        "max_path_length": 1500,
+        "num_initial_steps": 15000,
+        "num_iterations": 100,
+        "num_steps_prior": 15000,
+        "num_steps_posterior": 0,
+        "num_extra_rl_steps_posterior": 15000,
+        "num_train_steps_per_itr": 2000,
+        "eval_interval": 5,
+        "num_steps_per_eval": 4500,
+        "num_task_eval": 1,
+        "num_evals": 1,
+        "num_tasks_sample": 1,
+        "reward_scale": 10.0,
+        "kl_lambda": 0.1,
+        "dump_eval_paths": 1,
+        "save_replay_buffer": 1
+    }
+}
+

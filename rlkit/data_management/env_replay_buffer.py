@@ -16,7 +16,7 @@ class MultiTaskReplayBuffer(object):
         :param env:
         :param tasks: for multi-task setting
         """
-        self.env = env
+        # self.env = env
         self._ob_space = env.observation_space
         self._action_space = env.action_space
         self.task_buffers = dict([(idx, SimpleReplayBuffer(

@@ -29,15 +29,7 @@ from rlkit.launchers.send_email import _send_email
 
 def experiment(variant):
     # create multi-task environment and sample tasks
-    if ("sawyer_reach_real" in variant['env_name']):  # We need a separate import because this can only be done when on a ROS computer
-        from rlkit.envs.sawyer_reach_real import MultitaskSawyerReachEnv
-        env = NormalizedBoxEnv(MultitaskSawyerReachEnv(**variant['env_params']))
-    elif ("sawyer-torque-reach-real" in variant['env_name']):
-        from rlkit.envs.sawyer_torque_reach_real import PearlSawyerReachXYZTorqueEnv
-        env = NormalizedBoxEnv(PearlSawyerReachXYZTorqueEnv(**variant['env_params']),
-                               variant["algo_params"]["reward_scale"])
-    else:
-        env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
+    env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
     tasks = env.get_all_task_idx()
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -166,6 +158,8 @@ def experiment(variant):
             print('sizes', [t._size for t in algorithm.replay_buffer.task_buffers.values()])
         except:
             print('tried and failed to load initial data buffer')
+            print(algorithm.replay_buffer)
+            print(algorithm.enc_replay_buffer)
 
     # optional GPU mode
     ptu.set_gpu_mode(variant['util_params']['use_gpu'], variant['util_params']['gpu_id'])

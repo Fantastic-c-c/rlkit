@@ -59,6 +59,9 @@ class PointEnv(Env):
     def get_all_task_idx(self):
         return range(len(self.goals))
 
+    def get_tasks(self):
+        return self.goals
+
     def reset_model(self):
         # reset to a random location on the unit square
         #self._state = np.random.uniform(-1., 1., size=(2,))
