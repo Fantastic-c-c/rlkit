@@ -22,9 +22,13 @@ class DClawPoseEnv(BaseDClawPose):
             ]
         print(self.goals)
         assert len(self.goals) == n_tasks, "The number of goals should equal the number of tasks"
+        self.reset_task(0)  # should this be random?
 
     def get_all_task_idx(self):
         return range(len(self.goals))
+
+    def get_goal(self):
+        return self._desired_pos
 
     def reset_task(self, idx):
         self._desired_pos = self.goals[idx]
