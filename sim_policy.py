@@ -71,6 +71,7 @@ def sim_policy(variant, num_trajs, save_video):
         policy.load_state_dict(checkpoint['policy_weights'])
 
     # loop through tasks collecting rollouts
+    
     os.makedirs(osp.join(data_dir, 'sim_policy'), exist_ok=True)
     all_rets = []
     for idx in eval_tasks:
@@ -80,7 +81,8 @@ def sim_policy(variant, num_trajs, save_video):
         paths = []
         for n in range(num_trajs):
             path = rollout(env, agent, max_path_length=variant['algo_params']['max_path_length'], accum_context=True, save_frames=False)
-            path['goal'] = env._goal
+            path['goal'] = env.get_goal()
+            print(path['goal'])
             paths.append(path)
             if n >= variant['algo_params']['num_exp_traj_eval']:
                 agent.infer_posterior(agent.context)
