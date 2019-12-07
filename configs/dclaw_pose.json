@@ -12,7 +12,7 @@
     ,
     "algo_params": {
         "max_path_length": 50,
-        "num_initial_steps": 500,
+        "num_initial_steps": 0,
         "num_iterations": 50,
         "num_steps_prior": 500,
         "num_steps_posterior": 0,
@@ -26,7 +26,8 @@
         "reward_scale": 10.0,
         "kl_lambda": 0.1,
         "dump_eval_paths": 0,
-        "save_replay_buffer": 1
+        "save_replay_buffer": 1,
+        "parallelize_data_collection": 1
     }
 }
 

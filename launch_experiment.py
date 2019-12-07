@@ -117,7 +117,9 @@ def experiment(variant):
         eval_tasks=list(tasks[-variant['n_eval_tasks']:]),
         nets=[agent, qf1, qf2, vf],
         latent_dim=latent_dim,
+        net_size=net_size,
         loggers=[logger, eval_logger],
+        algo_params=variant['algo_params'],
         **variant['algo_params']
     )
 
