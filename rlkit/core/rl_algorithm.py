@@ -231,6 +231,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 # save the initial replay buffer
                 print('saving the initial replay buffer')
                 logger.save_data_with_torch(self.replay_buffer, path='init_buffer')
+                exit()
 
             # sample data from train tasks
             print('epoch: {}, sampling training data'.format(it_))

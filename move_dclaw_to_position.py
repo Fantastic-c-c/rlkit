@@ -3,7 +3,7 @@ from rlkit.envs.dclaw_pose import DClawPoseEnv
 # Create a hardware environment for the D'Claw turn task.
 # `device_path` refers to the device port of the Dynamixel USB device.
 # e.g. '/dev/ttyUSB0' for Linux, '/dev/tty.usbserial-*' for Mac OS.
-env = DClawPoseEnv(device_path='/dev/ttyUSB1', frame_skip=60)
+env = DClawPoseEnv(device_path='/dev/ttyUSB1', frame_skip=60, n_tasks=20)
 
 # Reset the environent and perform a random action.
 env.reset()
