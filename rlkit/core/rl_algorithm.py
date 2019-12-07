@@ -580,7 +580,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
                 p['rewards'] = sparse_rewards
 
-        goal = self.env._goal
+        goal = self.env.get_goal()
         for path in paths:
             path['goal'] = goal # goal
 
