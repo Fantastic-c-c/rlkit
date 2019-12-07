@@ -1,12 +1,13 @@
 {
     "env_name": "dclaw-pose",
-    "n_train_tasks": 8,
-    "n_eval_tasks": 2,
+    "n_train_tasks": 1,
+    "n_eval_tasks": 1,
     "continue_training": 0,
     "env_params": {
-        "n_tasks": 10,
+        "n_tasks": 2,
         "randomize_tasks": 0,
-        "reward_keys":["pose_error_cost"]
+        "reward_keys":["pose_error_cost"],
+        "device_path": "/dev/ttyUSB0"
     }
     ,
     "algo_params": {
@@ -19,9 +20,9 @@
         "num_train_steps_per_itr": 2000,
         "eval_interval": 5,
         "num_steps_per_eval": 150,
-        "num_task_eval": 2,
+        "num_task_eval": 1,
         "num_evals": 1,
-        "num_tasks_sample": 3,
+        "num_tasks_sample": 1,
         "reward_scale": 10.0,
         "kl_lambda": 0.1,
         "dump_eval_paths": 0,

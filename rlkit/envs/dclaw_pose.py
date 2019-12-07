@@ -3,7 +3,7 @@ from robel.dclaw.pose import BaseDClawPose
 from . import register_env
 
 
-@register_env('dclaw-pose-sim')
+@register_env('dclaw-pose')
 class DClawPoseEnv(BaseDClawPose):
     def __init__(self,
                  randomize_tasks=True,
