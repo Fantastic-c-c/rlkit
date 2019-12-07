@@ -7,6 +7,7 @@ import time
 from webcam import Webcam
 
 from rlkit.torch.sac.policies import MakeDeterministic
+from rlkit
 from rlkit.core import eval_util
 from rlkit.samplers.in_place import InPlacePathSampler
 from rlkit.envs.wrappers import NormalizedBoxEnv
@@ -36,17 +37,7 @@ class PolicyRunner:
             from rlkit.envs.sawyer_xyreach_sim_env import PearlSawyerReachXYSimEnv
             self.env = NormalizedBoxEnv(PearlSawyerReachXYSimEnv())
         else:
-            from rlkit.envs.sawyer_reach_real_env import PearlSawyerReachXYZEnv
-            self.env = NormalizedBoxEnv(PearlSawyerReachXYZEnv(config_name=ROBOT_CONFIG,
-                                                      action_mode=ACTION_MODE,
-                                                      max_speed=MAX_SPEED,
-                                                      position_action_scale=1/7, # 1/30
-                                                      height_2d=None,
-
-                                                      reward_type='hand_distance',  # no_y
-                                                      goal_low=np.array([0.45, -0.3, 0.2]),
-                                                      goal_high=np.array([0.65, 0.3, 0.4]),
-                                                      ))
+            env = NormalizedBoxEnv(DClawPoseEnv(**env_params))
 
 
         obs_dim = int(np.prod(self.env.observation_space.shape))

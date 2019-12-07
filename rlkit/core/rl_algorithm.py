@@ -301,7 +301,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
             # eval
             started_eval = False
-            if it_ % self.eval_interval == 0 and it_ != 0:
+            if self.eval_interval > 0 and it_ % self.eval_interval == 0 and it_ != 0:
                 self._try_to_eval(it_)
                 gt.stamp('eval')
                 started_eval = True

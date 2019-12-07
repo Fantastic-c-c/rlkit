@@ -21,7 +21,7 @@
         "num_steps_posterior": 0,
         "num_extra_rl_steps_posterior": 500,
         "num_train_steps_per_itr": 1,
-        "eval_interval": 0,
+        "eval_interval": -1,
         "num_steps_per_eval": 150,
         "num_task_eval": 1,
         "num_evals": 1,
