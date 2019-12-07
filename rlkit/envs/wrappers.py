@@ -79,6 +79,9 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
         ub = np.ones(self._wrapped_env.action_space.shape)
         self.action_space = Box(-1 * ub, ub)
 
+    def wrapped_env(self):
+        return self._wrapped_env
+
     def estimate_obs_stats(self, obs_batch, override_values=False):
         if self._obs_mean is not None and not override_values:
             raise Exception("Observation mean and std already set. To "

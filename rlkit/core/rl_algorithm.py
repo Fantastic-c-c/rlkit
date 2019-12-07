@@ -59,6 +59,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             plotter=None,
             loggers=None,
             algo_params=None,
+            env_params=None,
             latent_dim=None,
             net_size=None,
     ):
@@ -172,7 +173,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                                                   self.replay_buffer_dict_key,
                                                   self.enc_replay_buffer_dict_key,
                                                   self.embedding_batch_size,
-                                                  algo_params, latent_dim, net_size)
+                                                  algo_params, env_params, latent_dim, net_size)
 
 
     def make_exploration_policy(self, policy):
@@ -363,7 +364,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         return all_rets, all_final_rets
 
     def start_new_collect_data_process(self):
-        self.collect_data_process = self.process_spawner.spawn_process(self.enc_replay_buffer, self.env)
+        self.collect_data_process = self.process_spawner.spawn_process(self.enc_replay_buffer) #, self.env)
 
     def update_buffer(self, buffer, idx, paths):
         buffer.add_paths(idx, paths)

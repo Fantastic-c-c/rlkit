@@ -1,24 +1,27 @@
 {
     "env_name": "dclaw-pose",
+    "path_to_checkpoint": "/home/justinlin/Documents/rlkit/output/dclaw-pose/single_task_pose",
     "n_train_tasks": 1,
     "n_eval_tasks": 1,
     "continue_training": 0,
+    "dummy_env": 1,
     "env_params": {
         "n_tasks": 2,
         "randomize_tasks": 0,
         "reward_keys":["pose_error_cost"],
-        "device_path": "/dev/ttyUSB0"
+        "device_path": "/dev/ttyUSB0",
+        "frame_skip": 60
     }
     ,
     "algo_params": {
         "max_path_length": 50,
-        "num_initial_steps": 0,
+        "num_initial_steps": 500,
         "num_iterations": 50,
         "num_steps_prior": 500,
         "num_steps_posterior": 0,
         "num_extra_rl_steps_posterior": 500,
-        "num_train_steps_per_itr": 2000,
-        "eval_interval": 5,
+        "num_train_steps_per_itr": 1,
+        "eval_interval": 0,
         "num_steps_per_eval": 150,
         "num_task_eval": 1,
         "num_evals": 1,

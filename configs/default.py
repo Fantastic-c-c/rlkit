@@ -2,6 +2,7 @@
 # all experiments should modify these settings only as needed
 default_config = dict(
     env_name='cheetah-dir',
+    dummy_env=0,
     n_train_tasks=2,
     n_eval_tasks=2,
     latent_size=5, # dimension of the latent context vector

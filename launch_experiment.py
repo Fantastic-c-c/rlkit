@@ -15,7 +15,9 @@ import traceback
 import torch
 import logging
 
+from gym.spaces import Box
 from rlkit.envs import ENVS
+from rlkit.envs.dummy_env import DummyEnv
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.torch.sac.policies import TanhGaussianPolicy
 from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
@@ -29,7 +31,14 @@ from rlkit.launchers.send_email import _send_email
 
 def experiment(variant):
     # create multi-task environment and sample tasks
-    env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
+    if variant['dummy_env']:
+        assert variant['algo_params']['eval_interval'] == 0, "Evaling does not work in this mode."
+        # For Dclaw pose reaching
+        obs_dim = Box(-np.inf, np.inf, (27,))
+        action_dim = Box(-1, 1, (9,))
+        env = DummyEnv(variant['env_params']['n_tasks'], obs_dim, action_dim)
+    else:
+        env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
     tasks = env.get_all_task_idx()
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
@@ -120,6 +129,7 @@ def experiment(variant):
         net_size=net_size,
         loggers=[logger, eval_logger],
         algo_params=variant['algo_params'],
+        env_params=variant['env_params'],
         **variant['algo_params']
     )
 
