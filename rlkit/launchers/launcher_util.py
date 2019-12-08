@@ -15,7 +15,7 @@ import datetime
 import dateutil.tz
 import numpy as np
 
-from rlkit.core.logger import Logger
+from rlkit.core import logger
 from rlkit.launchers import config
 from rlkit.torch.pytorch_util import set_gpu_mode
 
@@ -26,7 +26,6 @@ def recursive_items(dictionary):
     """
     Get all (key, item) recursively in a potentially recursive dictionary.
     Usage:
-
     ```
     x = {
         'foo' : {
@@ -117,7 +116,6 @@ def run_experiment_here(
 ):
     """
     Run an experiment locally without any serialization.
-
     :param experiment_function: Function. `variant` will be passed in as its
     only argument.
     :param exp_prefix: Experiment prefix for the save file.
@@ -201,7 +199,6 @@ def create_simple_exp_name():
 def create_log_dir(exp_prefix, exp_id=None, seed=0, base_log_dir=None):
     """
     Creates and returns a unique log directory.
-
     :param exp_prefix: name of log directory
     :param exp_id: name of experiment category (e.g. the env)
     :return:
@@ -231,19 +228,13 @@ def setup_logger(
         log_dir=None,
         git_info=None,
         script_name=None,
-        log_dir_name=None,
 ):
     """
     Set up logger to have some reasonable default settings.
-
     Will save log output to
-
         based_log_dir/exp_prefix/exp_name.
-
     exp_name will be auto-generated to be unique.
-
     If log_dir is specified, then that directory is used as the output dir.
-
     :param exp_prefix: The sub-directory for this specific experiment.
     :param exp_id: The number of the specific experiment run within this
     experiment.
@@ -258,18 +249,12 @@ def setup_logger(
     :param log_dir:
     :param git_info:
     :param script_name: If set, save the script name to this.
-    :param log_dir_name: If set, set log_dir to this.
     :return:
     """
-    # make the logger object
-    logger = Logger()
     first_time = log_dir is None
     if first_time:
-        if log_dir_name is None:
-            log_dir = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
-                                    base_log_dir=base_log_dir)
-        else:
-            log_dir = log_dir_name
+        log_dir = create_log_dir(exp_prefix, exp_id=exp_id, seed=seed,
+                                 base_log_dir=base_log_dir)
 
     if variant is not None:
         logger.log("Variant:")
@@ -307,7 +292,7 @@ def setup_logger(
     if script_name is not None:
         with open(osp.join(log_dir, "script_name.txt"), "w") as f:
             f.write(script_name)
-    return logger, log_dir
+    return log_dir
 
 
 def dict_to_safe_json(d):
@@ -343,7 +328,6 @@ def safe_json(data):
 def set_seed(seed):
     """
     Set the seed for all the possible random number generators.
-
     :param seed:
     :return: None
     """
@@ -363,12 +347,10 @@ def reset_execution_environment():
 
 def query_yes_no(question, default="yes"):
     """Ask a yes/no question via raw_input() and return their answer.
-
     "question" is a string that is presented to the user.
     "default" is the presumed answer if the user just hits <Enter>.
         It must be "yes" (the default), "no" or None (meaning
         an answer is required of the user).
-
     The "answer" return value is True for "yes" or False for "no".
     """
     valid = {"yes": True, "y": True, "ye": True,
