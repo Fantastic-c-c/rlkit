@@ -1,15 +1,15 @@
 {
     "env_name": "dclaw-pose",
-    "path_to_checkpoint": "/media/justinlin/harddisk/justinlin/pearl_output/dclaw-pose/pose_t20_r100",
-    "n_train_tasks": 16,
-    "n_eval_tasks": 4,
+    "path_to_checkpoint": "",
+    "n_train_tasks": 32,
+    "n_eval_tasks": 8,
     "continue_training": 0,
-    "dummy_env": 1,
+    "dummy_env": 0,
     "env_params": {
-        "n_tasks": 20,
-        "randomize_tasks": 0,
+        "n_tasks": 40,
+        "randomize_tasks": 1,
         "reward_keys":["pose_error_cost"],
-        "device_path": "/dev/ttyUSB0",
+        "device_path": "/dev/ttyUSB2",
         "frame_skip": 60
     }
     ,
@@ -25,7 +25,7 @@
         "num_steps_per_eval": 150,
         "num_task_eval": 1,
         "num_evals": 1,
-        "num_tasks_sample": 4,
+        "num_tasks_sample": 6,
         "reward_scale": 100.0,
         "kl_lambda": 0.1,
         "dump_eval_paths": 0,

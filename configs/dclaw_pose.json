@@ -15,7 +15,7 @@
     ,
     "algo_params": {
         "max_path_length": 50,
-        "num_initial_steps": 500,
+        "num_initial_steps": 200,
         "num_iterations": 30,
         "num_steps_prior": 500,
         "num_steps_posterior": 0,
