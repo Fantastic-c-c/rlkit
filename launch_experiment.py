@@ -32,7 +32,7 @@ from rlkit.launchers.send_email import _send_email
 def experiment(variant):
     # create multi-task environment and sample tasks
     if variant['dummy_env']:
-        assert variant['algo_params']['eval_interval'] == 0, "Evaling does not work in this mode."
+        assert variant['algo_params']['eval_interval'] <= 0, "Evaling does not work in this mode."
         # For Dclaw pose reaching
         obs_dim = Box(-np.inf, np.inf, (27,))
         action_dim = Box(-1, 1, (9,))
@@ -190,6 +190,7 @@ def experiment(variant):
         pathlib.Path(pickle_dir).mkdir(parents=True, exist_ok=True)
 
     # run the algorithm
+    print("HELLO")
     algorithm.train()
 
 def deep_update_dict(fr, to):

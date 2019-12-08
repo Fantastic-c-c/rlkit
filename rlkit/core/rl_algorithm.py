@@ -203,6 +203,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         gt.reset()
         gt.set_def_unique(False)
         self._current_path_builder = PathBuilder()
+        print("Start of training")
 
         # at each iteration, we first collect data from tasks, perform meta-updates, then try to evaluate
         for it_ in gt.timed_for(
@@ -212,11 +213,15 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self._start_epoch(it_)
             self.training_mode(True)
 
+            print("1")
             # save model and optimizer parameters
             params = self.get_epoch_snapshot(-1)
+            print("2")
             logger.save_itr_params(-1, params)
+            print("3")
             # optionally save the current replay buffer
             if self.save_replay_buffer:
+                print("SAVING BUFFER")
                 logger.save_data_with_torch(self.replay_buffer, path='replay_buffer')
                 logger.save_data_with_torch(self.enc_replay_buffer, path='enc_replay_buffer')
 
@@ -231,7 +236,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 # save the initial replay buffer
                 print('saving the initial replay buffer')
                 logger.save_data_with_torch(self.replay_buffer, path='init_buffer')
-                exit()
 
             # sample data from train tasks
             print('epoch: {}, sampling training data'.format(it_))
@@ -553,9 +557,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         )
         if self.save_environment:
             data_to_save['env'] = self.training_env
-        if self.save_replay_buffer:
-            data_to_save['replay_buffer'] = self.replay_buffer
-            data_to_save['enc_replay_buffer'] = self.enc_replay_buffer
         if self.save_algorithm:
             data_to_save['algorithm'] = self
         return data_to_save
