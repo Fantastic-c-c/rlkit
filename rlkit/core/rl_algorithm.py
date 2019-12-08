@@ -303,7 +303,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                         # Respond to enc_buffer queries
                         while not self.enc_buffer_queries.empty():
                             try:
-                                task_idx = self.buffer_queue.get(block=False)
+                                task_idx = self.enc_buffer_queries.get(block=False)
                                 queried_batch = self.enc_replay_buffer.random_batch(task_idx, batch_size=self.embedding_batch_size,
                                                                sequence=self.recurrent)
                                 self.enc_buffer_responses.put(queried_batch)
