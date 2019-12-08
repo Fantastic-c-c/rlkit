@@ -17,10 +17,12 @@ from rlkit.torch.sac.policies import TanhGaussianPolicy
 
 
 class ProcessSpawner:
-    def __init__(self, buffer_queue, weight_queue, mean_return_shared, mean_final_return_shared, n_env_steps_shared, status_shared, train_tasks, max_path_length, num_tasks_sample, num_steps_prior, num_steps_posterior,
+    def __init__(self, buffer_queue, enc_buffer_queries, enc_buffer_responses, weight_queue, mean_return_shared, mean_final_return_shared, n_env_steps_shared, status_shared, train_tasks, max_path_length, num_tasks_sample, num_steps_prior, num_steps_posterior,
                  num_extra_rl_steps_posterior, update_post_train, replay_buffer_dict_key, enc_replay_buffer_dict_key,
                  embedding_batch_size, algo_params, env_params, latent_dim, net_size):
         self.buffer_queue = buffer_queue
+        self.enc_buffer_queries = enc_buffer_queries
+        self.enc_buffer_responses = enc_buffer_responses
         self.weight_queue = weight_queue
         self.mean_return_shared = mean_return_shared
         self.mean_final_return_shared = mean_final_return_shared
@@ -45,14 +47,12 @@ class ProcessSpawner:
         self.latent_dim = latent_dim
         self.net_size = net_size
 
-    def spawn_process(self, enc_replay_buffer, env=None):
-        return mp.Process(target=self.collect_data_routine, args=(self.buffer_queue, self.weight_queue,
-                                                                  enc_replay_buffer, env, self.env_params, self.n_env_steps_shared,
+    def spawn_process(self, env=None):
+        return mp.Process(target=self.collect_data_routine, args=(self.buffer_queue, self.weight_queue, env, self.env_params, self.n_env_steps_shared,
                                                                   self.mean_return_shared, self.mean_final_return_shared,
                                                                   self.status_shared))
 
-    def collect_data_routine(self, buffer_queue, weight_queue,
-                             enc_replay_buffer, env, env_params, n_env_steps_shared,
+    def collect_data_routine(self, buffer_queue, weight_queue, env, env_params, n_env_steps_shared,
                              mean_return_shared, mean_final_return_shared, status_shared):
         print("STARTED ROUTINE")
         if not env:
@@ -112,18 +112,18 @@ class ProcessSpawner:
                 # TODO: don't hardcode max_trajs
                 # collect some trajectories with z ~ prior
                 if self.num_steps_prior > 0:
-                    _ = self.collect_data_parallel(task_idx, buffer_queue, enc_replay_buffer, n_env_steps_shared, sampler,
+                    _ = self.collect_data_parallel(task_idx, buffer_queue, n_env_steps_shared, sampler,
                                                    agent, self.num_steps_prior, 1, np.inf, max_trajs=10)
                 # collect some trajectories with z ~ posterior
                 if self.num_steps_posterior > 0:
-                    rets, final_rets = self.collect_data_parallel(task_idx, buffer_queue, enc_replay_buffer, n_env_steps_shared,
+                    rets, final_rets = self.collect_data_parallel(task_idx, buffer_queue, n_env_steps_shared,
                                                       sampler, agent, self.num_steps_posterior, 1, self.update_post_train,
                                                       max_trajs=10)
                     all_rets += rets
                     all_final_rets += final_rets
                 # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
                 if self.num_extra_rl_steps_posterior > 0:
-                    rets, final_rets = self.collect_data_parallel(task_idx, buffer_queue, enc_replay_buffer, n_env_steps_shared,
+                    rets, final_rets = self.collect_data_parallel(task_idx, buffer_queue, n_env_steps_shared,
                                                       sampler, agent, self.num_extra_rl_steps_posterior, 1,
                                                       self.update_post_train, add_to_enc_buffer=False, max_trajs=10)
                     all_rets += rets
@@ -134,7 +134,7 @@ class ProcessSpawner:
             mean_final_return_shared.value = np.mean(all_final_rets)
             print("EXITING")
 
-    def collect_data_parallel(self, task_idx, buffer_queue, enc_replay_buffer, n_env_steps_shared, sampler, agent,
+    def collect_data_parallel(self, task_idx, buffer_queue, n_env_steps_shared, sampler, agent,
                               num_samples, resample_z_rate, update_posterior_rate, add_to_enc_buffer=True, max_trajs=np.inf):
         '''
         get trajectories from current env in batch mode with given policy
@@ -173,7 +173,7 @@ class ProcessSpawner:
                 print("ADDED TO ENC BUFFER: " + str(len(paths)))
                 buffer_dict[self.enc_replay_buffer_dict_key] = (task_idx, paths)
             if update_posterior_rate != np.inf:
-                context = self.prepare_context(task_idx, enc_replay_buffer)
+                context = self.prepare_context(task_idx)
                 agent.infer_posterior(context)
                 posterior_samples = True
             buffer_queue.put(buffer_dict)
@@ -189,9 +189,15 @@ class ProcessSpawner:
         task_data = torch.cat([obs, act, rewards], dim=2)
         return task_data
 
-    def prepare_context(self, idx, enc_replay_buffer):
+    def query_enc_buffer(self, idx):
+        self.enc_buffer_queries.put(idx)
+        queried_batch = self.enc_buffer_responses.get(True) # blocking
+        return queried_batch
+
+    def prepare_context(self, idx):
         ''' sample context from replay buffer and prepare it '''
-        batch = ptu.np_to_pytorch_batch(enc_replay_buffer.random_batch(idx, batch_size=self.embedding_batch_size, sequence=self.recurrent))
+        queried_batch = self.query_enc_buffer(idx)
+        batch = ptu.np_to_pytorch_batch(queried_batch)
         obs = batch['observations'][None, ...]
         act = batch['actions'][None, ...]
         rewards = batch['rewards'][None, ...]

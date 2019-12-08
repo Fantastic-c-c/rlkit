@@ -149,6 +149,8 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         if self.parallelize_data_collection:
             print("WE ARE PARALLEL")
             self.buffer_queue = mp.Queue()
+            self.enc_buffer_queries = mp.Queue()
+            self.enc_buffer_responses = mp.Queue()
             self.weight_queue = mp.Queue()
             self.replay_buffer_dict_key = "replay"
             self.enc_replay_buffer_dict_key = "enc"
@@ -157,8 +159,11 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.mean_return_shared = mp.Value('d', 0)
             self.mean_final_return_shared = mp.Value('d', 0)
             self.status_shared = mp.Value('i', 0)  # 0 is data being collected, 1 is data finished collected
+            self.recurrent = algo_params['recurrent']
 
             self.process_spawner = ProcessSpawner(self.buffer_queue,
+                                                  self.enc_buffer_queries,
+                                                  self.enc_buffer_responses,
                                                   self.weight_queue,
                                                   self.mean_return_shared,
                                                   self.mean_final_return_shared,
@@ -294,6 +299,16 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                         indices = np.random.choice(self.train_tasks, self.meta_batch)
                         self._do_training(indices)
                         self._n_train_steps_total += 1
+
+                        # Respond to enc_buffer queries
+                        while not self.enc_buffer_queries.empty():
+                            try:
+                                task_idx = self.buffer_queue.get(block=False)
+                                queried_batch = self.enc_replay_buffer.random_batch(task_idx, batch_size=self.embedding_batch_size,
+                                                               sequence=self.recurrent)
+                                self.enc_buffer_responses.put(queried_batch)
+                            except queue.Empty:
+                                break
                     gt.stamp('train')
                 gt.stamp('sample')  # this is not quite correct unles num_train_steps_per_itr is 1
                 self.halt_process_and_update()
@@ -375,7 +390,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         return all_rets, all_final_rets
 
     def start_new_collect_data_process(self):
-        self.collect_data_process = self.process_spawner.spawn_process(self.enc_replay_buffer) #, self.env)
+        self.collect_data_process = self.process_spawner.spawn_process() #, self.env)
 
     def update_buffer(self, buffer, idx, paths):
         buffer.add_paths(idx, paths)
