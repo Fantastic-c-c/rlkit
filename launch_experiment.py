@@ -144,11 +144,12 @@ def experiment(variant):
         data = []
         for p in paths:
             d = np.load(osp.join(variant['path_to_checkpoint'], name, p))
-            task = int(p[0])
+            task = int(p.split(".")[0])
             if 'enc' in name:
                 algorithm.enc_replay_buffer.import_data(task, d)
             else:
                 algorithm.replay_buffer.import_data(task, d)
+                print(task, algorithm.replay_buffer.task_buffers[task]._size)
     # if continuing training, load saved optimizer settings and replay buffers
     if variant['continue_training']:
         # TODO hacky, instantiate target vf net in this script?

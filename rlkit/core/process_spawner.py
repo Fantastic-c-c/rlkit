@@ -1,6 +1,6 @@
 import multiprocessing as mp
 try:
-    mp.set_start_method('fork')
+    mp.set_start_method('spawn')
 except RuntimeError:
     pass
 import numpy as np

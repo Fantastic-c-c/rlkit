@@ -1,36 +1,39 @@
 {
     "env_name": "dclaw-pose",
-    "path_to_checkpoint": "/home/justinlin/Documents/rlkit/output/dclaw-pose/single_task_30",
-    "n_train_tasks": 1,
-    "n_eval_tasks": 1,
+    "path_to_checkpoint": "/media/justinlin/harddisk/justinlin/pearl_output/dclaw-pose/pose_t40_r100",
+    "n_train_tasks": 32,
+    "n_eval_tasks": 8,
     "continue_training": 0,
     "dummy_env": 0,
     "env_params": {
-        "n_tasks": 2,
+        "n_tasks": 40,
         "randomize_tasks": 0,
         "reward_keys":["pose_error_cost"],
-        "device_path": "/dev/ttyUSB1",
+        "device_path": "/dev/ttyUSB2",
         "frame_skip": 60
     }
     ,
     "algo_params": {
         "max_path_length": 50,
         "num_initial_steps": 200,
-        "num_iterations": 30,
+        "num_iterations": 151,
         "num_steps_prior": 500,
         "num_steps_posterior": 0,
         "num_extra_rl_steps_posterior": 500,
-        "num_train_steps_per_itr": 500,
+        "num_train_steps_per_itr": 1000,
         "eval_interval": 10,
         "num_steps_per_eval": 150,
-        "num_task_eval": 1,
+        "num_task_eval": 3,
         "num_evals": 1,
-        "num_tasks_sample": 1,
-        "reward_scale": 10.0,
+        "num_tasks_sample": 4,
+        "reward_scale": 100.0,
         "kl_lambda": 0.1,
         "dump_eval_paths": 0,
         "save_replay_buffer": 1,
         "parallelize_data_collection": 0
+    },
+    "util_params": {
+        "base_log_dir": "/media/justinlin/harddisk/justinlin/pearl_output"
     }
 }
 
