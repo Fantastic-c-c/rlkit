@@ -213,15 +213,11 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self._start_epoch(it_)
             self.training_mode(True)
 
-            print("1")
             # save model and optimizer parameters
             params = self.get_epoch_snapshot(-1)
-            print("2")
             logger.save_itr_params(-1, params)
-            print("3")
             # optionally save the current replay buffer
             if self.save_replay_buffer:
-                print("SAVING BUFFER")
                 logger.save_data_with_torch(self.replay_buffer, path='replay_buffer')
                 logger.save_data_with_torch(self.enc_replay_buffer, path='enc_replay_buffer')
 

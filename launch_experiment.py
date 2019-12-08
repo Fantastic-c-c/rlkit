@@ -193,7 +193,6 @@ def experiment(variant):
         pathlib.Path(pickle_dir).mkdir(parents=True, exist_ok=True)
 
     # run the algorithm
-    print("HELLO")
     algorithm.train()
 
 def deep_update_dict(fr, to):

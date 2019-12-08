@@ -326,9 +326,5 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
             policy_optimizer=self.policy_optimizer.state_dict(),
             vf_optimizer=self.vf_optimizer.state_dict(),
             context_optimizer=self.context_optimizer.state_dict(),
-
-            # replay buffers
-            # replay_buffer = self.replay_buffer,
-            # enc_replay_buffer=self.enc_replay_buffer
         )
         return snapshot
