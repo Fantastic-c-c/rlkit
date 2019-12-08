@@ -1,6 +1,5 @@
 """
 Based on rllab's logger.
-
 https://github.com/rll/rllab
 """
 from enum import Enum
@@ -174,30 +173,14 @@ class Logger(object):
                 fd.flush()
             sys.stdout.flush()
 
-    def save_data_with_torch(data, path='torch_data', ext='.pth.tar'):
-        filename = osp.join(_snapshot_dir, path + ext)
+
+    def save_data_with_torch(self, data, path='torch_data', ext='.pth.tar'):
+        filename = osp.join(self._snapshot_dir, path + ext)
         torch.save(data, filename)
 
+    def record_tabular(self, key, val):
+        self._tabular.append((self._tabular_prefix_str + str(key), str(val)))
 
-    def save_with_numpy(data_dict, d='np_data', path='arr', ext='.npz'):
-        ''' save a dict of numpy arrays as npz '''
-        os.makedirs(osp.join(_snapshot_dir, d), exist_ok=True)
-        filename = osp.join(_snapshot_dir, d, path + ext)
-        np.savez_compressed(filename, **data_dict)
-
-    def save_data_with_torch(data, path='torch_data', ext='.pth.tar'):
-        filename = osp.join(_snapshot_dir, path + ext)
-        torch.save(data, filename)
-
-
-    def save_with_numpy(data_dict, d='np_data', path='arr', ext='.npz'):
-        ''' save a dict of numpy arrays as npz '''
-        os.makedirs(osp.join(_snapshot_dir, d), exist_ok=True)
-        filename = osp.join(_snapshot_dir, d, path + ext)
-        np.savez_compressed(filename, **data_dict)
-
-    def get_table_dict():
-        return dict(_tabular)
 
     def push_tabular_prefix(self, key):
         self._tabular_prefixes.append(key)
@@ -212,7 +195,6 @@ class Logger(object):
     def save_extra_data(self, data, path='extra_data', ext='.pkl'):
         """
         Data saved here will always override the last entry
-
         :param data: Something pickle'able.
         """
         file_name = osp.join(self._snapshot_dir, path + ext)
@@ -234,53 +216,9 @@ class Logger(object):
     def get_table_dict(self):
         return dict(self._tabular)
 
-    def dump_tabular(*args, **kwargs):
-        wh = kwargs.pop("write_header", None)
-        if len(_tabular) > 0:
-            if _log_tabular_only:
-                table_printer.print_tabular(_tabular)
-            else:
-                for line in tabulate(_tabular).split('\n'):
-                    log(line, *args, **kwargs)
-            tabular_dict = dict(_tabular)
-            # Also write to the csv files
-            # This assumes that the keys in each iteration won't change!
-            for tabular_fd in list(_tabular_fds.values()):
-                writer = csv.DictWriter(tabular_fd,
-                                        fieldnames=list(tabular_dict.keys()))
-                if wh or (wh is None and tabular_fd not in _tabular_header_written):
-                    writer.writeheader()
-                    _tabular_header_written.add(tabular_fd)
-                writer.writerow(tabular_dict)
-                tabular_fd.flush()
-            del _tabular[:]
 
-
-    def pop_prefix():
-        del _prefixes[-1]
-        global _prefix_str
-        _prefix_str = ''.join(_prefixes)
-
-
-    def save_itr_params(itr, params_dict):
-        ''' snapshot model parameters for all networks '''
-        if _snapshot_dir:
-            if _snapshot_mode == 'all':
-                # save for every training iteration
-                torch.save(params_dict, osp.join(_snapshot_dir, 'checkpoint_itr_{}.pth.tar'.format(itr)))
-            elif _snapshot_mode == 'last':
-                torch.save(params_dict, osp.join(_snapshot_dir, 'checkpoint.pth.tar'))
-            elif _snapshot_mode == "gap":
-                if itr % _snapshot_gap == 0:
-                    torch.save(params_dict, osp.join(_snapshot_dir, 'checkpoint_itr_{}.pth.tar'.format(itr)))
-            elif _snapshot_mode == "gap_and_last":
-                if itr % _snapshot_gap == 0:
-                    torch.save(params_dict, osp.join(_snapshot_dir, 'checkpoint_itr_{}.pth.tar'.format(itr)))
-                torch.save(params_dict, osp.join(_snapshot_dir, 'checkpoint.pth.tar'))
-            elif _snapshot_mode == 'none':
-                pass
-            else:
-                raise NotImplementedError
+    def get_table_key_set(self):
+        return set(key for key, value in self._tabular)
 
 
     @contextmanager
@@ -342,14 +280,14 @@ class Logger(object):
             if self._snapshot_mode == 'all':
                 # save for every training iteration
                 file_names = [osp.join(self._snapshot_dir, n + '_itr_%d.pth' % itr) for n in names]
-                save_weights(params, file_names)
+                self.save_weights(params, file_names)
             elif self._snapshot_mode == 'last':
                 # TODO make the other options like this
                 torch.save(params_dict, osp.join(self._snapshot_dir, 'checkpoint.pth.tar'))
             elif self._snapshot_mode == "gap":
                 if itr % self._snapshot_gap == 0:
                     file_names = [osp.join(self._snapshot_dir, n + '_itr_%d.pth' % itr) for n in names]
-                    save_weights(params, file_names)
+                    self.save_weights(params, file_names)
             elif self._snapshot_mode == 'none':
                 pass
             else:
@@ -370,14 +308,14 @@ class Logger(object):
             prefix = key
             suffix = ""
         if len(values) > 0:
-            record_tabular(prefix + "Average" + suffix, np.average(values))
-            record_tabular(prefix + "Std" + suffix, np.std(values))
-            record_tabular(prefix + "Median" + suffix, np.median(values))
-            record_tabular(prefix + "Min" + suffix, np.min(values))
-            record_tabular(prefix + "Max" + suffix, np.max(values))
+            self.record_tabular(prefix + "Average" + suffix, np.average(values))
+            self.record_tabular(prefix + "Std" + suffix, np.std(values))
+            self.record_tabular(prefix + "Median" + suffix, np.median(values))
+            self.record_tabular(prefix + "Min" + suffix, np.min(values))
+            self.record_tabular(prefix + "Max" + suffix, np.max(values))
         else:
-            record_tabular(prefix + "Average" + suffix, np.nan)
-            record_tabular(prefix + "Std" + suffix, np.nan)
-            record_tabular(prefix + "Median" + suffix, np.nan)
-            record_tabular(prefix + "Min" + suffix, np.nan)
-            record_tabular(prefix + "Max" + suffix, np.nan)
+            self.record_tabular(prefix + "Average" + suffix, np.nan)
+            self.record_tabular(prefix + "Std" + suffix, np.nan)
+            self.record_tabular(prefix + "Median" + suffix, np.nan)
+            self.record_tabular(prefix + "Min" + suffix, np.nan)
+            self.record_tabular(prefix + "Max" + suffix, np.nan)
