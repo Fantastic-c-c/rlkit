@@ -2,6 +2,9 @@
 Launcher for experiments with PEARL
 
 """
+import sys
+sys.path.remove("/home/abhigupta/Libraries/mujoco-py")  # needed for running valve DClaw
+
 import os
 import os.path as osp
 import pathlib
