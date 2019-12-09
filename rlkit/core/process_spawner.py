@@ -9,6 +9,7 @@ import torch
 from rlkit.core import eval_util
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.envs.dclaw_pose import DClawPoseEnv
+from rlkit.envs.dclaw_turn import DClawTurnEnv
 from rlkit.samplers.in_place import InPlacePathSampler
 from rlkit.torch import pytorch_util as ptu
 from rlkit.torch.networks import MlpEncoder, RecurrentEncoder
@@ -57,7 +58,8 @@ class ProcessSpawner:
         print("STARTED ROUTINE")
         if not env:
             print("ENV PARAMS: " + str(env_params))
-            env = NormalizedBoxEnv(DClawPoseEnv(**env_params))
+            # env = NormalizedBoxEnv(DClawPoseEnv(**env_params))
+            env = NormalizedBoxEnv(DClawTurnEnv(**env_params))
             # env.wrapped_env().initialize(**env_params)
         obs_dim = int(np.prod(env.observation_space.shape))
         action_dim = int(np.prod(env.action_space.shape))

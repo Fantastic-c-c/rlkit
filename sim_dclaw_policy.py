@@ -1,3 +1,9 @@
+import sys
+try:
+    sys.path.remove("/home/abhigupta/Libraries/mujoco-py")  # needed for running valve DClaw
+except:
+    pass
+
 import os, shutil
 import os.path as osp
 import pickle
@@ -82,9 +88,9 @@ def sim_policy(variant, num_trajs, save_video):
         paths = []
         for n in range(num_trajs):
             path = rollout(env, agent, max_path_length=variant['algo_params']['max_path_length'], accum_context=True, save_frames=False)
-            print("ACTIONS: " + str(path['actions']))
             path['goal'] = env.get_goal()
             print(path['goal'])
+            print(path['rewards'])
             paths.append(path)
             if n >= variant['algo_params']['num_exp_traj_eval']:
                 agent.infer_posterior(agent.context)

@@ -1,6 +1,6 @@
 {
     "env_name": "dclaw-turn",
-    "path_to_checkpoint": "",
+    "path_to_checkpoint": "/home/justinlin/Documents/rlkit/output/dclaw-turn/single_task",
     "n_train_tasks": 1,
     "n_eval_tasks": 1,
     "continue_training": 0,
@@ -15,13 +15,13 @@
     ,
     "algo_params": {
         "max_path_length": 40,
-        "num_initial_steps": 500,
-        "num_iterations": 30,
+        "num_initial_steps": 200,
+        "num_iterations": 31,
         "num_steps_prior": 400,
         "num_steps_posterior": 0,
         "num_extra_rl_steps_posterior": 400,
-        "num_train_steps_per_itr": 500,
-        "eval_interval": 10,
+        "num_train_steps_per_itr": 1,
+        "eval_interval": -1,
         "num_steps_per_eval": 150,
         "num_task_eval": 1,
         "num_evals": 1,
@@ -30,7 +30,7 @@
         "kl_lambda": 0.1,
         "dump_eval_paths": 0,
         "save_replay_buffer": 0,
-        "parallelize_data_collection": 0
+        "parallelize_data_collection": 1
     }
 }
 
