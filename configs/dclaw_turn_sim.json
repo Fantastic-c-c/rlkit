@@ -8,7 +8,7 @@
     "env_params": {
         "n_tasks": 2,
         "randomize_tasks": 0,
-        "reward_keys":["target_dist_cost", "pose_diff_cost", "bonus_small", "bonus_big"],
+        "reward_keys":["target_dist_cost", "bonus_small", "bonus_big"],
         "frame_skip": 60
     }
     ,
