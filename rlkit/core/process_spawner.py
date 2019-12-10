@@ -109,7 +109,7 @@ class ProcessSpawner:
                 print('task: {} / {}'.format(i, len(sample_tasks)))
                 task_idx = idx
                 env.reset_task(idx)
-                # self.enc_replay_buffer.task_buffers[idx].clear()
+                self.enc_replay_buffer.task_buffers[idx].clear()
 
                 # TODO: don't hardcode max_trajs
                 # collect some trajectories with z ~ prior

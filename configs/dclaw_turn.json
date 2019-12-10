@@ -1,6 +1,6 @@
 {
     "env_name": "dclaw-turn",
-    "path_to_checkpoint": "",
+    "path_to_checkpoint": "/home/justinlin/Documents/rlkit/output/dclaw-turn/2019_12_08_17_20_59",
     "n_train_tasks": 1,
     "n_eval_tasks": 1,
     "continue_training": 0,

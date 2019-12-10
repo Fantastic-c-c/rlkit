@@ -266,7 +266,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                     print('task: {} / {}'.format(i, len(sample_tasks)))
                     self.task_idx = idx
                     self.env.reset_task(idx)
-                    #self.enc_replay_buffer.task_buffers[idx].clear()
+                    self.enc_replay_buffer.task_buffers[idx].clear()
 
                     # TODO: don't hardcode max_trajs
                     # collect some trajectories with z ~ prior

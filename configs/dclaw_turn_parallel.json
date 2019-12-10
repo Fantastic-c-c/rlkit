@@ -1,6 +1,6 @@
 {
     "env_name": "dclaw-turn",
-    "path_to_checkpoint": "/home/justinlin/Documents/rlkit/output/dclaw-turn/single_task",
+    "path_to_checkpoint": "/home/justinlin/Documents/rlkit/output/dclaw-turn/single_task_no_pose",
     "n_train_tasks": 1,
     "n_eval_tasks": 1,
     "continue_training": 0,
