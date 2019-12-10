@@ -40,7 +40,7 @@ def experiment(variant):
     if variant['dummy_env']:
         assert variant['algo_params']['eval_interval'] <= 0, "Evaling does not work in this mode."
         # For Dclaw pose reaching
-        obs_dim = Box(-np.inf, np.inf, (27,))
+        obs_dim = Box(-np.inf, np.inf, (21,))
         action_dim = Box(-1, 1, (9,))
         env = DummyEnv(variant['env_params']['n_tasks'], obs_dim, action_dim)
     else:
