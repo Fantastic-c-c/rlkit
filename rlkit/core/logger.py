@@ -286,8 +286,7 @@ class Logger(object):
                 torch.save(params_dict, osp.join(self._snapshot_dir, 'checkpoint.pth.tar'))
             elif self._snapshot_mode == "gap":
                 if itr % self._snapshot_gap == 0:
-                    file_names = [osp.join(self._snapshot_dir, n + '_itr_%d.pth' % itr) for n in names]
-                    self.save_weights(params, file_names)
+                    torch.save(params_dict, osp.join(self._snapshot_dir, 'checkpoint_{}.pth.tar'.format(itr)))
             elif self._snapshot_mode == 'none':
                 pass
             else:

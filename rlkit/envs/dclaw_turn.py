@@ -27,7 +27,7 @@ class DClawTurnEnv(BaseDClawTurn):
         assert len(self.goals) == n_tasks, "The number of goals should equal the number of tasks"
         self.reset_task(0)  # should this be random?
 
-        self._desired_claw_pos = np.array([0, -0.5, 0.6] * 3)
+        self._desired_claw_pos = np.array([0, -0.4, 0.4] * 3)
         print("Desired pose: " + str(self._desired_claw_pos))
 
     def get_all_task_idx(self):

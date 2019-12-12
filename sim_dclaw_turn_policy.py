@@ -82,11 +82,13 @@ def sim_policy(variant, num_trajs, save_video):
     os.makedirs(osp.join(data_dir, 'sim_policy'), exist_ok=True)
     all_rets = []
     # for idx in eval_tasks:
-    for idx in tasks:
+    # for idx in tasks:
+    for idx in list([0, 1, 32, 33]):
         print('task: {}'.format(idx))
-        env.wrapped_env()._initial_object_pos = env.goals[idx]
+        env.reset_task(idx)
+        env.wrapped_env()._initial_object_pos = env.get_goal()
         env._reset()
-        print("Goal position displayed: " + str(env.goals[idx]))
+        print("Goal position displayed: " + str(env.get_goal()))
         time.sleep(0.5)
         env.wrapped_env()._initial_object_pos = 0
         env.reset_task(idx)

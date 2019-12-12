@@ -18,13 +18,12 @@ from rlkit.torch.sac.policies import TanhGaussianPolicy
 
 
 class ProcessSpawner:
-    def __init__(self, buffer_queue, enc_buffer_queries, enc_buffer_responses, max_replay_buffer_size, weight_queue, mean_return_shared, mean_final_return_shared, n_env_steps_shared, status_shared, train_tasks, max_path_length, num_tasks_sample, num_steps_prior, num_steps_posterior,
+    def __init__(self, buffer_queue, enc_buffer_queries, enc_buffer_responses, weight_queue, mean_return_shared, mean_final_return_shared, n_env_steps_shared, status_shared, train_tasks, max_path_length, num_tasks_sample, num_steps_prior, num_steps_posterior,
                  num_extra_rl_steps_posterior, update_post_train, replay_buffer_dict_key, enc_replay_buffer_dict_key,
                  embedding_batch_size, algo_params, env_params, latent_dim, net_size):
         self.buffer_queue = buffer_queue
         self.enc_buffer_queries = enc_buffer_queries
         self.enc_buffer_responses = enc_buffer_responses
-        self.max_replay_buffer_size = max_replay_buffer_size
         self.weight_queue = weight_queue
         self.mean_return_shared = mean_return_shared
         self.mean_final_return_shared = mean_final_return_shared
@@ -61,7 +60,6 @@ class ProcessSpawner:
             print("ENV PARAMS: " + str(env_params))
             # env = NormalizedBoxEnv(DClawPoseEnv(**env_params))
             env = NormalizedBoxEnv(DClawTurnEnv(**env_params))
-            print("HELLO: " + str(env.observation_space.shape))
             # env.wrapped_env().initialize(**env_params)
         obs_dim = int(np.prod(env.observation_space.shape))
         action_dim = int(np.prod(env.action_space.shape))
@@ -111,32 +109,23 @@ class ProcessSpawner:
                 print('task: {} / {}'.format(i, len(sample_tasks)))
                 task_idx = idx
                 env.reset_task(idx)
-                self.enc_buffer_queries.put(idx)
-                enc_replay_buffer = SimpleReplayBuffer(
-                    max_replay_buffer_size=self.max_replay_buffer_size,
-                    observation_dim=get_dim(env.observation_space),
-                    action_dim=get_dim(env.action_space),
-                )
-                
                 # self.enc_replay_buffer.task_buffers[idx].clear()
-
-                response = self.enc_buffer_responses.get(True) # response is unused
 
                 # TODO: don't hardcode max_trajs
                 # collect some trajectories with z ~ prior
                 if self.num_steps_prior > 0:
-                    _ = self.collect_data_parallel(task_idx, buffer_queue, enc_replay_buffer, n_env_steps_shared, sampler,
+                    _ = self.collect_data_parallel(task_idx, buffer_queue, n_env_steps_shared, sampler,
                                                    agent, self.num_steps_prior, 1, np.inf, max_trajs=10)
                 # collect some trajectories with z ~ posterior
                 if self.num_steps_posterior > 0:
-                    rets, final_rets = self.collect_data_parallel(task_idx, buffer_queue, enc_replay_buffer, n_env_steps_shared,
+                    rets, final_rets = self.collect_data_parallel(task_idx, buffer_queue, n_env_steps_shared,
                                                       sampler, agent, self.num_steps_posterior, 1, self.update_post_train,
                                                       max_trajs=10)
                     all_rets += rets
                     all_final_rets += final_rets
                 # even if encoder is trained only on samples from the prior, the policy needs to learn to handle z ~ posterior
                 if self.num_extra_rl_steps_posterior > 0:
-                    rets, final_rets = self.collect_data_parallel(task_idx, buffer_queue, enc_replay_buffer, n_env_steps_shared,
+                    rets, final_rets = self.collect_data_parallel(task_idx, buffer_queue, n_env_steps_shared,
                                                       sampler, agent, self.num_extra_rl_steps_posterior, 1,
                                                       self.update_post_train, add_to_enc_buffer=False, max_trajs=10)
                     all_rets += rets
@@ -147,7 +136,7 @@ class ProcessSpawner:
             mean_final_return_shared.value = np.mean(all_final_rets)
             print("EXITING")
 
-    def collect_data_parallel(self, task_idx, buffer_queue, enc_replay_buffer, n_env_steps_shared, sampler, agent,
+    def collect_data_parallel(self, task_idx, buffer_queue, n_env_steps_shared, sampler, agent,
                               num_samples, resample_z_rate, update_posterior_rate, add_to_enc_buffer=True, max_trajs=np.inf):
         '''
         get trajectories from current env in batch mode with given policy
@@ -186,7 +175,7 @@ class ProcessSpawner:
                 print("ADDED TO ENC BUFFER: " + str(len(paths)))
                 buffer_dict[self.enc_replay_buffer_dict_key] = (task_idx, paths)
             if update_posterior_rate != np.inf:
-                context = self.prepare_context(task_idx, enc_replay_buffer)
+                context = self.prepare_context(task_idx)
                 agent.infer_posterior(context)
                 posterior_samples = True
             buffer_queue.put(buffer_dict)
@@ -207,9 +196,10 @@ class ProcessSpawner:
         queried_batch = self.enc_buffer_responses.get(True) # blocking
         return queried_batch
 
-    def prepare_context(self, idx, enc_replay_buffer):
+    def prepare_context(self, idx):
         ''' sample context from replay buffer and prepare it '''
-        batch = ptu.np_to_pytorch_batch(enc_replay_buffer.random_batch(idx, batch_size=self.embedding_batch_size, sequence=self.recurrent))
+        queried_batch = self.query_enc_buffer(idx)
+        batch = ptu.np_to_pytorch_batch(queried_batch)
         obs = batch['observations'][None, ...]
         act = batch['actions'][None, ...]
         rewards = batch['rewards'][None, ...]

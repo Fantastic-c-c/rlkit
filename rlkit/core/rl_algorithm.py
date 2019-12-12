@@ -164,7 +164,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             self.process_spawner = ProcessSpawner(self.buffer_queue,
                                                   self.enc_buffer_queries,
                                                   self.enc_buffer_responses,
-                                                  self.replay_buffer_size,
                                                   self.weight_queue,
                                                   self.mean_return_shared,
                                                   self.mean_final_return_shared,
@@ -305,15 +304,10 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                         # Respond to enc_buffer queries
                         while not self.enc_buffer_queries.empty():
                             try:
-                                query = self.enc_buffer_queries.get(block=False)
-                                if len(query) == 1:
-                                    queried_batch = self.enc_query_replay_buffer.random_batch(query, batch_size=self.embedding_batch_size,
-                                                                   sequence=self.recurrent)
-                                    self.enc_buffer_responses.put(queried_batch)
-                                else:
-                                    task_idx = query[1]  # contains a tuple, where the second is the task_idx
-                                    self.enc_replay_buffer.task_buffers[task_idx].clear()
-                                    self.enc_buffer_responses.put(task_idx)
+                                task_idx = self.enc_buffer_queries.get(block=False) 
+                                queried_batch = self.enc_replay_buffer.random_batch(task_idx, batch_size=self.embedding_batch_size,
+                                                               sequence=self.recurrent)
+                                self.enc_buffer_responses.put(queried_batch)
                             except queue.Empty:
                                 break
                     gt.stamp('train')
