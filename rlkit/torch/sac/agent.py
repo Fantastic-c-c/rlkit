@@ -109,7 +109,7 @@ class PEARLAgent(nn.Module):
         r = ptu.from_numpy(np.array([r])[None, None, ...])
         # import pdb; pdb.set_trace()
         o = o.view(1, 3, self.image_dim, self.image_dim)
-        o = self.cnn(o).view(1, 1, 64)
+        o = self.cnn(o).view(1, 1, 256)  # hard coded 256 (obs_dim)
         data = torch.cat([o, a, r], dim=2)
         if self.context is None:
             self.context = data

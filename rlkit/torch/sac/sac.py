@@ -148,7 +148,7 @@ class PEARLSoftActorCritic(MetaRLAlgorithm):
         # for now we embed only observations and rewards
         # assume obs and rewards are (task, batch, feat)
         obs = [self.cnn(x) for x in obs]
-        obs = torch.stack(obs).view(-1, 64, 64)  # the first is the embedding_minibatch_size, the other is obs_dim
+        obs = torch.stack(obs).view(-1, 64, 256)  # hard coded, the shape should be [1, embedding minimatch size, obs_dim]
         task_data = torch.cat([obs, act, rewards], dim=2)
         return task_data
 

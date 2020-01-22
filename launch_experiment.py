@@ -39,7 +39,7 @@ def experiment(variant):
     recurrent = variant['algo_params']['recurrent']
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
 
-    obs_dim = 64
+    obs_dim = 256
     image_dim = env.image_dim
     cnn = Convnet()
 
