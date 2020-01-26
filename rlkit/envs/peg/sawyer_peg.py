@@ -6,13 +6,14 @@ import gym
 import os
 
 SCRIPT_DIR = os.path.dirname(__file__)
-from mslac.environments.envs.reacher.sawyer_reacher import SawyerReachingEnv
+from rlkit.envs.reacher.sawyer_reacher import SawyerReachingEnv
+from rlkit.envs import register_env
 
 ##################################################################################################
 ##################################################################################################
 ##################################################################################################
 ##################################################################################################
-
+@register_env('SawyerPeg-v0')
 class SawyerPegInsertionEnv(SawyerReachingEnv):
 
     '''
@@ -48,7 +49,7 @@ class SawyerPegInsertionEnv(SawyerReachingEnv):
 ##################################################################################################
 ##################################################################################################
 ##################################################################################################
-
+@register_env('SawyerPegMT-v0')
 class SawyerPegInsertionEnvMultitask(SawyerPegInsertionEnv):
 
     '''
@@ -77,7 +78,7 @@ class SawyerPegInsertionEnvMultitask(SawyerPegInsertionEnv):
         ob = self.reset_model()
 
         # concatenate dummy rew=0 to the obs
-        ob = np.concatenate((ob, np.array([0])))
+        # ob = np.concatenate((ob, np.array([0])))             ###########new: not concatenating the reward
 
         # print("        env has been reset... task is ", self.model.body_pos[self.body_id_box])
         return ob
@@ -113,41 +114,51 @@ class SawyerPegInsertionEnvMultitask(SawyerPegInsertionEnv):
         info = np.array([score, 0, 0, 0, 0])  # can populate with more info, as desired, for tb logging
 
         # append reward to obs
-        obs = np.concatenate((obs, np.array([reward])))
+        # obs = np.concatenate((obs, np.array([reward])))  ###########new: not concatenating the reward
 
         return obs, reward, done, info
 
     ##########################################
-    ### These are called externally 
+    ### These are called externally
     ##########################################
 
     def init_tasks(self, num_tasks, is_eval_env):
 
-        ''' 
+        '''
         Call this function externally, ONCE
-        to define this env as either train env or test env 
+        to define this env as either train env or test env
         and get the possible task list accordingly
         '''
 
         if is_eval_env:
             np.random.seed(100) #pick eval tasks as random from diff seed
         else:
-            np.random.seed(101) 
+            np.random.seed(101)
 
         possible_goals = [self.get_random_box_pos() for _ in range(num_tasks)]
+        self.tasks = possible_goals
+
         return possible_goals
 
 
     def set_task_for_env(self, goal):
 
-        ''' 
-        Call this function externally, 
-        to reset the task 
+        '''
+        Call this function externally,
+        to reset the task
         '''
 
         # task definition = set the goal box location to be the given goal
         self.model.body_pos[self.body_id_box] = goal.copy()
 
+    def reset_task(self, idx):
+        self._task = self.tasks[idx]
+        self._goal = self._task ##########new: dummy, since it's called in rl_algo line 369 collect path
+        #
+        # self.set_goal(self._goal)
+        self.set_task_for_env(self._task)
+        self.reset()
+
     ##########################################
     ##########################################
 
@@ -157,7 +168,7 @@ class SawyerPegInsertionEnvMultitask(SawyerPegInsertionEnv):
 ##################################################################################################
 ##################################################################################################
 
-
+@register_env('SawyerPegMT4box-v0')
 class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
 
     '''
@@ -204,7 +215,7 @@ class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
         ob = self.reset_model()
 
         # concatenate dummy rew=0 to the obs
-        ob = np.concatenate((ob, np.array([0])))
+        # ob = np.concatenate((ob, np.array([0])))  ###########new: not concatenating the reward
 
         # print("        env has been reset... task is ", self.which_box, " - ", self.model.body_pos[self.body_id_box1], " , ", self.model.body_pos[self.body_id_box2], " ...")
         return ob
@@ -222,7 +233,7 @@ class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
         info = np.array([score, 0, 0, 0, 0])  # can populate with more info, as desired, for tb logging
 
         # append reward to obs
-        obs = np.concatenate((obs, np.array([reward])))
+        # obs = np.concatenate((obs, np.array([reward])))       ###########new: not concatenating the reward
 
         return obs, reward, done, info
 
@@ -247,14 +258,14 @@ class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
 
 
     ##########################################
-    ### These are called externally 
+    ### These are called externally
     ##########################################
 
     def init_tasks(self, num_tasks, is_eval_env):
 
-        ''' 
+        '''
         Call this function externally, ONCE
-        to define this env as either train env or test env 
+        to define this env as either train env or test env
         and get the possible task list accordingly
         '''
 
@@ -262,7 +273,7 @@ class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
         if is_eval_env:
             np.random.seed(100) #pick eval tasks as random from diff seed
         else:
-            np.random.seed(101) 
+            np.random.seed(101)
 
         # sampling info
         # where to randomly place all of the boxes
@@ -286,14 +297,15 @@ class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
         # for _ in range(num_tasks):
         #     possible_goals.append([which_box, pos1, pos2, pos3, pos4])
 
+        self.tasks = possible_goals
         return possible_goals
 
 
     def set_task_for_env(self, goal):
 
-        ''' 
-        Call this function externally, 
-        to reset the task 
+        '''
+        Call this function externally,
+        to reset the task
         '''
 
         # set which box is the correct one
@@ -304,6 +316,15 @@ class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
         self.model.body_pos[self.body_id_box2] = goal[2]
         self.model.body_pos[self.body_id_box3] = goal[3]
         self.model.body_pos[self.body_id_box4] = goal[4]
+
+
+    def reset_task(self, idx):
+        self._task = self.tasks[idx]
+        self._goal = self._task ##########new: dummy, since it's called in rl_algo line 369 collect path
+        #
+        # self.set_goal(self._goal)
+        self.set_task_for_env(self._task)
+        self.reset()
 
     ##########################################
     ##########################################

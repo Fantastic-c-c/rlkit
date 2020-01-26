@@ -7,7 +7,7 @@ from gym.envs.mujoco import mujoco_env
 import os
 from gym.envs.registration import register
 SCRIPT_DIR = os.path.dirname(__file__)
-from . import register_env
+from rlkit.envs import register_env
 ##################################################################
 ##################################################################
 ##################################################################
@@ -25,7 +25,7 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
     	# vars
 
 
-        self.image_dim = 84  #####new, size of image obs
+        self.image_dim = 84  ###########new: size of image obs
 
 
         self.action_mode = action_mode
@@ -98,13 +98,23 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
     def get_obs(self):
         ''' state observation is joint angles + joint velocities + ee pose '''
 
+        ###############original##################
         # angles = self._get_joint_angles()
         # velocities = self._get_joint_velocities()
         # ee_pose = self._get_ee_pose()
         # return np.concatenate([angles, velocities, ee_pose])
 
-        ###############now it's returning the image observation
-        image = self.sim.render(self.image_dim, self.image_dim)
+        ###############new: now it's returning the image observation
+        image = self.sim.render(self.image_dim, self.image_dim, camera_name="track")
+
+
+        ################new: to visualize the image, use img.show() #############
+        # from PIL import Image
+        # import numpy as np
+        # img = Image.fromarray(image)
+        # import pdb; pdb.set_trace()
+        ######################################################################
+
         ob = np.moveaxis(image, 2, 0)
         return ob
 
@@ -274,11 +284,9 @@ class SawyerReachingEnvMultitask(SawyerReachingEnv):
         reward, score = self.compute_reward(get_score=True)
         done = False
         info = np.array([score, 0, 0, 0, 0])  # can populate with more info, as desired, for tb logging
-        # info = {'original': np.array([score, 0, 0, 0, 0])} ########new, make it a dict so we can save frames
-
 
         # append reward to obs
-        # obs = np.concatenate((obs, np.array([reward])))    ### why concatenating reward in obs???????
+        # obs = np.concatenate((obs, np.array([reward])))    #######new: Q:why concatenating reward in obs??
 
         return obs, reward, done, info
 
@@ -289,7 +297,7 @@ class SawyerReachingEnvMultitask(SawyerReachingEnv):
         ob = self.reset_model()
 
         # # concatenate a dummy rew=0 to the obs
-        # ob = np.concatenate((ob, np.array([0])))   #############new
+        # ob = np.concatenate((ob, np.array([0])))   #############new: not concatenating the dummy reward
 
         # print("        env has been reset... task is ", self.model.site_pos[self.site_id_goal])
         return ob
@@ -332,7 +340,7 @@ class SawyerReachingEnvMultitask(SawyerReachingEnv):
 
     def reset_task(self, idx):
         self._task = self.tasks[idx]
-        self._goal = self._task ##########new, dummy, since it's called in rl_algo line 369 collect path
+        self._goal = self._task ##########new: dummy, since it's called in rl_algo line 369 collect path
         #
         # self.set_goal(self._goal)
         self.set_task_for_env(self._task)
