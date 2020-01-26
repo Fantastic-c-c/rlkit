@@ -113,6 +113,7 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
     def step(self, action):
         ob, reward, done, info = super().step(action)
         image = self.get_image()
+        import pdb; pdb.set_trace()
         ob = np.moveaxis(image, 2, 0)
         # ob = ob['observation']  # just return the state
         return ob, reward, done, info

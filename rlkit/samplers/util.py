@@ -39,8 +39,6 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)  #next_o is an image now
 
-        state, img = env.debug(a)
-
 
         # update the agent's current context
         if accum_context:
@@ -128,8 +126,6 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)  #next_o is an image now
 
-        state, img = env.debug(a)
-
 
         # update the agent's current context
         if accum_context:
@@ -147,6 +143,7 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
             env.render()
         if save_frames:
             from PIL import Image
+            import pdb; pdb.set_trace()
             image = Image.fromarray(np.flipud(env.get_image()))
             env_info['frame'] = image
         env_infos.append(env_info)

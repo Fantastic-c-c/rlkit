@@ -27,7 +27,19 @@ def experiment(variant):
 
     # create multi-task environment and sample tasks
     env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
-    tasks = env.get_all_task_idx()
+    # tasks = env.get_all_task_idx()  ### PEARL ORIGINAL
+
+    # num_train_tasks = variant['n_train_tasks']
+    # num_eval_tasks = variant['n_eval_tasks']
+    # n_tasks = num_train_tasks + num_eval_tasks
+    #
+    #
+    # import pdb; pdb.set_trace()
+    # tasks =  range(n_tasks)
+
+    tasks = range(len(env.init_tasks(variant['n_tasks'], True)))
+    #
+    # import pdb; pdb.set_trace()
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
 
@@ -41,6 +53,8 @@ def experiment(variant):
 
     obs_dim = 256
     image_dim = env.image_dim
+
+    image_dim = 84
     cnn = Convnet()
 
     context_encoder = encoder_model(

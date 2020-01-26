@@ -8,6 +8,7 @@ class SimpleReplayBuffer(ReplayBuffer):
             self, max_replay_buffer_size, observation_dim, action_dim, image_dim
     ):
         self._observation_dim = observation_dim          #original
+
         self._action_dim = action_dim
         self._max_replay_buffer_size = max_replay_buffer_size
         self._observations = np.zeros((max_replay_buffer_size, 3, image_dim, image_dim))
@@ -26,12 +27,17 @@ class SimpleReplayBuffer(ReplayBuffer):
 
     def add_sample(self, observation, action, reward, terminal,
                    next_observation, **kwargs):
+
         self._observations[self._top] = observation
         self._actions[self._top] = action
         self._rewards[self._top] = reward
         self._terminals[self._top] = terminal
         self._next_obs[self._top] = next_observation
-        self._sparse_rewards[self._top] = kwargs['env_info'].get('sparse_reward', 0)
+
+
+        # self._sparse_rewards[self._top] = kwargs['env_info'].get('sparse_reward', 0) ######PEARL original
+        self._sparse_rewards[self._top] = 0
+
         self._advance()
 
     def terminate_episode(self):

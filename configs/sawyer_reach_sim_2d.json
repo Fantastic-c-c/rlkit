@@ -1,11 +1,12 @@
 {
-    "env_name": "sawyer-reach-sim-2d",
+    "env_name": "SawyerReachMT-v0",
 
+
+    "n_tasks": 100,
     "n_train_tasks": 80,
     "n_eval_tasks": 20,
     "env_params": {
-        "n_tasks": 100,
-        "randomize_tasks": true
+
     }
     ,
     "algo_params": {
