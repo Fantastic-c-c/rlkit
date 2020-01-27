@@ -54,7 +54,7 @@ def experiment(variant):
     obs_dim = 256
     image_dim = env.image_dim
 
-    image_dim = 84
+    image_dim = 64
     cnn = Convnet()
 
     context_encoder = encoder_model(

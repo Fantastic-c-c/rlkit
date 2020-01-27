@@ -1,6 +1,6 @@
 {
     "env_name": "SawyerPegMT4box-v0",
-
+"path_to_weights": "output/SawyerPegMT4box-v0/2020_01_26_17_29_02",
 
     "n_tasks": 100,
     "n_train_tasks": 80,

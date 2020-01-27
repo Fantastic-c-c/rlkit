@@ -40,12 +40,13 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
         env.render()
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
-        next_o, r, d, env_info = env.step(a)  #next_o is an image now
+        next_o, r, d, dummy = env.step(a)  #next_o is an image now
 
+        env_info = {}
 
         # update the agent's current context
         if accum_context:
-            agent.update_context([o, a, r, next_o, d, env_info])   #env is NormalizedBoxEnv
+            agent.update_context([o, a, r, next_o, d, dummy])   #env is NormalizedBoxEnv
         observations.append(o)
         rewards.append(r)
         terminals.append(d)
@@ -59,7 +60,7 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
             env.render()
         if save_frames:
             from PIL import Image
-            import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()
             image = Image.fromarray(np.flipud(env.get_image()))
             env_info['frame'] = image
         env_infos.append(env_info)

@@ -25,7 +25,7 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
     	# vars
 
 
-        self.image_dim = 84  ###########new: size of image obs
+        self.image_dim = 64  ###########new: size of image obs
 
 
         self.action_mode = action_mode
