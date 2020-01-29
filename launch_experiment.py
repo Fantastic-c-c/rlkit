@@ -10,7 +10,7 @@ import json
 import torch
 
 from rlkit.envs import ENVS
-from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv, MELDWrapper
 from rlkit.torch.sac.policies import TanhGaussianPolicy
 from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 from rlkit.torch.sac.sac import PEARLSoftActorCritic

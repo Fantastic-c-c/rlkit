@@ -4,6 +4,7 @@ from gym.spaces import Box
 import mujoco_py
 
 from rlkit.core.serializable import Serializable
+from rlkit.core import logger
 
 
 class ProxyEnv(Serializable, Env):
@@ -128,31 +129,25 @@ class NormalizedBoxEnv(ProxyEnv, Serializable):
         return getattr(self._wrapped_env, attrname)
 
 
-class CameraWrapper(object):
+class MELDWrapper(object):
+    '''
+    wrap environments from MELD for use with rlkit
+    support options for state and image obs
+    '''
 
-    def __init__(self, env, device_id=0):
+    def __init__(self, env, n_tasks):
         self._wrapped_env = env
-        self.device_id = device_id # gpu ID for rendering
-        self.initialize_camera()
+        self.tasks = self.sample_tasks(n_tasks)
 
-    def get_image(self, width=256, height=256, camera_name=None):
-        # use sim.render to avoid MJViewer which doesn't seem to work without display
-        return self.sim.render(
-            width=width,
-            height=height,
-            camera_name=camera_name,
-        )
+    def sample_tasks(self, num_tasks):
+        return self._wrapped_env.init_tasks(num_tasks, is_eval_env=False)
 
-    def initialize_camera(self):
-        # set camera parameters for viewing
-        sim = self.sim
-        viewer = mujoco_py.MjRenderContextOffscreen(sim, device_id=self.device_id)
-        camera = viewer.cam
-        camera.type = 0 # 0 free camera, 1 is track, 2 is fixed
-        camera.elevation = -20 # distance above or below origin plane
-        camera.azimuth = 250 # rotation around the vertical axis
-        camera.distance = self._wrapped_env.model.stat.extent * 1.0
-        sim.add_render_context(viewer)
+    def get_all_task_idx(self):
+        return range(len(self.tasks))
+
+    def reset_task(self, idx):
+        task = self.tasks[idx]
+        self._wrapped_env.set_task_for_env(task)
 
     def __getattr__(self, attrname):
         return getattr(self._wrapped_env, attrname)

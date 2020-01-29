@@ -6,29 +6,28 @@ import gym
 from gym.envs.mujoco import mujoco_env
 import os
 
+from rlkit.envs import register_env
+
 SCRIPT_DIR = os.path.dirname(__file__)
 
 ##################################################################
 ##################################################################
 ##################################################################
 ##################################################################
-from rlkit.envs import register_env
 
-@register_env('PointMass-v0')
+
 class PointMassEnv(mujoco_env.MujocoEnv):
 
     '''
     Pointmass go to a desired location
     '''
 
-    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, action_mode='joint_position'):
+    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, action_mode='joint_position', obs_mode='state'):
 
         # vars
-
-        self.image_dim = 64  ###########new: size of image obs
-
-
         self.action_mode = action_mode
+        self.obs_mode = obs_mode
+        self.image_dim = 64
         self.num_joint_dof = 2
         self.frame_skip = 100
         if xml_path is None:
@@ -43,7 +42,7 @@ class PointMassEnv(mujoco_env.MujocoEnv):
 
         # Sparse reward setting
         self.sparse_reward = sparse_reward
-        self.exp_reward = True
+        self.exp_reward = True ###########False
 
         # create the env
         self.startup = True
@@ -87,32 +86,30 @@ class PointMassEnv(mujoco_env.MujocoEnv):
     def get_obs_dim(self):
         return len(self.get_obs())
 
-    def get_obs(self):
-        # xy position of pointmass site in the world frame
-        # if self.startup:
-        #     position=self.init_qpos.copy()
-        # else:
-        #     position = self.data.site_xpos[self.site_id_pointmass].copy()
-        # return position[:2]
-        image = self.sim.render(self.image_dim, self.image_dim, camera_name="track")
+    def get_image(self, width=64, height=64, camera_name='track'):
+        # use sim.render to avoid MJViewer which doesn't seem to work without display
+        img = self.sim.render(
+            width=width,
+            height=height,
+            camera_name=camera_name,
+        )
+        return np.flipud(img)
 
-        ################new: to visualize the image, use img.show() #############
-        # from PIL import Image
-        # import numpy as np
-        # img = Image.fromarray(image)
-        # import pdb; pdb.set_trace()
-        ######################################################################
-
-        ob = np.moveaxis(image, 2, 0)
-        return ob
-
-    def get_state(self):          ################new: used by do_step
-        # xy position of pointmass site in the world frame
-        if self.startup:
-            position=self.init_qpos.copy()
+    def get_obs(self, obs_mode=None):
+        if obs_mode is None:
+            obs_mode = self.obs_mode
+        if obs_mode == 'image':
+            img = self.get_image()
+            img = img.astype(np.float32) / 255.
+            #return np.moveaxis(img, -1, 0)
+            return img.flatten()
         else:
-            position = self.data.site_xpos[self.site_id_pointmass].copy()
-        return position[:2]
+            # xy position of pointmass site in the world frame
+            if self.startup:
+                position=self.init_qpos.copy()
+            else:
+                position = self.data.site_xpos[self.site_id_pointmass].copy()
+            return position[:2]
 
     def reset_model(self):
         if not self.startup:
@@ -131,10 +128,10 @@ class PointMassEnv(mujoco_env.MujocoEnv):
 
     def do_step(self, action):
 
-        curr_position = self.get_state().copy()
+        curr_position = self.get_obs(obs_mode='state').copy()
 
         if self.startup:
-            feasible_desired_position = 0*action 
+            feasible_desired_position = 0*action
 
         else:
 
@@ -149,7 +146,6 @@ class PointMassEnv(mujoco_env.MujocoEnv):
                 feasible_desired_position = self.make_feasible(curr_position, desired_position)
 
             elif self.action_mode=='joint_delta_position':
-
                 # scale incoming (-1,1) to self.vel_limits
                 desired_delta_position = (((action - self.action_lows) * self.joint_vel_range) / self.action_range) + self.limits_lows_joint_vel
 
@@ -172,16 +168,16 @@ class PointMassEnv(mujoco_env.MujocoEnv):
         obs = self.get_obs()
         reward, score, sparse_reward = self.compute_reward(get_score=True)
         done = False
-        info = np.array([score, 0, 0, 0, 0])  # can populate with more info, as desired, for tb logging
-        return obs, reward, done, info
+        info = dict(score=score)
+        return (obs, reward, done, info)
 
     def make_feasible(self, curr_position, desired_position):
 
         # compare the implied vel to the max vel allowed
         max_vel = self.limits_highs_joint_vel
-        implied_vel = np.abs(desired_position-curr_position) 
+        implied_vel = np.abs(desired_position-curr_position)
 
-        # limit the vel 
+        # limit the vel
         actual_vel = np.min([implied_vel, max_vel], axis=0)
 
         # find the actual position, based on this vel
@@ -220,7 +216,7 @@ class PointMassEnv(mujoco_env.MujocoEnv):
                 reward = -(dist ** 2 + math.log10(dist ** 2 + 1e-5))
             else:
                 reward = -2*dist
-            
+
             # sparse reward
             sparse_reward=-20
             if dist<threshold_for_sparse:
@@ -229,6 +225,7 @@ class PointMassEnv(mujoco_env.MujocoEnv):
             # when we explicitly want sparse reward
             if self.sparse_reward:
                 reward = sparse_reward
+
         if get_score:
             return reward, score, sparse_reward
         else:
@@ -258,14 +255,15 @@ class PointMassEnv(mujoco_env.MujocoEnv):
 ##################################################################
 ##################################################################
 
-@register_env('PointMassMT-v0')
+
+@register_env('pointmass')
 class PointMassEnvMultitask(PointMassEnv):
 
     '''
     This env is the multi-task version of pointmass. The reward always gets concatenated to obs.
     '''
 
-    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, action_mode='joint_position'):
+    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, action_mode='joint_position', obs_mode='state'):
 
         # goal range for reaching
         self.goal_options = [np.array([-1, 1, 0]), np.array([1,1,0])]
@@ -273,10 +271,10 @@ class PointMassEnvMultitask(PointMassEnv):
         if goal_site_name is None:
             goal_site_name = 'goal_reach_site'
 
-        super(PointMassEnvMultitask, self).__init__(xml_path=xml_path, goal_site_name=goal_site_name, sparse_reward=sparse_reward, action_mode=action_mode)
+        super(PointMassEnvMultitask, self).__init__(xml_path=xml_path, goal_site_name=goal_site_name, sparse_reward=sparse_reward, action_mode=action_mode, obs_mode=obs_mode)
 
     def get_obs_dim(self):
-        return len(self.get_obs()) + 2 # the additional dims for reward and sparse reward
+        return len(self.get_obs())
 
     def step(self, action):
 
@@ -284,34 +282,26 @@ class PointMassEnvMultitask(PointMassEnv):
         obs = self.get_obs()
         reward, score, sparse_reward= self.compute_reward(get_score=True)
         done = False
-        info = np.array([score, 0, 0, 0, 0])  # can populate with more info, as desired, for tb logging
+        info = dict(score=score)
 
-        # append reward to obs
-        # obs = np.concatenate((obs, np.array([sparse_reward]), np.array([reward])))  #############new: not concatenating the dummy reward
-
-        return obs, reward, done, info
+        return (obs, reward, done, info)
 
     def reset(self):
 
         # original mujoco reset
         self.sim.reset()
         ob = self.reset_model()
-
-        # concatenate a dummy rew=0 to the obs
-        # ob = np.concatenate((ob, np.array([0]), np.array([0])))   #############new: not concatenating the dummy reward
-
-        # print("        env has been reset... task is ", self.model.site_pos[self.site_id_goal])
         return ob
 
     ##########################################
-    ### These are called externally 
+    ### These are called externally
     ##########################################
 
     def init_tasks(self, num_tasks, is_eval_env):
 
-        ''' 
+        '''
         Call this function externally, ONCE
-        to define this env as either train env or test env 
+        to define this env as either train env or test env
         and get the possible task list accordingly
         '''
 
@@ -320,29 +310,26 @@ class PointMassEnvMultitask(PointMassEnv):
         else:
             np.random.seed(101)
 
-        ##### ONLY 1 OPTIONS  
+        ##### ONLY 1 OPTIONS
         if num_tasks==1:
             possible_goals=[]
             possible_goals.append(self.goal_options[0])
-            self.tasks = possible_goals
-            return possible_goals  
+            return possible_goals
 
-        ##### ONLY 4 OPTIONS  
+        ##### ONLY 4 OPTIONS
         elif num_tasks==4:
             possible_goals=[]
             possible_goals.append(np.array([-1, 1, 0]))
             possible_goals.append(np.array([1, 1, 0]))
             possible_goals.append(np.array([-1, -1, 0]))
             possible_goals.append(np.array([1, -1, 0]))
-            self.tasks = possible_goals
-            return possible_goals  
+            return possible_goals
 
         ##### ONLY 2 OPTIONS
         elif num_tasks==2:
             possible_goals=[]
             possible_goals.append(self.goal_options[0])
             possible_goals.append(self.goal_options[1])
-            self.tasks = possible_goals
             return possible_goals
 
         ###### MANY OPTIONS
@@ -352,28 +339,18 @@ class PointMassEnvMultitask(PointMassEnv):
                 x = np.random.uniform(self.limits_lows_joint_pos[0], self.limits_highs_joint_pos[0])
                 y = np.random.uniform(self.limits_lows_joint_pos[1], self.limits_highs_joint_pos[1])
                 possible_goals.append(np.array([x,y,0]))
-            self.tasks = possible_goals
             return possible_goals
 
     def set_task_for_env(self, goal):
 
-        ''' 
-        Call this function externally, 
-        to reset the task 
+        '''
+        Call this function externally,
+        to reset the task
         '''
 
         # task definition = set the goal reacher location to be the given goal
         self.model.site_pos[self.site_id_goal] = goal.copy()
         self.sim.forward()
-
-
-    def reset_task(self, idx):
-        self._task = self.tasks[idx]
-        self._goal = self._task ##########new: dummy, since it's called in rl_algo line 369 collect path
-        #
-        # self.set_goal(self._goal)
-        self.set_task_for_env(self._task)
-        self.reset()
 
     ##########################################
     ##########################################
