@@ -26,7 +26,10 @@ def experiment(variant):
 
     # create multi-task environment and sample tasks
     env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
-    tasks = env.get_all_task_idx()
+    # tasks = env.get_all_task_idx()
+
+    tasks = range(len(env.init_tasks(variant['n_tasks'], True)))
+
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
 

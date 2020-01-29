@@ -190,6 +190,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
 
             # sample data from train tasks
             print('epoch: {}, sampling training data'.format(it_))
+
             sample_tasks = np.random.choice(self.train_tasks, self.num_tasks_sample, replace=False)
             print('sampled tasks', sample_tasks)
             for idx in sample_tasks:
