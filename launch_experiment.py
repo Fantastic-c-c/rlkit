@@ -25,21 +25,15 @@ from rlkit.torch.debugnet import Debugnet
 
 def experiment(variant):
 
+    obs_mode = variant['obs_mode']
     # create multi-task environment and sample tasks
-    env = NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params']))
-    # tasks = env.get_all_task_idx()  ### PEARL ORIGINAL
+    env = MELDWrapper(NormalizedBoxEnv(ENVS[variant['env_name']](obs_mode=obs_mode)), **variant['env_params'])
+    tasks = env.get_all_task_idx()
 
-    # num_train_tasks = variant['n_train_tasks']
-    # num_eval_tasks = variant['n_eval_tasks']
-    # n_tasks = num_train_tasks + num_eval_tasks
-    #
-    #
-    # import pdb; pdb.set_trace()
-    # tasks =  range(n_tasks)
+    num_train_tasks = variant['n_train_tasks']
+    num_eval_tasks = variant['n_eval_tasks']
+    n_tasks = num_train_tasks + num_eval_tasks
 
-    tasks = range(len(env.init_tasks(variant['n_tasks'], True)))
-    #
-    # import pdb; pdb.set_trace()
     obs_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
 
@@ -51,11 +45,12 @@ def experiment(variant):
     recurrent = variant['algo_params']['recurrent']
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
 
-    obs_dim = 256
-    image_dim = env.image_dim
-
-    image_dim = 64
-    cnn = Convnet()
+    cnn = None
+    image_dim = None
+    if obs_mode == 'image':
+        obs_dim = 256 # channel dim after convnet
+        image_dim = 64
+        cnn = Convnet(img_size=(64, 64, 3)) # TODO hardcoded
 
     context_encoder = encoder_model(
         hidden_sizes=[200, 200, 200],
@@ -112,7 +107,8 @@ def experiment(variant):
         # TODO hacky, revisit after model refactor
         algorithm.networks[-2].load_state_dict(torch.load(os.path.join(path, 'target_vf.pth')))
         policy.load_state_dict(torch.load(os.path.join(path, 'policy.pth')))
-        cnn.load_state_dict(torch.load(os.path.join(path, 'cnn.pth')))
+        if obs_mode == 'image':
+            cnn.load_state_dict(torch.load(os.path.join(path, 'cnn.pth')))
 
     # optional GPU mode
     ptu.set_gpu_mode(variant['util_params']['use_gpu'], variant['util_params']['gpu_id'])

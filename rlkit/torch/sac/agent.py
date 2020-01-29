@@ -107,9 +107,8 @@ class PEARLAgent(nn.Module):
         o = ptu.from_numpy(o[None, None, ...])
         a = ptu.from_numpy(a[None, None, ...])
         r = ptu.from_numpy(np.array([r])[None, None, ...])
-        # import pdb; pdb.set_trace()
-        o = o.view(1, 3, self.image_dim, self.image_dim)
-        o = self.cnn(o).view(1, 1, 256)  # hard coded 256 (obs_dim)
+        if self.cnn is not None:
+            o = self.cnn(o).view(1, 1, 256)  # hard coded 256 (obs_dim)
         data = torch.cat([o, a, r], dim=2)
         if self.context is None:
             self.context = data
@@ -154,8 +153,9 @@ class PEARLAgent(nn.Module):
         z = self.z
         obs = ptu.from_numpy(obs[None])
 
-        obs = self.cnn(obs)
-        obs = obs.view(1, -1)
+        if self.cnn is not None:
+            obs = self.cnn(obs)
+            obs = obs.view(1, -1)
 
         in_ = torch.cat([obs, z], dim=1)
         return self.policy.get_action(in_, deterministic=deterministic)
@@ -170,7 +170,7 @@ class PEARLAgent(nn.Module):
 
         task_z = self.z
 
-        t, b, _ = obs.size()        # dim 1-->3, so add 2*_
+        t, b, _ = obs.size()
         obs = obs.view(t * b, -1)
         task_z = [z.repeat(b, 1) for z in task_z]
         task_z = torch.cat(task_z, dim=0)

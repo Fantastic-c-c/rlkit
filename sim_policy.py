@@ -29,9 +29,7 @@ def sim_policy(variant, num_trajs, save_video):
     # create multi-task environment and sample tasks
     env = CameraWrapper(NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params'])), variant['util_params']['gpu_id'])
 
-    tasks = range(len(env.init_tasks(variant['n_tasks'], True)))
-
-    # tasks = env.get_all_task_idx()
+    tasks = env.get_all_task_idx()
 
 
     obs_dim = int(np.prod(env.observation_space.shape))

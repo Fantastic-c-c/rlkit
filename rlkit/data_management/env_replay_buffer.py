@@ -23,7 +23,6 @@ class MultiTaskReplayBuffer(object):
             max_replay_buffer_size=max_replay_buffer_size,
             observation_dim=get_dim(self._ob_space),
             action_dim=get_dim(self._action_space),
-            image_dim=self.env.image_dim,
         )) for idx in tasks])
 
 
