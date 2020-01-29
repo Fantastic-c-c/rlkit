@@ -8,7 +8,11 @@
     <worldbody>
 
         <!-- cameras track was -1 0 1.4(single), -1.5 0 2(double) -->
-        <camera name="track" pos="-1 0 1.4" mode="fixed" euler="0.85 -0 -1.571"/>
+        <!-- <camera name="track" pos="-1 0 1.4" mode="fixed" euler="0.85 -0 -1.571"/> -->
+
+
+        <camera name="track" pos="1.5 1 1" mode="fixed" euler="1 0 2.2"/>
+
 	    <camera name="track_aux_reach" pos="0.5 -2.7 0.4" mode="fixed" euler="1.5 0 0"/>
 
         <camera name="track_front" pos="0.55 0 1.2" />

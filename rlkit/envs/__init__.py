@@ -36,3 +36,9 @@ for file in os.listdir(os.path.dirname(__file__)+'/peg'):
     if file.endswith('.py') and not file.startswith('_'):
         module = file[:file.find('.py')]
         importlib.import_module('rlkit.envs.peg.' + module)
+
+for file in os.listdir(os.path.dirname(__file__)+'/pointmass'):
+    # import pdb; pdb.set_trace()
+    if file.endswith('.py') and not file.startswith('_'):
+        module = file[:file.find('.py')]
+        importlib.import_module('rlkit.envs.pointmass.' + module)
