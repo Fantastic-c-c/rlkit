@@ -24,3 +24,21 @@ for file in os.listdir(os.path.dirname(__file__)):
     if file.endswith('.py') and not file.startswith('_'):
         module = file[:file.find('.py')]
         importlib.import_module('rlkit.envs.' + module)
+
+for file in os.listdir(os.path.dirname(__file__)+'/reacher'):
+    # import pdb; pdb.set_trace()
+    if file.endswith('.py') and not file.startswith('_'):
+        module = file[:file.find('.py')]
+        importlib.import_module('rlkit.envs.reacher.' + module)
+
+for file in os.listdir(os.path.dirname(__file__)+'/peg'):
+    # import pdb; pdb.set_trace()
+    if file.endswith('.py') and not file.startswith('_'):
+        module = file[:file.find('.py')]
+        importlib.import_module('rlkit.envs.peg.' + module)
+
+for file in os.listdir(os.path.dirname(__file__)+'/pointmass'):
+    # import pdb; pdb.set_trace()
+    if file.endswith('.py') and not file.startswith('_'):
+        module = file[:file.find('.py')]
+        importlib.import_module('rlkit.envs.pointmass.' + module)

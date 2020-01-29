@@ -9,6 +9,8 @@ from collections import OrderedDict
 import numpy as np
 from gym.spaces import Box, Dict
 
+
+
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach import SawyerReachXYEnv
 
 import time
@@ -21,13 +23,16 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
                  use_mocap=False,
                  action_scale=0.02,
                  hand_z_position=0.38,
-                 # first is to / from robot, second is left-right, third is up / down
                  hand_low=(-0.17, 0.46, 0.21),
                  # NOTE: these coords are different from physical sawyer as (x, y) coords flipped
                  hand_high=(0.17, 0.8, 0.55),
-                 norm_order=2,
                  **kwargs):
         self.quick_init(locals())
+        # NOTE: when true, prevents reset() from calling render()
+        # to return an image observation, inadvertently also setting
+        # camera parameters to default, which we do not want! Set to
+        # False after __init__() is done.
+        self.init = True
         SawyerReachXYEnv.__init__(
             self,
             *args,
@@ -35,11 +40,10 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
             hand_low=hand_low,
             hand_high=hand_high,
             hand_z_position=hand_z_position,
-            norm_order=norm_order,
             **kwargs
         )
         self.observation_space = self.hand_space  # now we just care about hand
-        self.goal_low = np.array([0.05, 0.48, self.hand_z_position])
+        self.goal_low = np.array([0.05, 0.55, self.hand_z_position])
         self.goal_high = np.array([0.15, 0.78, self.hand_z_position])
         self.goal_space = Box(self.goal_low, self.goal_high, dtype=np.float32)
         init_task_idx = 0
@@ -57,8 +61,19 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
         self.goals = np.asarray(goals)
         self.tasks = [{'direction': direction} for direction in directions]
 
+        self.image_dim = 84 # new, dim of image observation, set in mujoco_env.py
+
         # set the initial goal
-        self.reset_task(init_task_idx)
+        def cam_init(x):
+            # TODO: other cam params here
+            x.type = 0
+            x.elevation = -20
+            x.distance = self.model.stat.extent * 1.0
+            x.azimuth = 250
+        self.initialize_camera(cam_init)
+        self.reset_task(init_task_idx
+)
+        self.init = False
 
     def get_goal(self):
         return self._state_goal
@@ -97,8 +112,20 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
 
     def step(self, action):
         ob, reward, done, info = super().step(action)
-        ob = ob['observation']  # just return the state
+        image = self.get_image()
+        import pdb; pdb.set_trace()
+        ob = np.moveaxis(image, 2, 0)
+        # ob = ob['observation']  # just return the state
         return ob, reward, done, info
+
+    def debug(self, action):
+        ob, reward, done, info = super().step(action)
+        realstate = ob['observation']  # just return the state
+        image = self.get_image()
+        ob = np.moveaxis(image, 2, 0)
+        # ob = np.moveaxis(image, 2, 0)
+
+        return realstate, ob
 
     def get_all_goals(self):
         return self.goals
@@ -114,12 +141,14 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
         self.reset()
 
     def reset(self):
+        if self.init:
+            return None
         return self.reset_model()
 
     def _reset_hand(self):
         # 2-D reaching, so start with hand at same height as goals
         for _ in range(10):
-            self.data.set_mocap_pos('mocap', np.array([0, 0.65, 0.38]))
+            self.data.set_mocap_pos('mocap', np.array([0, 0.5, 0.38]))
             self.data.set_mocap_quat('mocap', np.array([1, 0, 1, 0]))
             self.do_simulation(None, self.frame_skip)
 
@@ -133,7 +162,13 @@ class PearlSawyerReachXYSimEnv(SawyerReachXYEnv):
         self._reset_hand()
         # self.set_goal(self.sample_goal()) # We don't want to do this because we set our own goal
         self.sim.forward()
-        return self._get_obs()['observation']  # Redefine to just return state
+
+        #when reset model, also need to return an image observation
+        image = self.get_image()
+        ob = np.moveaxis(image, 2, 0)
+
+        return ob
+        # return self._get_obs()['observation']  # Redefine to just return state #original
 
 
 if __name__ == '__main__':

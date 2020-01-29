@@ -31,7 +31,7 @@ class SimpleReplayBuffer(ReplayBuffer):
         self._rewards[self._top] = reward
         self._terminals[self._top] = terminal
         self._next_obs[self._top] = next_observation
-        self._sparse_rewards[self._top] = kwargs['env_info'].get('sparse_reward', 0)
+        # self._sparse_rewards[self._top] = kwargs['env_info'].get('sparse_reward', 0)  ####new: eliminated this
         self._advance()
 
     def terminate_episode(self):

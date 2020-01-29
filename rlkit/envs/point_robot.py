@@ -19,9 +19,19 @@ class PointEnv(Env):
 
         if randomize_tasks:
             np.random.seed(1337)
-            self.goal_low = np.array([0.05, 0.48])
-            self.goal_high = np.array([0.15, 0.78])
-            goals = [1 * np.random.uniform(self.goal_low, self.goal_high) for _ in range(n_tasks)]
+            uniform = False
+            if uniform:
+                goals = [[np.random.uniform(-1., 1.), np.random.uniform(-1., 1.)] for _ in range(n_tasks)]
+            else:
+                vec = np.random.randn(2, n_tasks)  # 2 dimensional circle
+                vec /= np.linalg.norm(vec, axis=0)
+                vec = vec.T
+                vec = np.append(vec, np.zeros((n_tasks, 1)), axis=1)
+
+                widths = 1.0 / 2.0  # width of each dimension
+                center = widths
+                scaled_vec = vec * widths
+                goals = scaled_vec + center
         else:
             # some hand-coded goals for debugging
             goals = [np.array([10, -10]),
@@ -38,11 +48,8 @@ class PointEnv(Env):
         self.goals = goals
 
         self.reset_task(0)
-        hand_low=np.array([-0.17, 0.46])
-        # NOTE: these coords are set to match the simulated sawyer
-        hand_high=np.array([0.17, 0.8])
-        self.observation_space = spaces.Box(low=hand_low, high=hand_high)
-        self.action_space = spaces.Box(low=-0.02, high=0.02, shape=(2,))
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(2,))
+        self.action_space = spaces.Box(low=-0.1, high=0.1, shape=(2,))
 
     def reset_task(self, idx):
         ''' reset goal AND reset the agent '''
@@ -55,7 +62,7 @@ class PointEnv(Env):
     def reset_model(self):
         # reset to a random location on the unit square
         #self._state = np.random.uniform(-1., 1., size=(2,))
-        self._state = np.array([0, 0.65])
+        self._state = np.zeros(2)
         return self._get_obs()
 
     def reset(self):
