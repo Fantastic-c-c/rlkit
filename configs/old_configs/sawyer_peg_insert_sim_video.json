@@ -1,0 +1,36 @@
+{
+    "env_name": "torque-peg-insert",
+    "n_train_tasks": 1,
+    "n_eval_tasks": 1,
+    "path_to_checkpoint": "./output/peg/torque-peg-insert/2019_11_06_14_03_35",
+    "itr": -1,
+    "env_params": {
+        "control_timestep": 0.05,
+        "n_tasks": 1,
+        "randomize_tasks": false
+    },
+
+    "algo_params": {
+        "num_initial_steps": 300,
+        "num_iterations": 500,
+        "num_steps_prior": 300,
+        "num_steps_posterior": 0,
+        "num_extra_rl_steps_posterior": 300,
+        "num_train_steps_per_itr": 1000,
+        "num_evals": 1,
+        "num_steps_per_eval": 90,
+        "max_path_length": 100,
+        "num_tasks_sample": 1,
+        "reward_scale": 100.0,
+        "kl_lambda": 0.1,
+        "num_exp_traj_eval":2,
+        "dump_eval_paths": 1
+    }
+    ,
+    "util_params": {
+        "debug": 1
+    }
+}
+
+
+
