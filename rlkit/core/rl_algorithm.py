@@ -366,10 +366,6 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
                 sparse_rewards = np.stack(e['sparse_reward'] for e in p['env_infos']).reshape(-1, 1)
                 p['rewards'] = sparse_rewards
 
-        goal = self.env._goal
-        for path in paths:
-            path['goal'] = goal # goal
-
         # save the paths for visualization, only useful for point mass
         if self.dump_eval_paths and epoch % 5 == 0:
             logger.save_extra_data(paths, path='eval_trajectories/task{}-epoch{}-run{}'.format(idx, epoch, run))
@@ -377,18 +373,21 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         return paths
 
     def _do_eval(self, indices, epoch):
-        final_returns = []
-        online_returns = []
+        final_returns, online_returns = [], []
+        final_scores, online_scores = [], []
         for idx in indices:
-            runs, all_rets = [], []
+            all_rets, all_scores = [], []
             for r in range(self.num_evals):
                 paths = self.collect_paths(idx, epoch, r)
+                all_scores.append([path['env_infos'][-1]['score'] for path in paths])
                 all_rets.append([eval_util.get_average_returns([p]) for p in paths])
-                runs.append(paths)
             all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
+            all_scores = np.mean(np.stack(all_scores), axis=0) #avg final score per nth rollout
             final_returns.append(all_rets[-1])
             online_returns.append(all_rets)
-        return final_returns, online_returns
+            final_scores.append(all_scores[-1])
+            online_scores.append(all_scores)
+        return final_returns, online_returns, final_scores, online_scores
 
     def evaluate(self, epoch):
         if self.eval_statistics is None:
@@ -431,13 +430,13 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             train_returns.append(eval_util.get_average_returns(paths))
         train_returns = np.mean(train_returns)
         ### eval train tasks with on-policy data to match eval of test tasks
-        train_final_returns, train_online_returns = self._do_eval(indices, epoch)
+        train_final_returns, train_online_returns, train_final_scores, train_online_scores = self._do_eval(indices, epoch)
         eval_util.dprint('train online returns')
         eval_util.dprint(train_online_returns)
 
         ### test tasks
         eval_util.dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
-        test_final_returns, test_online_returns = self._do_eval(self.eval_tasks, epoch)
+        test_final_returns, test_online_returns, test_final_scores, test_online_scores = self._do_eval(self.eval_tasks, epoch)
         eval_util.dprint('test online returns')
         eval_util.dprint(test_online_returns)
 
@@ -447,6 +446,7 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         if hasattr(self.env, "log_diagnostics"):
             self.env.log_diagnostics(paths)
 
+        # log returns
         avg_train_return = np.mean(train_final_returns)
         avg_test_return = np.mean(test_final_returns)
         avg_train_online_return = np.mean(np.stack(train_online_returns), axis=0)
@@ -454,6 +454,16 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         self.eval_statistics['AverageTrainReturn_all_train_tasks'] = train_returns
         self.eval_statistics['AverageReturn_all_train_tasks'] = avg_train_return
         self.eval_statistics['AverageReturn_all_test_tasks'] = avg_test_return
+
+        # log final scores
+        avg_train_scores = np.mean(train_final_scores)
+        avg_test_scores = np.mean(test_final_scores)
+        avg_train_online_scores = np.mean(np.stack(train_online_scores), axis=0)
+        avg_test_online_scores = np.mean(np.stack(test_online_scores), axis=0)
+        self.eval_statistics['AverageScores_all_train_tasks'] = avg_train_scores
+        self.eval_statistics['AverageScores_all_test_tasks'] = avg_test_scores
+
+        # save online returns for inspection
         logger.save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
         logger.save_extra_data(avg_test_online_return, path='online-test-epoch{}'.format(epoch))
 
