@@ -5,22 +5,23 @@ from gym.spaces import Dict, Box
 import gym
 import os
 
+from rlkit.envs import register_env
+
 SCRIPT_DIR = os.path.dirname(__file__)
 from rlkit.envs.reacher.sawyer_reacher import SawyerReachingEnv
-from rlkit.envs import register_env
 
 ##################################################################################################
 ##################################################################################################
 ##################################################################################################
 ##################################################################################################
-@register_env('SawyerPeg-v0')
+
 class SawyerPegInsertionEnv(SawyerReachingEnv):
 
     '''
     Inserting a peg into a box (which is at a fixed location)
     '''
 
-    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, box_site_name=None, action_mode='joint_position', *args, **kwargs):
+    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, box_site_name=None, action_mode='joint_delta_position', obs_mode='state', *args, **kwargs):
 
         self.body_id_box = 0
 
@@ -28,11 +29,21 @@ class SawyerPegInsertionEnv(SawyerReachingEnv):
             xml_path = os.path.join(SCRIPT_DIR, 'assets/sawyer_peg_insertion.xml')
         if goal_site_name is None:
             goal_site_name = 'goal_insert_site'
-        super(SawyerPegInsertionEnv, self).__init__(xml_path=xml_path, goal_site_name=goal_site_name, sparse_reward=sparse_reward, action_mode=action_mode, *args, **kwargs)
+        super(SawyerPegInsertionEnv, self).__init__(xml_path=xml_path, goal_site_name=goal_site_name, sparse_reward=sparse_reward, action_mode=action_mode, obs_mode=obs_mode, *args, **kwargs)
 
         if box_site_name is None:
             box_site_name = "box"
         self.body_id_box = self.model.body_name2id(box_site_name)
+
+    def reset_model(self):
+
+        #### FIXED START
+        angles = self.init_qpos.copy()
+
+        velocities = self.init_qvel.copy()
+        self.set_state(angles, velocities) #this sets qpos and qvel + calls sim.forward
+
+        return self.get_obs()
 
     def reset(self):
 
@@ -49,7 +60,8 @@ class SawyerPegInsertionEnv(SawyerReachingEnv):
 ##################################################################################################
 ##################################################################################################
 ##################################################################################################
-@register_env('SawyerPegMT-v0')
+
+@register_env('peg')
 class SawyerPegInsertionEnvMultitask(SawyerPegInsertionEnv):
 
     '''
@@ -57,7 +69,7 @@ class SawyerPegInsertionEnvMultitask(SawyerPegInsertionEnv):
     This env is the multi-task version of peg insertion. The reward always gets concatenated to obs.
     '''
 
-    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, box_site_name=None, action_mode='joint_position', *args, **kwargs):
+    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, box_site_name=None, action_mode='joint_delta_position', obs_mode='state', *args, **kwargs):
 
         if xml_path is None:
             xml_path = os.path.join(SCRIPT_DIR, 'assets/sawyer_peg_insertion.xml')
@@ -65,7 +77,7 @@ class SawyerPegInsertionEnvMultitask(SawyerPegInsertionEnv):
             goal_site_name = 'goal_insert_site'
         if box_site_name is None:
             box_site_name = "box"
-        super(SawyerPegInsertionEnvMultitask, self).__init__(xml_path=xml_path, goal_site_name=goal_site_name, sparse_reward=sparse_reward, box_site_name=box_site_name, action_mode=action_mode, *args, **kwargs)
+        super(SawyerPegInsertionEnvMultitask, self).__init__(xml_path=xml_path, goal_site_name=goal_site_name, sparse_reward=sparse_reward, box_site_name=box_site_name, action_mode=action_mode, obs_mode=obs_mode, *args, **kwargs)
 
         # limit the set of possible goal positions for the box
         self.limited_pos=False
@@ -76,11 +88,6 @@ class SawyerPegInsertionEnvMultitask(SawyerPegInsertionEnv):
         # original mujoco reset
         self.sim.reset()
         ob = self.reset_model()
-
-        # concatenate dummy rew=0 to the obs
-        # ob = np.concatenate((ob, np.array([0])))             ###########new: not concatenating the reward
-
-        # print("        env has been reset... task is ", self.model.body_pos[self.body_id_box])
         return ob
 
     def get_random_box_pos(self):
@@ -102,21 +109,17 @@ class SawyerPegInsertionEnvMultitask(SawyerPegInsertionEnv):
         return np.array([x, y, z])
 
     def get_obs_dim(self):
-        # +1 for concat rew to obs
-        return len(self.get_obs()) + 1
+        return len(self.get_obs())
 
     def step(self, action):
 
         self.do_step(action)
         obs = self.get_obs()
-        reward, score = self.compute_reward(get_score=True)
+        reward, score, sparse_reward = self.compute_reward(get_score=True)
         done = False
-        info = np.array([score, 0, 0, 0, 0])  # can populate with more info, as desired, for tb logging
+        info = dict(score=score)
 
-        # append reward to obs
-        # obs = np.concatenate((obs, np.array([reward])))  ###########new: not concatenating the reward
-
-        return obs, reward, done, info
+        return (obs, reward, done, info)
 
     ##########################################
     ### These are called externally
@@ -136,8 +139,6 @@ class SawyerPegInsertionEnvMultitask(SawyerPegInsertionEnv):
             np.random.seed(101)
 
         possible_goals = [self.get_random_box_pos() for _ in range(num_tasks)]
-        self.tasks = possible_goals
-
         return possible_goals
 
 
@@ -151,14 +152,6 @@ class SawyerPegInsertionEnvMultitask(SawyerPegInsertionEnv):
         # task definition = set the goal box location to be the given goal
         self.model.body_pos[self.body_id_box] = goal.copy()
 
-    def reset_task(self, idx):
-        self._task = self.tasks[idx]
-        self._goal = self._task ##########new: dummy, since it's called in rl_algo line 369 collect path
-        #
-        # self.set_goal(self._goal)
-        self.set_task_for_env(self._task)
-        self.reset()
-
     ##########################################
     ##########################################
 
@@ -168,7 +161,7 @@ class SawyerPegInsertionEnvMultitask(SawyerPegInsertionEnv):
 ##################################################################################################
 ##################################################################################################
 
-@register_env('SawyerPegMT4box-v0')
+
 class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
 
     '''
@@ -176,7 +169,7 @@ class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
     This env is a multi-task env. The reward always gets concatenated to obs.
     '''
 
-    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, box_site_name=None, action_mode='joint_position', *args, **kwargs):
+    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, box_site_name=None, action_mode='joint_delta_position', *args, **kwargs):
 
         self.which_box = 0
         self.body_id_box1 = 0
@@ -215,7 +208,7 @@ class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
         ob = self.reset_model()
 
         # concatenate dummy rew=0 to the obs
-        # ob = np.concatenate((ob, np.array([0])))  ###########new: not concatenating the reward
+        ob = np.concatenate((ob, np.array([0]), np.array([0])))
 
         # print("        env has been reset... task is ", self.which_box, " - ", self.model.body_pos[self.body_id_box1], " , ", self.model.body_pos[self.body_id_box2], " ...")
         return ob
@@ -226,16 +219,13 @@ class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
 
         obs = self.get_obs()
         if self.site_id_goals is None:
-            reward, score = 0,0
+            reward, score, sparse_reward = 0,0,0
         else:
-            reward, score = self.compute_reward(get_score=True, goal_id_override=self.site_id_goals[self.which_box])
+            reward, score, sparse_reward = self.compute_reward(get_score=True, goal_id_override=self.site_id_goals[self.which_box])
         done = False
-        info = np.array([score, 0, 0, 0, 0])  # can populate with more info, as desired, for tb logging
+        info = dict(score=score)
 
-        # append reward to obs
-        # obs = np.concatenate((obs, np.array([reward])))       ###########new: not concatenating the reward
-
-        return obs, reward, done, info
+        return (obs, reward, done, info)
 
     def goal_visibility(self, visible):
 
@@ -297,7 +287,6 @@ class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
         # for _ in range(num_tasks):
         #     possible_goals.append([which_box, pos1, pos2, pos3, pos4])
 
-        self.tasks = possible_goals
         return possible_goals
 
 
@@ -316,15 +305,6 @@ class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
         self.model.body_pos[self.body_id_box2] = goal[2]
         self.model.body_pos[self.body_id_box3] = goal[3]
         self.model.body_pos[self.body_id_box4] = goal[4]
-
-
-    def reset_task(self, idx):
-        self._task = self.tasks[idx]
-        self._goal = self._task ##########new: dummy, since it's called in rl_algo line 369 collect path
-        #
-        # self.set_goal(self._goal)
-        self.set_task_for_env(self._task)
-        self.reset()
 
     ##########################################
     ##########################################
