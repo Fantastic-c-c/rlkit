@@ -26,6 +26,7 @@ from rlkit.torch.debugnet import Debugnet
 def experiment(variant):
 
     obs_mode = variant['obs_mode']
+    print('----------- EXP MODE: {} -------------'.format(obs_mode))
     # create multi-task environment and sample tasks
     env = MELDWrapper(NormalizedBoxEnv(ENVS[variant['env_name']](obs_mode=obs_mode)), **variant['env_params'])
     tasks = env.get_all_task_idx()
