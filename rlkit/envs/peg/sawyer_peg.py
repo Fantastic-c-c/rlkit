@@ -56,6 +56,28 @@ class SawyerPegInsertionEnv(SawyerReachingEnv):
 
         return ob
 
+    def get_image(self, width=64, height=64, camera_name='track'):
+        '''
+        peg insertion uses two cameras: scene, end-effector
+        return one array with both images concatenated along axis 0
+        '''
+        # use sim.render to avoid MJViewer which doesn't seem to work without display
+        ee_img = self.sim.render(
+            width=width / 2,
+            height=height,
+            camera_name='track_aux_insert',
+        )
+        ee_img = np.flipud(ee_img)
+        scene_img = self.sim.render(
+            width=width / 2,
+            height=height,
+            camera_name='track',
+        )
+        scene_img = np.flipud(scene_img)
+        img = np.concatenate([scene_img, ee_img], axis=1)
+        assert img.shape == (width, height, 3)
+        return img
+
 ##################################################################################################
 ##################################################################################################
 ##################################################################################################
@@ -162,6 +184,7 @@ class SawyerPegInsertionEnvMultitask(SawyerPegInsertionEnv):
 ##################################################################################################
 
 
+@register_env('peg-4box')
 class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
 
     '''
