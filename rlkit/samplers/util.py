@@ -58,7 +58,7 @@ def rollout(env, agent, max_path_length=np.inf, accum_context=True, animated=Fal
             env.render()
         if save_frames:
             from PIL import Image
-            image = Image.fromarray(np.flipud(env.get_image()))
+            image = Image.fromarray(env.get_image(width=256, height=256))
             env_info['frame'] = image
         env_infos.append(env_info)
 

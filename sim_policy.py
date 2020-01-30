@@ -6,7 +6,7 @@ import click
 import torch
 
 from rlkit.envs import ENVS
-from rlkit.envs.wrappers import NormalizedBoxEnv, CameraWrapper
+from rlkit.envs.wrappers import NormalizedBoxEnv, MELDWrapper
 from rlkit.torch.sac.policies import TanhGaussianPolicy
 from rlkit.torch.networks import FlattenMlp, MlpEncoder, RecurrentEncoder
 from rlkit.torch.sac.agent import PEARLAgent
@@ -26,9 +26,9 @@ def sim_policy(variant, num_trajs, save_video):
     optionally save videos of the trajectories - requires ffmpeg
     '''
 
+    obs_mode = variant['obs_mode']
     # create multi-task environment and sample tasks
-    env = CameraWrapper(NormalizedBoxEnv(ENVS[variant['env_name']](**variant['env_params'])), variant['util_params']['gpu_id'])
-
+    env = MELDWrapper(NormalizedBoxEnv(ENVS[variant['env_name']](obs_mode=obs_mode)), **variant['env_params'])
     tasks = env.get_all_task_idx()
 
 
@@ -46,8 +46,7 @@ def sim_policy(variant, num_trajs, save_video):
 
     obs_dim = 256
     image_dim = env.image_dim
-    cnn = Convnet()
-
+    cnn = Convnet(img_size=(64, 64, 3))
 
     context_encoder = encoder_model(
         hidden_sizes=[200, 200, 200],
@@ -86,7 +85,6 @@ def sim_policy(variant, num_trajs, save_video):
         for n in range(num_trajs):
             policy = MakeDeterministic(policy)
             path = rollout(env, agent, max_path_length=variant['algo_params']['max_path_length'], accum_context=True, save_frames=save_video)
-            path['goal'] = env._goal
             paths.append(path)
             if save_video:
                 video_frames += [t['frame'] for t in path['env_infos']]
