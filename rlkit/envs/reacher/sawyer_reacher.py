@@ -5,34 +5,40 @@ from gym.spaces import Dict, Box
 import gym
 from gym.envs.mujoco import mujoco_env
 import os
-from gym.envs.registration import register
-SCRIPT_DIR = os.path.dirname(__file__)
+
 from rlkit.envs import register_env
+
+SCRIPT_DIR = os.path.dirname(__file__)
+
 ##################################################################
 ##################################################################
 ##################################################################
 ##################################################################
 
-@register_env('SawyerReach-v0')
+
 class SawyerReachingEnv(mujoco_env.MujocoEnv):
 
     '''
     Reaching to a desired end-effector position while controlling the 7 joints of sawyer
     '''
 
-    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, action_mode='joint_position'):
+    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, action_mode='joint_position', obs_mode='state'):
 
-    	# vars
-
-
-        self.image_dim = 64  ###########new: size of image obs
-
+        # starting positions
+        self.start_positions = []
+        self.start_positions.append(np.array([-0.5795, -0.95, 0.03043, 1.3698, 1.66656, 0.02976, -0.37696]))
+        self.start_positions.append(np.array([0.7625, -0.77, 0.39559, 0.761, 0.11904, -0.47616, 0.04712]))
+        self.start_positions.append(np.array([0.4575, -0.23, 0.12172, 0.63924, -0.23808, 0.05952, 0.04712]))
+        self.start_positions.append(np.array([-0.0305, -0.92, 1.18677, 1.33936, -0.4464, 0.38688, 0.37696]))
+        self.start_positions.append(np.array([-0.3355, -0.59, 1.33892, 1.09584, -1.16064, 1.3392, 0.37696]))
 
         self.action_mode = action_mode
+        self.obs_mode = obs_mode
+        self.image_dim = 64
         self.num_joint_dof = 7
         self.frame_skip = 100
         if xml_path is None:
-        	xml_path = os.path.join(SCRIPT_DIR, 'assets/sawyer_reach.xml')
+            xml_path = os.path.join(SCRIPT_DIR, 'assets/sawyer_reach.xml')
         if goal_site_name is None:
             goal_site_name = 'goal_reach_site'
         self.body_id_ee = 0
@@ -70,7 +76,7 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
         self.observation_space = Box(low=-np.ones(obs_size) * np.inf, high=np.ones(obs_size) * np.inf)
 
         # vel limits
-        joint_vel_lim = 0.07 # magnitude of movement allowed within a dt [deg/dt]
+        joint_vel_lim = 0.04 ##### 0.07 # magnitude of movement allowed within a dt [deg/dt]
         self.limits_lows_joint_vel = -np.array([joint_vel_lim]*self.num_joint_dof)
         self.limits_highs_joint_vel = np.array([joint_vel_lim]*self.num_joint_dof)
 
@@ -84,8 +90,6 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
         self.site_id_ee = self.model.site_name2id('ee_site')
         self.site_id_goal = self.model.site_name2id(goal_site_name)
 
-
-
     def override_action_mode(self, action_mode):
         self.action_mode = action_mode
 
@@ -95,29 +99,28 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
     def get_obs_dim(self):
         return len(self.get_obs())
 
-    def get_obs(self):
+    def get_image(self, width=64, height=64, camera_name='track'):
+        # use sim.render to avoid MJViewer which doesn't seem to work without display
+        img = self.sim.render(
+            width=width,
+            height=height,
+            camera_name=camera_name,
+        )
+        return np.flipud(img)
+
+    def get_obs(self, obs_mode=None):
         ''' state observation is joint angles + joint velocities + ee pose '''
-
-        ###############original##################
-        # angles = self._get_joint_angles()
-        # velocities = self._get_joint_velocities()
-        # ee_pose = self._get_ee_pose()
-        # return np.concatenate([angles, velocities, ee_pose])
-
-        ###############new: now it's returning the image observation
-        image = self.sim.render(self.image_dim, self.image_dim, camera_name="track")
-
-
-        ################new: to visualize the image, use img.show() #############
-        # from PIL import Image
-        # import numpy as np
-        # img = Image.fromarray(image)
-        # import pdb; pdb.set_trace()
-        ######################################################################
-
-        ob = np.moveaxis(image, 2, 0)
-        return ob
-
+        if obs_mode is None:
+            obs_mode = self.obs_mode
+        if obs_mode == 'image':
+            img = self.get_image()
+            img = img.astype(np.float32) / 255.
+            return img.flatten()
+        else:
+            angles = self._get_joint_angles()
+            velocities = self._get_joint_velocities()
+            ee_pose = self._get_ee_pose()
+            return np.concatenate([angles, velocities, ee_pose])
 
     def _get_joint_angles(self):
         return self.data.qpos.copy()
@@ -131,7 +134,13 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
 
     def reset_model(self):
 
-        angles = self.init_qpos.copy()
+        #### FIXED START
+        # angles = self.init_qpos.copy()
+
+        #### RAND START
+        angles_idx = np.random.randint(len(self.start_positions))
+        angles = self.start_positions[angles_idx]
+
         velocities = self.init_qvel.copy()
         self.set_state(angles, velocities) #this sets qpos and qvel + calls sim.forward
 
@@ -168,10 +177,10 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
         ''' apply the 7DoF action provided by the policy '''
 
         self.do_step(action)
-        obs = self.get_obs()   # will change the get_obs function so that it returns the image directly
-        reward, score = self.compute_reward(get_score=True)
+        obs = self.get_obs()
+        reward, score, sparse_reward = self.compute_reward(get_score=True)
         done = False
-        info = np.array([score, 0, 0, 0, 0])  # can populate with more info, as desired, for tb logging
+        info = dict(score=score)
         return obs, reward, done, info
 
     def make_feasible(self, curr_position, desired_position):
@@ -202,23 +211,28 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
         ee_xyz = self.data.site_xpos[self.site_id_ee].copy()
         goal_xyz = self.data.site_xpos[goal_id].copy()
 
-        # distance between the points
-        score = np.linalg.norm(ee_xyz - goal_xyz)
-        dist = 5*score
+        # score
+        score = -np.linalg.norm(ee_xyz - goal_xyz)
 
-        # Sparse reward setting
-        if self.sparse_reward:
-            dist = min(dist, self.truncation_dist) # if dist too large: return the reward at truncate_dist
+        # distance
+        dist = 5*np.linalg.norm(ee_xyz - goal_xyz)
+        sparse_dist = min(dist, self.truncation_dist) # if dist too large: return the reward at truncate_dist
 
+        # dense reward
         # use GPS cost function: log + quadratic encourages precision near insertion
         reward = -(dist ** 2 + math.log10(dist ** 2 + 1e-5))
 
+        # sparse reward
+        # offset the whole reward such that when dist>truncation_dist, the reward will be exactly 0
+        sparse_reward = -(sparse_dist ** 2 + math.log10(sparse_dist ** 2 + 1e-5))
+        sparse_reward = sparse_reward - (-(self.truncation_dist ** 2 + math.log10(self.truncation_dist ** 2 + 1e-5)))
+
+        # case of only wanting sparse reward
         if self.sparse_reward:
-            # offset the whole reward such that when dist>truncation_dist, the reward will be exactly 0
-            reward = reward - (-(self.truncation_dist ** 2 + math.log10(self.truncation_dist ** 2 + 1e-5)))
+            reward = sparse_reward
 
         if get_score:
-        	return reward, score
+        	return reward, score, sparse_reward
         else:
         	return reward
 
@@ -236,7 +250,7 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
     def reset(self):
 
         # reset task (this is a single-task case)
-        self.model.site_pos[self.site_id_goal] = np.array([0.7,0.2,0.4])        # the single goal is fixed in here
+        self.model.site_pos[self.site_id_goal] = np.array([0.7,0.2,0.4])
 
         # original mujoco reset
         self.sim.reset()
@@ -257,38 +271,35 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
 ##################################################################
 ##################################################################
 
-@register_env('SawyerReachMT-v0')
+@register_env('reacher')
 class SawyerReachingEnvMultitask(SawyerReachingEnv):
 
     '''
     This env is the multi-task version of reaching. The reward always gets concatenated to obs.
     '''
 
-    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, action_mode='joint_position'):
+    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, action_mode='joint_position', obs_mode='state'):
 
         # goal range for reaching
-        self.goal_range = Box(low=np.array([0.7, -0.5, 0.1]), high=np.array([0.8, 0.5, 0.6]))
+        self.goal_range = Box(low=np.array([0.85, -0.3, 0.45]), high=np.array([0.9, 0.3, 0.65]))
 
         if goal_site_name is None:
             goal_site_name = 'goal_reach_site'
 
-        super(SawyerReachingEnvMultitask, self).__init__(xml_path=xml_path, goal_site_name=goal_site_name, sparse_reward=sparse_reward, action_mode=action_mode)
+        super(SawyerReachingEnvMultitask, self).__init__(xml_path=xml_path, goal_site_name=goal_site_name, sparse_reward=sparse_reward, action_mode=action_mode, obs_mode=obs_mode)
 
     def get_obs_dim(self):
-        return len(self.get_obs()) + 1 # the additional dim for reward
+        return len(self.get_obs())
 
     def step(self, action):
 
         self.do_step(action)
         obs = self.get_obs()
-        reward, score = self.compute_reward(get_score=True)
+        reward, score, sparse_reward = self.compute_reward(get_score=True)
         done = False
-        info = np.array([score, 0, 0, 0, 0])  # can populate with more info, as desired, for tb logging
+        info = dict(score=score)
 
-        # append reward to obs
-        # obs = np.concatenate((obs, np.array([reward])))    #######new: Q:why concatenating reward in obs??
-
-        return obs, reward, done, info
+        return (obs, reward, done, info)
 
     def reset(self):
 
@@ -296,10 +307,6 @@ class SawyerReachingEnvMultitask(SawyerReachingEnv):
         self.sim.reset()
         ob = self.reset_model()
 
-        # # concatenate a dummy rew=0 to the obs
-        # ob = np.concatenate((ob, np.array([0])))   #############new: not concatenating the dummy reward
-
-        # print("        env has been reset... task is ", self.model.site_pos[self.site_id_goal])
         return ob
 
     ##########################################
@@ -320,8 +327,6 @@ class SawyerReachingEnvMultitask(SawyerReachingEnv):
             np.random.seed(101)
 
         possible_goals = [self.goal_range.sample() for _ in range(num_tasks)]
-
-        self.tasks = possible_goals
         return possible_goals
 
 
@@ -337,11 +342,3 @@ class SawyerReachingEnvMultitask(SawyerReachingEnv):
 
     ##########################################
     ##########################################
-
-    def reset_task(self, idx):
-        self._task = self.tasks[idx]
-        self._goal = self._task ##########new: dummy, since it's called in rl_algo line 369 collect path
-        #
-        # self.set_goal(self._goal)
-        self.set_task_for_env(self._task)
-        self.reset()
