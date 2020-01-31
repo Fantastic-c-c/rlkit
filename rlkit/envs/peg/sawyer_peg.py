@@ -230,10 +230,6 @@ class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
         self.sim.reset()
         ob = self.reset_model()
 
-        # concatenate dummy rew=0 to the obs
-        ob = np.concatenate((ob, np.array([0]), np.array([0])))
-
-        # print("        env has been reset... task is ", self.which_box, " - ", self.model.body_pos[self.body_id_box1], " , ", self.model.body_pos[self.body_id_box2], " ...")
         return ob
 
     def step(self, action):
