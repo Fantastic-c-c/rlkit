@@ -375,19 +375,24 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
     def _do_eval(self, indices, epoch):
         final_returns, online_returns = [], []
         final_scores, online_scores = [], []
+        avg_t_scores = []
         for idx in indices:
-            all_rets, all_scores = [], []
+            all_rets, all_scores, all_t_scores = [], [], []
             for r in range(self.num_evals):
                 paths = self.collect_paths(idx, epoch, r)
                 all_scores.append([path['env_infos'][-1]['score'] for path in paths])
+                for path in paths:
+                    all_t_scores += [path['env_infos'][idx]['score'] for idx in range(len(path['env_infos']))] # all the scores in the rollout
                 all_rets.append([eval_util.get_average_returns([p]) for p in paths])
             all_rets = np.mean(np.stack(all_rets), axis=0) # avg return per nth rollout
             all_scores = np.mean(np.stack(all_scores), axis=0) #avg final score per nth rollout
+            all_t_scores = np.mean(all_t_scores)
+            avg_t_scores.append(all_t_scores)
             final_returns.append(all_rets[-1])
             online_returns.append(all_rets)
             final_scores.append(all_scores[-1])
             online_scores.append(all_scores)
-        return final_returns, online_returns, final_scores, online_scores
+        return final_returns, online_returns, final_scores, online_scores, np.mean(avg_t_scores)
 
     def evaluate(self, epoch):
         if self.eval_statistics is None:
@@ -430,13 +435,13 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
             train_returns.append(eval_util.get_average_returns(paths))
         train_returns = np.mean(train_returns)
         ### eval train tasks with on-policy data to match eval of test tasks
-        train_final_returns, train_online_returns, train_final_scores, train_online_scores = self._do_eval(indices, epoch)
+        train_final_returns, train_online_returns, train_final_scores, train_online_scores, avg_t_scores_train = self._do_eval(indices, epoch)
         eval_util.dprint('train online returns')
         eval_util.dprint(train_online_returns)
 
         ### test tasks
         eval_util.dprint('evaluating on {} test tasks'.format(len(self.eval_tasks)))
-        test_final_returns, test_online_returns, test_final_scores, test_online_scores = self._do_eval(self.eval_tasks, epoch)
+        test_final_returns, test_online_returns, test_final_scores, test_online_scores, avg_t_scores_test = self._do_eval(self.eval_tasks, epoch)
         eval_util.dprint('test online returns')
         eval_util.dprint(test_online_returns)
 
@@ -460,8 +465,17 @@ class MetaRLAlgorithm(metaclass=abc.ABCMeta):
         avg_test_scores = np.mean(test_final_scores)
         avg_train_online_scores = np.mean(np.stack(train_online_scores), axis=0)
         avg_test_online_scores = np.mean(np.stack(test_online_scores), axis=0)
+        avg_train_scores_all_rollouts = np.mean(avg_train_online_scores)
+        avg_test_scores_all_rollouts = np.mean(avg_test_online_scores)
+        # this is avg final score for the LAST rollout in the task (does not count exploratory rollouts)
         self.eval_statistics['AverageScores_all_train_tasks'] = avg_train_scores
         self.eval_statistics['AverageScores_all_test_tasks'] = avg_test_scores
+        # this is  avg final score for ALL rollouts in the task
+        self.eval_statistics['AverageScoresAllRollouts_all_train_tasks'] = avg_train_scores_all_rollouts
+        self.eval_statistics['AverageScoresAllRollouts_all_test_tasks'] = avg_test_scores_all_rollouts
+        # avg score over all timesteps and all tasks
+        self.eval_statistics['AverageScoresAllTimeAllRollouts_train_tasks'] = avg_t_scores_train
+        self.eval_statistics['AverageScoresAllTimeAllRollouts_test_tasks'] = avg_t_scores_test
 
         # save online returns for inspection
         logger.save_extra_data(avg_train_online_return, path='online-train-epoch{}'.format(epoch))
