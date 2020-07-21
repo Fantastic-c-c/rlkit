@@ -1,10 +1,10 @@
 {
     "env_name": "reacher",
     "obs_mode": "state",
-    "n_train_tasks": 20,
-    "n_eval_tasks": 20,
+    "n_train_tasks": 60,
+    "n_eval_tasks": 10,
     "env_params": {
-        "n_tasks": 40
+        "n_tasks": 70
     }
     ,
     "algo_params": {
@@ -14,7 +14,7 @@
         "num_extra_rl_steps_posterior": 250,
         "num_train_steps_per_itr": 1000,
         "num_steps_per_eval": 51,
-        "max_path_length": 25,
+        "max_path_length": 40,
         "reward_scale": 1.0,
         "kl_lambda": 0.1,
         "num_exp_traj_eval":2

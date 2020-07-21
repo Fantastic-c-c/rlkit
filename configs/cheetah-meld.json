@@ -1,10 +1,10 @@
 {
     "env_name": "cheetah-meld",
-    "obs_mode": "state",
+    "obs_mode": "image",
     "n_train_tasks": 20,
-    "n_eval_tasks": 20,
+    "n_eval_tasks": 10,
     "env_params": {
-        "n_tasks": 40
+        "n_tasks": 30
     }
     ,
     "algo_params": {

@@ -98,8 +98,8 @@ class HalfCheetahVelEnv(mujoco_env.MujocoEnv):
             np.random.seed(101)
 
 
-        max_vel = 4
-        velocities = np.random.uniform(1, max_vel, size=(num_tasks,))
+        max_vel = 3
+        velocities = np.random.uniform(0, max_vel, size=(num_tasks,))
 
         self.possible_goals = velocities
 

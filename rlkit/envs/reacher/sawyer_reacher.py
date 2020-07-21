@@ -22,15 +22,11 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
     Reaching to a desired end-effector position while controlling the 7 joints of sawyer
     '''
 
-    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, action_mode='joint_position', obs_mode='state'):
+    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, action_mode='joint_delta_position', obs_mode='state'):
 
         # starting positions
         self.start_positions = []
-        self.start_positions.append(np.array([-0.5795, -0.95, 0.03043, 1.3698, 1.66656, 0.02976, -0.37696]))
-        self.start_positions.append(np.array([0.7625, -0.77, 0.39559, 0.761, 0.11904, -0.47616, 0.04712]))
-        self.start_positions.append(np.array([0.4575, -0.23, 0.12172, 0.63924, -0.23808, 0.05952, 0.04712]))
-        self.start_positions.append(np.array([-0.0305, -0.92, 1.18677, 1.33936, -0.4464, 0.38688, 0.37696]))
-        self.start_positions.append(np.array([-0.3355, -0.59, 1.33892, 1.09584, -1.16064, 1.3392, 0.37696]))
+        self.start_positions.append(np.array([-1.44397e-06, -0.832489, 0.0299997, 1.68, 0.0580013, -0.232, -2.16526e-07]))
 
         self.action_mode = action_mode
         self.obs_mode = obs_mode
@@ -101,11 +97,21 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
 
     def get_image(self, width=64, height=64, camera_name='track'):
         # use sim.render to avoid MJViewer which doesn't seem to work without display
-        img = self.sim.render(
-            width=width,
+        ee_img = self.sim.render(
+            width=width / 2,
             height=height,
-            camera_name=camera_name,
+            camera_name='track_aux_reach',
         )
+        ee_img = np.flipud(ee_img)
+        scene_img = self.sim.render(
+            width=width / 2,
+            height=height,
+            camera_name='track',
+        )
+        scene_img = np.flipud(scene_img)
+        img = np.concatenate([scene_img, ee_img], axis=1)
+        assert img.shape == (width, height, 3)
+        return img
         return np.flipud(img)
 
     def get_obs(self, obs_mode=None):
@@ -220,7 +226,7 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
 
         # dense reward
         # use GPS cost function: log + quadratic encourages precision near insertion
-        reward = -(dist ** 2 + math.log10(dist ** 2 + 1e-5))
+        reward = -(dist ** 2 + math.log10(dist ** 2 + 1e-5)) - (-(self.truncation_dist ** 2 + math.log10(self.truncation_dist ** 2 + 1e-5)))
 
         # sparse reward
         # offset the whole reward such that when dist>truncation_dist, the reward will be exactly 0
@@ -281,7 +287,7 @@ class SawyerReachingEnvMultitask(SawyerReachingEnv):
     def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, action_mode='joint_position', obs_mode='state'):
 
         # goal range for reaching
-        self.goal_range = Box(low=np.array([0.85, -0.3, 0.45]), high=np.array([0.9, 0.3, 0.65]))
+        self.goal_range = Box(low=np.array([0.75, -0.3, 0.3]), high=np.array([0.9, 0.3, 0.7]))
 
         if goal_site_name is None:
             goal_site_name = 'goal_reach_site'
