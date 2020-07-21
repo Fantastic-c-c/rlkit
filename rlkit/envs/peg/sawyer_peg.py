@@ -293,8 +293,8 @@ class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
         unif = np.random.uniform
 
         possible_goals = []
-        for _ in range(num_tasks):
-          which_box = np.random.randint(0, 4)
+        for task_id in range(num_tasks):
+          which_box = task_id%4 # should go in order: 0,1,2,3,0,1,2,3,... to get even dist
           pos1 = np.array([unif(*x_range_1), unif(*y_range_2), 0.0])
           pos2 = np.array([unif(*x_range_1), unif(*y_range_1), 0.0])
           pos3 = np.array([unif(*x_range_2), unif(*y_range_2), 0.0])

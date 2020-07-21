@@ -1,7 +1,7 @@
 <mujoco model="peg_box">
 
     <!-- box where the peg should be inserted -->
-    <body name="box2" pos="0.5 -0.1 0.0" quat="0 0 0 0">
+    <body name="box2" pos="0.445 -0.075 0.0" quat="0 0 0 0">
 
       <!-- make the box really heavy to mimic being clamped to the table -->
       <geom rgba="0.3 0.3 1 1" type="box" contype="1" size="0.02 0.025 0.03" name="box_bottom2" conaffinity="1" pos="0 -.045 .03" mass="1000"/>

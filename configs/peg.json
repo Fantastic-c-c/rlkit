@@ -1,20 +1,20 @@
 {
-    "env_name": "peg",
-    "obs_mode": "state",
-    "n_train_tasks": 20,
-    "n_eval_tasks": 20,
+    "env_name": "peg-4box",
+    "obs_mode": "image",
+    "n_train_tasks": 30,
+    "n_eval_tasks": 10,
     "env_params": {
         "n_tasks": 40
     }
     ,
     "algo_params": {
         "num_initial_steps": 1000,
-        "num_steps_prior": 250,
+        "num_steps_prior": 400,
         "num_steps_posterior": 0,
-        "num_extra_rl_steps_posterior": 250,
+        "num_extra_rl_steps_posterior": 400,
         "num_train_steps_per_itr": 1000,
-        "num_steps_per_eval": 51,
-        "max_path_length": 25,
+        "num_steps_per_eval": 81,
+        "max_path_length": 40,
         "reward_scale": 1.0,
         "num_exp_traj_eval":2
     }

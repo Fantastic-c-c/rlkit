@@ -8,7 +8,7 @@
     <worldbody>
 
         <!-- cameras  -->
-        <camera name="track" pos="0.15 0 0.8" mode="fixed" euler="0.45 -0 -1.571"/> 
+        <camera name="track" pos="0.15 -0.075 0.8" mode="fixed" euler="0.45 -0 -1.571"/> 
         <camera name="track_front" pos="0.55 0 1.2" />
         <camera name="track_high" pos="0.5 -0.5 1" mode="fixed" euler="0.4 0 0"/> 
         <camera name="track_side" pos="0.7 -0.7 0.7" mode="fixed" euler="0.8 0 0"/>
@@ -20,6 +20,8 @@
         <!-- robot -->
         <body name="sawyer">
             <include file="include/sawyer_chain.xml"/>
+            <!-- <geom rgba="1 0.3 0.3 0.5" contype="1" size="0.02" name="0.1ball" conaffinity="1" pos="0.5 0.1 0.035"/> -->
+            <!-- <geom rgba="1 0.3 0.3 0.5" contype="1" size="0.04" name="0.2ball" conaffinity="1" pos="0.5 -0.1 0.035"/> -->
         </body>
 
         <!-- table -->
@@ -27,9 +29,9 @@
 
         <!-- box for peg to be inserted into -->
         <include file="include/peg_box1.xml"/>
-	<include file="include/peg_box2.xml"/>
-	<include file="include/peg_box3.xml"/>
-	<include file="include/peg_box4.xml"/>
+    	<include file="include/peg_box2.xml"/>
+    	<include file="include/peg_box3.xml"/>
+    	<include file="include/peg_box4.xml"/>
         <!-- <include file="include/peg_box_wide.xml"/> -->
 
     </worldbody>
