@@ -86,6 +86,9 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
         self.site_id_ee = self.model.site_name2id('ee_site')
         self.site_id_goal = self.model.site_name2id(goal_site_name)
 
+        # make sure vis is off
+        self.goal_visibility(visible=False)
+
     def override_action_mode(self, action_mode):
         self.action_mode = action_mode
 
@@ -97,6 +100,10 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
 
     def get_image(self, width=64, height=64, camera_name='track'):
         # use sim.render to avoid MJViewer which doesn't seem to work without display
+        is_vis = width >= 128
+        if is_vis:
+            self.goal_visibility(visible=True)
+
         ee_img = self.sim.render(
             width=width / 2,
             height=height,
@@ -111,8 +118,9 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
         scene_img = np.flipud(scene_img)
         img = np.concatenate([scene_img, ee_img], axis=1)
         assert img.shape == (width, height, 3)
+        if is_vis:
+            self.goal_visibility(visible=False)
         return img
-        return np.flipud(img)
 
     def get_obs(self, obs_mode=None):
         ''' state observation is joint angles + joint velocities + ee pose '''

@@ -61,6 +61,11 @@ class SawyerPegInsertionEnv(SawyerReachingEnv):
         peg insertion uses two cameras: scene, end-effector
         return one array with both images concatenated along axis 0
         '''
+        # vis. determined by size of requested image - sketchy!!
+        is_vis = width >= 128
+        if is_vis:
+            self.goal_visibility(visible=True)
+
         # use sim.render to avoid MJViewer which doesn't seem to work without display
         ee_img = self.sim.render(
             width=width / 2,
@@ -223,6 +228,9 @@ class SawyerPegInsertionEnv4Box(SawyerPegInsertionEnvMultitask):
         self.body_id_box2 = self.model.body_name2id("box2")
         self.body_id_box3 = self.model.body_name2id("box3")
         self.body_id_box4 = self.model.body_name2id("box4")
+
+        # make sure vis is turned off
+        self.goal_visibility(visible=False)
 
     def reset(self):
 
