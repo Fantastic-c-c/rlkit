@@ -44,9 +44,12 @@ def sim_policy(variant, num_trajs, save_video):
     recurrent = variant['algo_params']['recurrent']
     encoder_model = RecurrentEncoder if recurrent else MlpEncoder
 
-    obs_dim = 256
-    image_dim = env.image_dim
-    cnn = Convnet(img_size=(64, 64, 3))
+    cnn = None
+    image_dim = None
+    if obs_mode == 'image':
+        obs_dim = 256
+        image_dim = 64
+        cnn = Convnet(img_size=(64, 64, 3))
 
     context_encoder = encoder_model(
         hidden_sizes=[200, 200, 200],
@@ -73,7 +76,8 @@ def sim_policy(variant, num_trajs, save_video):
     if data_dir is not None:
         context_encoder.load_state_dict(torch.load(os.path.join(data_dir, 'context_encoder.pth')))
         policy.load_state_dict(torch.load(os.path.join(data_dir, 'policy.pth')))
-        cnn.load_state_dict(torch.load(os.path.join(data_dir, 'cnn.pth')))
+        if obs_mode == 'image':
+            cnn.load_state_dict(torch.load(os.path.join(data_dir, 'cnn.pth')))
 
     # loop through tasks collecting rollouts
     all_rets = []
@@ -99,10 +103,11 @@ def sim_policy(variant, num_trajs, save_video):
 
     ptu.set_gpu_mode(variant['util_params']['use_gpu'], variant['util_params']['gpu_id'])
     if ptu.gpu_enabled():
-        cnn.to()
         context_encoder.to()
         policy.to()
         agent.to()
+        if obs_mode == 'image':
+            cnn.to()
 
 
     if save_video:
