@@ -87,7 +87,7 @@ def sim_policy(variant, num_trajs, save_video):
         agent.clear_z()
         paths = []
         for n in range(num_trajs):
-            policy = MakeDeterministic(policy)
+            #policy = MakeDeterministic(policy)
             path = rollout(env, agent, max_path_length=variant['algo_params']['max_path_length'], accum_context=True, save_frames=save_video)
             paths.append(path)
             if save_video:
