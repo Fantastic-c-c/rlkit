@@ -148,6 +148,7 @@ class MELDWrapper(object):
     def reset_task(self, idx):
         task = self.tasks[idx]
         self._wrapped_env.set_task_for_env(task)
+        self._wrapped_env.reset()
 
     def __getattr__(self, attrname):
         return getattr(self._wrapped_env, attrname)
