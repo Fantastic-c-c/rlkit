@@ -8,6 +8,7 @@ import numpy as np
 import click
 import json
 import torch
+torch.backends.cudnn.enabled = False
 
 from rlkit.envs import ENVS
 from rlkit.envs.wrappers import NormalizedBoxEnv, MELDWrapper
@@ -50,8 +51,14 @@ def experiment(variant):
     image_dim = None
     if obs_mode == 'image':
         obs_dim = 256 # channel dim after convnet
-        image_dim = 64
-        cnn = Convnet(img_size=(64, 64, 3)) # TODO hardcoded
+        double_cam = 'reacher' in variant['env_name'] or 'peg' in variant['env_name']
+        if double_cam:
+            print('Creating convnet to encode TWO observation images')
+            image_dim = 64 * 2 # two images side by side
+            cnn = Convnet(img_size=(64, 64 * 2, 3), double_camera=double_cam)
+        else:
+            image_dim = 64
+            cnn = Convnet(img_size=(64, 64, 3))
 
     context_encoder = encoder_model(
         hidden_sizes=[200, 200, 200],

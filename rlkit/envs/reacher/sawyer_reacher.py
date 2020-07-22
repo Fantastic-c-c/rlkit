@@ -105,19 +105,19 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
             self.goal_visibility(visible=True)
 
         ee_img = self.sim.render(
-            width=width / 2,
+            width=width,
             height=height,
             camera_name='track_aux_reach',
         )
         ee_img = np.flipud(ee_img)
         scene_img = self.sim.render(
-            width=width / 2,
+            width=width,
             height=height,
             camera_name='track',
         )
         scene_img = np.flipud(scene_img)
         img = np.concatenate([scene_img, ee_img], axis=1)
-        assert img.shape == (width, height, 3)
+        assert img.shape == (height, width * 2, 3)
         if is_vis:
             self.goal_visibility(visible=False)
         return img

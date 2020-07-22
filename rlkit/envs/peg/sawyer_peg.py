@@ -68,19 +68,19 @@ class SawyerPegInsertionEnv(SawyerReachingEnv):
 
         # use sim.render to avoid MJViewer which doesn't seem to work without display
         ee_img = self.sim.render(
-            width=width / 2,
+            width=width,
             height=height,
             camera_name='track_aux_insert',
         )
         ee_img = np.flipud(ee_img)
         scene_img = self.sim.render(
-            width=width / 2,
+            width=width,
             height=height,
             camera_name='track',
         )
         scene_img = np.flipud(scene_img)
         img = np.concatenate([scene_img, ee_img], axis=1)
-        assert img.shape == (width, height, 3)
+        assert img.shape == (height, width * 2, 3)
         return img
 
 ##################################################################################################

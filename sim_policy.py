@@ -48,8 +48,14 @@ def sim_policy(variant, num_trajs, save_video):
     image_dim = None
     if obs_mode == 'image':
         obs_dim = 256
-        image_dim = 64
-        cnn = Convnet(img_size=(64, 64, 3))
+        double_cam = 'reacher' in variant['env_name'] or 'peg' in variant['env_name']
+        if double_cam:
+            print('Creating convnet to encode TWO observation images')
+            image_dim = 64 * 2 # two images side by side
+            cnn = Convnet(img_size=(64, 64 * 2, 3), double_camera=double_cam)
+        else:
+            image_dim = 64
+            cnn = Convnet(img_size=(64, 64, 3))
 
     context_encoder = encoder_model(
         hidden_sizes=[200, 200, 200],

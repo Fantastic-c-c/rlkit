@@ -29,15 +29,23 @@ import torch.nn.functional as F
 
 
 class Convnet(nn.Module):
-    def __init__(self, img_size):
+    def __init__(self, img_size, double_camera=False):
         self.img_size = img_size
         super().__init__()
         base_depth = 32
-        self.conv1 = nn.Conv2d(in_channels = 3, out_channels = base_depth, kernel_size = 5, stride = 2, padding=1)  #1st in_channel: color channels
-        self.conv2 = nn.Conv2d(in_channels = base_depth, out_channels = base_depth * 2, kernel_size = 3, stride = 2, padding=1)
-        self.conv3 = nn.Conv2d(in_channels=base_depth * 2, out_channels= base_depth * 4, kernel_size=3, stride=2, padding=1)
-        self.conv4 = nn.Conv2d(in_channels=base_depth * 4, out_channels=base_depth * 8, kernel_size=3, stride=2, padding=1)
-        self.conv5 = nn.Conv2d(in_channels=base_depth * 8, out_channels=base_depth * 8, kernel_size=4, stride=1, padding=0)
+        if not double_camera:
+            self.conv1 = nn.Conv2d(in_channels = 3, out_channels = base_depth, kernel_size = 5, stride = 2, padding=1)  #1st in_channel: color channels
+            self.conv2 = nn.Conv2d(in_channels = base_depth, out_channels = base_depth * 2, kernel_size = 3, stride = 2, padding=1)
+            self.conv3 = nn.Conv2d(in_channels=base_depth * 2, out_channels= base_depth * 4, kernel_size=3, stride=2, padding=1)
+            self.conv4 = nn.Conv2d(in_channels=base_depth * 4, out_channels=base_depth * 8, kernel_size=3, stride=2, padding=1)
+            self.conv5 = nn.Conv2d(in_channels=base_depth * 8, out_channels=base_depth * 8, kernel_size=4, stride=1, padding=0)
+
+        else:
+            self.conv1 = nn.Conv2d(in_channels = 3, out_channels = base_depth, kernel_size = (5, 10), stride = 2, padding=1)  #1st in_channel: color channels
+            self.conv2 = nn.Conv2d(in_channels = base_depth, out_channels = base_depth * 2, kernel_size=(3, 6), stride = 2, padding=1)
+            self.conv3 = nn.Conv2d(in_channels=base_depth * 2, out_channels= base_depth * 4, kernel_size=(3, 6), stride=2, padding=1)
+            self.conv4 = nn.Conv2d(in_channels=base_depth * 4, out_channels=base_depth * 8, kernel_size=(3, 6), stride=2, padding=1)
+            self.conv5 = nn.Conv2d(in_channels=base_depth * 8, out_channels=base_depth * 8, kernel_size=(4, 5), stride=1, padding=0)
 
     def forward(self, t):
         # reshape vector into B x H x W x C
