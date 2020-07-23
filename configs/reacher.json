@@ -1,6 +1,6 @@
 {
     "env_name": "reacher",
-    "obs_mode": "state",
+    "obs_mode": "image",
     "n_train_tasks": 60,
     "n_eval_tasks": 10,
     "env_params": {
@@ -8,7 +8,7 @@
     }
     ,
     "algo_params": {
-        "num_initial_steps": 1000,
+        "num_initial_steps": 200,
         "num_steps_prior": 400,
         "num_steps_posterior": 0,
         "num_extra_rl_steps_posterior": 400,
@@ -20,6 +20,7 @@
     }
     ,
     "util_params": {
-        "debug": false
+        "debug": false,
+        "base_log_dir": "output"
     }
 }
