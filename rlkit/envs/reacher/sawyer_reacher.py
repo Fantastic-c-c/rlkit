@@ -100,6 +100,7 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
 
     def get_image(self, width=64, height=64, camera_name='track'):
         # use sim.render to avoid MJViewer which doesn't seem to work without display
+        # use sim.render to avoid MJViewer which doesn't seem to work without display
         is_vis = width >= 128
         if is_vis:
             self.goal_visibility(visible=True)
@@ -292,7 +293,7 @@ class SawyerReachingEnvMultitask(SawyerReachingEnv):
     This env is the multi-task version of reaching. The reward always gets concatenated to obs.
     '''
 
-    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, action_mode='joint_position', obs_mode='state'):
+    def __init__(self, xml_path=None, goal_site_name=None, sparse_reward=False, action_mode='joint_delta_position', obs_mode='state'):
 
         # goal range for reaching
         self.goal_range = Box(low=np.array([0.75, -0.3, 0.3]), high=np.array([0.9, 0.3, 0.7]))
