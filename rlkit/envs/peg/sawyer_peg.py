@@ -4,6 +4,7 @@ import math
 from gym.spaces import Dict, Box
 import gym
 import os
+from PIL import Image
 
 from rlkit.envs import register_env
 
@@ -68,18 +69,22 @@ class SawyerPegInsertionEnv(SawyerReachingEnv):
 
         # use sim.render to avoid MJViewer which doesn't seem to work without display
         ee_img = self.sim.render(
-            width=width / 2,
+            width=width,
             height=height,
             camera_name='track_aux_insert',
         )
         ee_img = np.flipud(ee_img)
         scene_img = self.sim.render(
-            width=width / 2,
+            width=width,
             height=height,
             camera_name='track',
         )
         scene_img = np.flipud(scene_img)
         img = np.concatenate([scene_img, ee_img], axis=1)
+        # resize image to be square
+        img = Image.fromarray(img)
+        img = img.resize((width, height))
+        img = np.array(img)
         assert img.shape == (width, height, 3)
         return img
 

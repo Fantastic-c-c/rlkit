@@ -100,11 +100,12 @@ class SawyerReachingEnv(mujoco_env.MujocoEnv):
 
     def get_image(self, width=64, height=64, camera_name='track'):
         # use sim.render to avoid MJViewer which doesn't seem to work without display
-        # use sim.render to avoid MJViewer which doesn't seem to work without display
         is_vis = width >= 128
         if is_vis:
             self.goal_visibility(visible=True)
 
+        # by rendering at half width, images will be center cropped
+        # manual inspection determines this is ok for reacher
         ee_img = self.sim.render(
             width=width / 2,
             height=height,
