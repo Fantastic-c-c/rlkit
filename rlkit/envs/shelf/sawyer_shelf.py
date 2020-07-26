@@ -17,7 +17,7 @@ class SawyerPegShelfEnvMultitask(mujoco_env.MujocoEnv):
     '''
 
     def __init__(self, xml_path='train40_eval10tasks.xml', box_site_name=None,
-                 action_mode='joint_position', task_mode='weight', obs_mode='state', *args, **kwargs):
+                 action_mode='joint_delta_position', task_mode='weight', obs_mode='state', *args, **kwargs):
         assert action_mode in ["joint_position", "joint_delta_position", "torque"]
         assert task_mode in ["weight", "position"]
 
