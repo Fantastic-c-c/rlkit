@@ -49,3 +49,8 @@ for file in os.listdir(os.path.dirname(__file__)+'/shelf'):
     if file.endswith('.py') and not file.startswith('_'):
         module = file[:file.find('.py')]
         importlib.import_module('rlkit.envs.shelf.' + module)
+
+for file in os.listdir(os.path.dirname(__file__)+'/button'):
+    if file.endswith('.py') and not file.startswith('_'):
+        module = file[:file.find('.py')]
+        importlib.import_module('rlkit.envs.button.' + module)
